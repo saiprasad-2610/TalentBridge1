@@ -1,0 +1,14 @@
+{
+  "name": "Remix: TalentBridge Solapur",
+  "description": "An AI-powered recruitment platform connecting students and companies with automated resume analysis and mock interviews.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "AI Resume Analysis",
+    "AI Mock Interviews",
+    "Student/Company Dashboards",
+    "Job Portal"
+  ]
+}
