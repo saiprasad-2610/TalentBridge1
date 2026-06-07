@@ -19,7 +19,7 @@ const STEP_LABELS = [
   { label: "Target Role", desc: "Select career path" },
   { label: "Experience Level", desc: "Define seniority" },
   { label: "Tech Stack", desc: "Key competencies" },
-  { label: "Focus Theme", desc: "Primary assessment" },
+  { label: "Interview Type", desc: "Select assessment mode" },
   { label: "Difficulty", desc: "Rigor intensity" },
   { label: "Comm Mode", desc: "Language media" }
 ];
@@ -47,10 +47,10 @@ const EXPERIENCE_LEVELS = [
 ];
 
 const FOCUS_AREAS = [
-  { title: "Technical", desc: "Data structures, algorithms, coding standards, and specific system details", emoji: "💻" },
-  { title: "Behavioral", desc: "Situational prompts, conflict resolution, cooperation, and leadership principles", emoji: "🤝" },
-  { title: "HR / Culture", desc: "Company mission alignment, core values, career objectives, and motivations", emoji: "👔" },
-  { title: "Mixed / Comprehensive", desc: "A rigorous complete evaluation testing both tech aptitude and team chemistry", emoji: "🔮" }
+  { title: "Technical Interview", desc: "Deep technical questions, coding, architecture, tech stack fundamentals, debugging, and edge cases.", emoji: "💻" },
+  { title: "HR Interview", desc: "Behavioral questions, core values, motivations, culture fit, situational prompts, and career goals.", emoji: "👔" },
+  { title: "Managerial Interview", desc: "Project management, leadership under pressure, conflict resolution, developer growth, delegation, and operational strategy.", emoji: "🤝" },
+  { title: "Salary Negotiation / Compensation Discussion", desc: "Practicing critical negotiation scenarios, countering offers, base vs bonus discussion, benefits, and value articulation.", emoji: "💰" }
 ];
 
 const DIFFICULTIES = [
@@ -388,14 +388,14 @@ export function PreInterviewOnboarding({ onComplete }: { onComplete: (profile: I
                 </div>
               )}
 
-              {/* STEP 4: Interview Focus */}
+              {/* STEP 4: Interview Type Selection */}
               {step === 4 && (
                 <div>
                   <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 border border-indigo-100">
                     <Target size={22} />
                   </div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">assessment focus</h2>
-                  <p className="text-slate-500 text-sm mb-6 max-w-lg leading-relaxed">Choose the specific interview vertical you'd like to practice, or go comprehensive to check both hard and soft criteria.</p>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Select Interview Type</h2>
+                  <p className="text-slate-500 text-sm mb-6 max-w-lg leading-relaxed">Choose the specific type of mock interview you want to simulate. Our AI adapts its entire behavior, questioning style, and evaluation schema to your selection.</p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
                     {FOCUS_AREAS.map(item => (

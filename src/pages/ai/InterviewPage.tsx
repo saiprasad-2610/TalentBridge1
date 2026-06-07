@@ -475,6 +475,7 @@ export function InterviewPage() {
         isSavingRef.current = true;
         api.post("/ai/save-interview-feedback", {
           userId: user?.id,
+          profile: interviewProfile,
           ...summary,
           transcript: messages.filter(m => !["[INTERVIEW_COMPLETED]", "ACTIVATE_INTERVIEW_PROTOCOL"].includes(m.text))
         }).then(() => {
@@ -987,7 +988,7 @@ export function InterviewPage() {
               </div>
               <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Not enough XP points.</h2>
               <p className="text-slate-500 text-sm mb-8 leading-relaxed">
-                You need <span className="font-bold text-slate-700">125 XP</span> to start an AI mock interview. You can either purchase XP points directly or earn them by building a streak and inviting friends!
+                You need <span className="font-bold text-slate-700">125 XP</span> to start an AI mock interview. You can either purchase XP points directly or earn them via standard daily check-ins and inviting friends!
               </p>
               
               <div className="flex flex-col gap-3">
