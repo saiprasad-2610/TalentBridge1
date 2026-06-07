@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Award, X, MessageSquare, Star, CheckCircle, AlertTriangle, Lightbulb } from "lucide-react";
+import { Award, X, MessageSquare, Star, CheckCircle, AlertTriangle, Lightbulb, HelpCircle, Sparkles } from "lucide-react";
 
 export function ReportModal({ report, onClose }: { report: any, onClose: () => void }) {
   const scores = [
@@ -22,6 +22,7 @@ export function ReportModal({ report, onClose }: { report: any, onClose: () => v
   const strengths = parseJson(report.strengths_json);
   const weaknesses = parseJson(report.weaknesses_json);
   const tips = parseJson(report.tips_json);
+  const questionsAnswers = parseJson(report.questions_answers_json);
 
   return (
     <motion.div 
@@ -112,6 +113,50 @@ export function ReportModal({ report, onClose }: { report: any, onClose: () => v
               </div>
             </section>
           </div>
+
+          {/* Questions and Answers Audit Section */}
+          {questionsAnswers && questionsAnswers.length > 0 && (
+            <section className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest text-[#4f46e5] mb-4 flex items-center gap-2">
+                <HelpCircle size={14} className="text-[#4f46e5]" /> Question-by-Question Solution Guide
+              </h3>
+              
+              <div className="space-y-6">
+                {questionsAnswers.map((item: any, idx: number) => (
+                  <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-6 space-y-4 shadow-xs">
+                    {/* Header index and question */}
+                    <div className="flex gap-3 items-start">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 text-indigo-600 text-xs font-black leading-none">
+                        Q{idx + 1}
+                      </div>
+                      <div className="pt-1">
+                        <p className="text-sm font-bold text-slate-900 leading-normal">{item.question}</p>
+                      </div>
+                    </div>
+                    
+                    {/* User Answer */}
+                    <div className="pl-10 space-y-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Your Answer:</span>
+                      <div className="bg-white border border-slate-150 p-4 rounded-xl text-xs text-slate-700 italic leading-relaxed">
+                        "{item.user_answer || "No response recorded"}"
+                      </div>
+                    </div>
+
+                    {/* Actual/Ideal Solution */}
+                    <div className="pl-10 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles size={11} className="text-amber-500" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 block">Actual Ideal Answer Key:</span>
+                      </div>
+                      <div className="bg-amber-50/50 border border-amber-200/40 p-4 rounded-xl text-xs text-slate-800 leading-relaxed font-normal">
+                        {item.actual_answer || "No standard answer provided"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Tips */}
           <section className="bg-slate-900 rounded-3xl p-8 text-white">

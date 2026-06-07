@@ -182,6 +182,7 @@ export class LiveInterviewService {
       - You must evaluate accurately based on the transcript.
       - Ask exactly 5 professional questions total.
       - Once the 5 questions are answered, you MUST end the interview by CALLING the 'finalizeInterview' tool with the complete evaluation.
+      - Include fully populated 'questions_and_answers' containing all questions you asked, the candidate's exact (or summarized) answers, and the correct/ideal answer ('actual_answer') explaining standard best practices for each question.
       - Do NOT just say goodbye; you MUST call the tool to end the session.`;
 
       if (!this.ai) {
@@ -221,9 +222,21 @@ export class LiveInterviewService {
                     detailed_feedback: { type: "string" as any },
                     strengths: { type: "array" as any, items: { type: "string" as any } },
                     weaknesses: { type: "array" as any, items: { type: "string" as any } },
-                    improvement_tips: { type: "array" as any, items: { type: "string" as any } }
+                    improvement_tips: { type: "array" as any, items: { type: "string" as any } },
+                    questions_and_answers: {
+                      type: "array" as any,
+                      items: {
+                        type: "object" as any,
+                        properties: {
+                          question: { type: "string" as any },
+                          user_answer: { type: "string" as any },
+                          actual_answer: { type: "string" as any }
+                        },
+                        required: ["question", "user_answer", "actual_answer"]
+                      }
+                    }
                   },
-                  required: ["scores", "detailed_feedback", "strengths", "weaknesses", "improvement_tips"]
+                  required: ["scores", "detailed_feedback", "strengths", "weaknesses", "improvement_tips", "questions_and_answers"]
                 }
               }
             ]

@@ -537,6 +537,7 @@ export async function initDb() {
           strengths_json JSON,
           weaknesses_json JSON,
           tips_json JSON,
+          questions_answers_json JSON,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE
         );
@@ -757,7 +758,8 @@ export async function initDb() {
         { name: "feedback", type: "TEXT", after: "knowledge_score" },
         { name: "strengths_json", type: "JSON", after: "feedback" },
         { name: "weaknesses_json", type: "JSON", after: "strengths_json" },
-        { name: "tips_json", type: "JSON", after: "weaknesses_json" }
+        { name: "tips_json", type: "JSON", after: "weaknesses_json" },
+        { name: "questions_answers_json", type: "JSON", after: "tips_json" }
       ];
 
       for (const col of requiredColumns) {
@@ -1807,6 +1809,7 @@ async function runSqliteInit() {
       strengths_json TEXT,
       weaknesses_json TEXT,
       tips_json TEXT,
+      questions_answers_json TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE
     );
@@ -2234,6 +2237,12 @@ async function runSqliteInit() {
     if (!userColNames.includes("login_streak")) sqliteDb.exec("ALTER TABLE users ADD COLUMN login_streak INTEGER DEFAULT 0");
     if (!userColNames.includes("total_earned_xp")) sqliteDb.exec("ALTER TABLE users ADD COLUMN total_earned_xp INTEGER DEFAULT 0");
     if (!userColNames.includes("total_spent_xp")) sqliteDb.exec("ALTER TABLE users ADD COLUMN total_spent_xp INTEGER DEFAULT 0");
+
+    const interviewHistoryCols = sqliteDb.prepare("PRAGMA table_info(interview_history)").all();
+    const interviewHistoryColNames = interviewHistoryCols.map((c: any) => c.name);
+    if (!interviewHistoryColNames.includes("questions_answers_json")) {
+      sqliteDb.exec("ALTER TABLE interview_history ADD COLUMN questions_answers_json TEXT");
+    }
 
     // Apply High-Coverage Performance Indices for SQLite
     sqliteDb.exec("CREATE INDEX IF NOT EXISTS idx_student_profiles_user_id ON student_profiles(user_id);");

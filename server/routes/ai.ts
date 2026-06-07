@@ -115,7 +115,7 @@ router.post("/build-resume", async (req, res) => {
 });
 
 router.post("/save-interview-feedback", async (req, res) => {
-  const { userId, profile, scores, detailed_feedback, strengths, weaknesses, improvement_tips, transcript } = req.body;
+  const { userId, profile, scores, detailed_feedback, strengths, weaknesses, improvement_tips, transcript, questions_and_answers } = req.body;
   
   if (!detailed_feedback) {
     return res.status(400).json({ success: false, message: "Detailed feedback is required" });
@@ -131,8 +131,8 @@ router.post("/save-interview-feedback", async (req, res) => {
       const studentId = profiles[0].id;
       await db.query(`
         INSERT INTO interview_history 
-        (student_id, score, communication_score, confidence_score, explanation_score, presentation_score, knowledge_score, feedback, strengths_json, weaknesses_json, tips_json, transcript_json) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (student_id, score, communication_score, confidence_score, explanation_score, presentation_score, knowledge_score, feedback, strengths_json, weaknesses_json, tips_json, transcript_json, questions_answers_json) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         studentId, 
         overallScore,
@@ -145,7 +145,8 @@ router.post("/save-interview-feedback", async (req, res) => {
         JSON.stringify(strengths || []),
         JSON.stringify(weaknesses || []),
         JSON.stringify(improvement_tips || []),
-        JSON.stringify(transcript || [])
+        JSON.stringify(transcript || []),
+        JSON.stringify(questions_and_answers || [])
       ]);
       await db.query("UPDATE student_profiles SET completeness_score = LEAST(100, completeness_score + 15) WHERE id = ?", [studentId]);
     }
