@@ -21,29 +21,37 @@ export function AppliedJobsPage() {
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
   const [showMobileDetail, setShowMobileDetail] = useState(false);
 
+  const [studentId, setStudentId] = useState<number | null>(authProfile?.id || null);
+
   useEffect(() => {
-     if (authProfile) {
-        fetchApplications(authProfile.id);
-        fetchActiveTests(authProfile.id);
-     } else if (user) {
-        fetchProfileAndApplications();
+     if (authProfile?.id) {
+        setStudentId(authProfile.id);
+     } else if (user?.id) {
+        const getProfile = async () => {
+           try {
+              const { data } = await api.get(`/students/profile/${user.id}`);
+              if (data.success && data.data?.id) {
+                 setStudentId(data.data.id);
+              } else {
+                 setLoading(false);
+              }
+           } catch (e) {
+              console.error(e);
+              setLoading(false);
+           }
+        };
+        getProfile();
      } else {
         setLoading(false);
      }
-  }, [user, authProfile]);
+  }, [user?.id, authProfile?.id]);
 
-  const fetchProfileAndApplications = async () => {
-     try {
-        const { data: profile } = await api.get(`/students/profile/${user?.id}`);
-        if (profile.success) {
-           fetchApplications(profile.data.id);
-           fetchActiveTests(profile.data.id);
-        }
-     } catch (e) {
-        console.error(e);
-        setLoading(false);
+  useEffect(() => {
+     if (studentId) {
+        fetchApplications(studentId);
+        fetchActiveTests(studentId);
      }
-  };
+  }, [studentId]);
 
   const fetchApplications = async (studentId: number) => {
      try {

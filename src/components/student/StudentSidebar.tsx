@@ -55,7 +55,7 @@ export function StudentSidebar() {
 
   useEffect(() => {
     fetchProfileAndXP();
-  }, [user?.id, location.pathname]);
+  }, [user?.id]);
 
   useEffect(() => {
     const handleXPUpdate = () => {

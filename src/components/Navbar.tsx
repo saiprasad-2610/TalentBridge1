@@ -45,22 +45,22 @@ export function Navbar() {
       fetchHistory();
       fetchXPBalance();
     }
-  }, [user, location.pathname]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) {
       fetchNotifications();
     }
-  }, [user, location.pathname]);
+  }, [user?.id]);
 
   // Periodic notifications check
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     const interval = setInterval(() => {
       fetchNotifications();
     }, 45000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     const handleXPUpdate = () => {
