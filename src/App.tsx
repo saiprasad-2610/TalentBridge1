@@ -55,7 +55,7 @@ const TPOLayout = lazy(() => import("./components/tpo/TPOLayout.tsx").then(modul
 const TPODashboard = lazy(() => import("./pages/tpo/TPODashboard.tsx"));
 const TPOStudents = lazy(() => import("./pages/tpo/TPOStudents.tsx"));
 const TPOColleges = lazy(() => import("./pages/tpo/TPOColleges.tsx"));
-const TPOEvents = lazy(() => import("./pages/tpo/TPOEvents.tsx"));
+const TPOEvents = lazy(() => import("./pages/tpo/tpo-events.tsx"));
 const TPOAnalytics = lazy(() => import("./pages/tpo/TPOAnalytics.tsx"));
 const TPOAssessments = lazy(() => import("./pages/tpo/TPOAssessments.tsx"));
 const TPOSkillGap = lazy(() => import("./pages/tpo/TPOSkillGap.tsx"));
