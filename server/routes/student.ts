@@ -366,6 +366,9 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     else if (section === 'education') {
       // Transactional replace for simplicity in this dev environment
       await db.query("DELETE FROM student_education WHERE student_id = ?", [studentId]);
+      let matchedCollegeId = null;
+      let primaryEdu = null;
+
       if (Array.isArray(data.education)) {
         for (const edu of data.education) {
           // Skip empty entries
@@ -377,7 +380,41 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
             INSERT INTO student_education (student_id, institution, degree, field_of_study, start_date, end_date, grade, description)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `, [studentId, edu.institution, edu.degree, edu.field_of_study, startDate, endDate, edu.grade, edu.description || ""]);
+
+          if (!primaryEdu) {
+            primaryEdu = edu;
+          }
         }
+
+        // Try dynamically matching institutional names with colleges registered in college_master
+        if (primaryEdu) {
+          const instName = primaryEdu.institution.trim().toLowerCase();
+          const [collegesList]: any = await db.query("SELECT id, college_name FROM college_master WHERE status = 'ACTIVE'");
+          
+          const matched = collegesList.find((c: any) => {
+            const name = c.college_name.toLowerCase();
+            return instName.includes(name) || name.includes(instName) || 
+                   instName.replace(/[^a-z0-9]/g, '').includes(name.replace(/[^a-z0-9]/g, '')) ||
+                   name.replace(/[^a-z0-9]/g, '').includes(instName.replace(/[^a-z0-9]/g, ''));
+          });
+
+          if (matched) {
+            matchedCollegeId = matched.id;
+          }
+        }
+      }
+
+      const eduJson = primaryEdu ? { department: primaryEdu.field_of_study || 'General', year: 'Final Year' } : null;
+      if (matchedCollegeId) {
+        await db.query(
+          "UPDATE student_profiles SET college_id = ?, education_json = ? WHERE id = ?",
+          [matchedCollegeId, eduJson ? JSON.stringify(eduJson) : null, studentId]
+        );
+      } else {
+        await db.query(
+          "UPDATE student_profiles SET education_json = ? WHERE id = ?",
+          [eduJson ? JSON.stringify(eduJson) : null, studentId]
+        );
       }
     }
     else if (section === 'projects') {

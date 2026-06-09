@@ -90,7 +90,7 @@ export default function TPOVerification() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
-                        onClick={() => toast.info('Previewing document...')}
+                        onClick={() => toast('Previewing document...')}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="View Document"
                       >
                         <Eye size={18} />

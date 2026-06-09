@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 interface User {
   id: number;
   email: string;
-  role: "STUDENT" | "COMPANY" | "ADMIN" | "SUPER_ADMIN";
+  role: "STUDENT" | "COMPANY" | "ADMIN" | "SUPER_ADMIN" | "TPO";
   is_verified: boolean;
 }
 

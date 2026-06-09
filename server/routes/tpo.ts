@@ -198,10 +198,11 @@ router.get("/ai-skill-gap", async (req: any, res) => {
       }
     `;
 
-    const model = ai.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    const text = result.text;
     
     // Production-grade JSON extraction
     let jsonReport;

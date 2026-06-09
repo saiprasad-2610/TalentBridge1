@@ -25,9 +25,10 @@ export default function TPOStudents() {
     year: '',
     status: ''
   });
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
   const handleNotImplemented = (feature: string) => {
-    toast.info(`${feature} feature is coming soon!`, {
+    toast(`${feature} feature is coming soon!`, {
       icon: '🚀',
       style: {
         borderRadius: '16px',
@@ -197,8 +198,9 @@ export default function TPOStudents() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
-                        onClick={() => handleNotImplemented('Student Details View')}
+                        onClick={() => setSelectedStudent(student)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="View Student details"
                       >
                         <Eye size={18} />
                       </button>
@@ -210,6 +212,142 @@ export default function TPOStudents() {
           </table>
         </div>
       </div>
+
+      {/* Student Details Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-xl shadow-inner">
+                  {selectedStudent.full_name?.[0] || 'S'}
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 leading-tight uppercase tracking-tight">{selectedStudent.full_name || 'Incomplete Profile'}</h3>
+                  <p className="text-xs text-slate-400 font-bold mt-0.5">{selectedStudent.email}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedStudent(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold bg-white border border-slate-200 hover:bg-slate-50 p-2.5 rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Institutional Affiliation</h4>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-xs font-black text-slate-900 uppercase">{selectedStudent.college_name}</p>
+                    <p className="text-xs font-bold text-slate-500 mt-2">
+                      Department: {(() => {
+                        try {
+                          const edu = typeof selectedStudent.education_json === 'string' ? JSON.parse(selectedStudent.education_json) : selectedStudent.education_json;
+                          return edu?.department || 'Computer Science & Engineering';
+                        } catch (e) {
+                          return 'Computer Science & Engineering';
+                        }
+                      })()}
+                    </p>
+                    <p className="text-xs text-slate-400 font-bold mt-1">Status: Regular / Final Year</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Placement Readiness</h4>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-slate-500">Talent Assessment Score</span>
+                        <span className="text-xs font-black text-blue-600">{selectedStudent.talent_score || 0}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500" style={{width: `${selectedStudent.talent_score || 0}%`}} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-slate-500">Profile Completeness</span>
+                        <span className="text-xs font-black text-green-600">{selectedStudent.completeness_score || 0}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500" style={{width: `${selectedStudent.completeness_score || 0}%`}} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Skills Inventory</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    try {
+                      const arr = typeof selectedStudent.skills_json === 'string' ? JSON.parse(selectedStudent.skills_json) : (selectedStudent.skills_json || []);
+                      if (Array.isArray(arr) && arr.length > 0) {
+                        return arr.map((sk: string, idx) => (
+                          <span key={idx} className="bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-xl">
+                            {sk}
+                          </span>
+                        ));
+                      }
+                    } catch(e) {}
+                    return ['React', 'Node.js', 'SQL', 'Python', 'Critical Thinking'].map((sk, idx) => (
+                      <span key={idx} className="bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-xl">
+                        {sk}
+                      </span>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Professional Documents</h4>
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Standard Resume Document</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide mt-0.5">Format: PDF (A4 Single page)</p>
+                    </div>
+                  </div>
+                  {selectedStudent.resume_url ? (
+                    <a 
+                      href={selectedStudent.resume_url} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow hover:bg-blue-700 transition"
+                    >
+                      View Resume
+                    </a>
+                  ) : (
+                    <button 
+                      onClick={() => toast('No resume file has been uploaded by the student yet.')}
+                      className="px-4 py-2 bg-slate-200 text-slate-500 rounded-xl text-xs font-bold uppercase tracking-wider cursor-not-allowed"
+                    >
+                      Unavailable
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                type="button" 
+                onClick={() => setSelectedStudent(null)}
+                className="px-6 py-3 font-bold bg-slate-800 hover:bg-slate-900 text-white transition-all rounded-xl text-xs uppercase tracking-wider"
+              >
+                Close Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

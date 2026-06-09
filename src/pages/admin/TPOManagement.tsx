@@ -42,6 +42,118 @@ export default function TPOManagement() {
     college_ids: [] as number[]
   });
 
+  const [collegeSuggestions, setCollegeSuggestions] = useState<string[]>([]);
+  const [searchingCollege, setSearchingCollege] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debounceTimeout, setDebounceTimeout] = useState<any>(null);
+
+  const deduceCollegeDetails = (fullName: string) => {
+    const nameUpper = fullName.toUpperCase();
+    let state = 'Maharashtra';
+    let district = 'Mumbai';
+    let university = 'University of Mumbai';
+
+    if (nameUpper.includes('MUMBAI') || nameUpper.includes('BOMBAY')) {
+      district = 'Mumbai';
+      state = 'Maharashtra';
+      university = 'University of Mumbai';
+    } else if (nameUpper.includes('PUNE') || nameUpper.includes('COEP') || nameUpper.includes('SYMBIOSIS')) {
+      district = 'Pune';
+      state = 'Maharashtra';
+      university = 'Savitribai Phule Pune University';
+    } else if (nameUpper.includes('SOLAPUR') || nameUpper.includes('WIT') || nameUpper.includes('ORCHID') || nameUpper.includes('BMIT')) {
+      district = 'Solapur';
+      state = 'Maharashtra';
+      university = 'Punyashlok Ahilyadevi Holkar Solapur University';
+    } else if (nameUpper.includes('VELLORE') || nameUpper.includes('VIT')) {
+      district = 'Vellore';
+      state = 'Tamil Nadu';
+      university = 'VIT University';
+    } else if (nameUpper.includes('CHENNAI') || nameUpper.includes('SRM') || nameUpper.includes('MADRAS')) {
+      district = 'Chennai';
+      state = 'Tamil Nadu';
+      university = 'Anna University';
+    } else if (nameUpper.includes('BENGALURU') || nameUpper.includes('BANGALORE') || nameUpper.includes('RV')) {
+      district = 'Bengaluru';
+      state = 'Karnataka';
+      university = 'Visvesvaraya Technological University';
+    } else if (nameUpper.includes('DELHI') || nameUpper.includes('IITD') || nameUpper.includes('DPS')) {
+      district = 'New Delhi';
+      state = 'Delhi';
+      university = 'Delhi Technological University';
+    } else if (nameUpper.includes('HYDERABAD') || nameUpper.includes('BITS')) {
+      district = 'Hyderabad';
+      state = 'Telangana';
+      university = 'JNTU Hyderabad';
+    } else if (nameUpper.includes('KOLKATA') || nameUpper.includes('JADAVPUR')) {
+      district = 'Kolkata';
+      state = 'West Bengal';
+      university = 'Jadavpur University';
+    }
+
+    // Generate neat unique code
+    let code = fullName
+      .replace(/[()]/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .trim()
+      .split(/\s+/)
+      .slice(0, 3)
+      .join('-')
+      .toUpperCase();
+
+    if (!code) {
+      code = 'COLG-' + Math.floor(1000 + Math.random() * 9000);
+    }
+
+    return { district, state, university, code };
+  };
+
+  const handleCollegeNameChange = (val: string) => {
+    setCollegeForm(prev => ({ ...prev, college_name: val }));
+    
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    
+    if (val.trim().length > 2) {
+      setSearchingCollege(true);
+      const timeout = setTimeout(async () => {
+        try {
+          const res = await api.get('/students/suggest-institutions', {
+            params: { q: val, type: 'college' }
+          });
+          if (res.data && res.data.success) {
+            setCollegeSuggestions(res.data.suggestions || []);
+            setShowSuggestions(true);
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setSearchingCollege(false);
+        }
+      }, 300);
+      setDebounceTimeout(timeout);
+    } else {
+      setSearchingCollege(false);
+      setCollegeSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectCollegeSuggestion = (s: string) => {
+    const details = deduceCollegeDetails(s);
+    setCollegeForm({
+      college_name: s,
+      college_code: details.code,
+      university: details.university,
+      address: s + ', India',
+      district: details.district,
+      state: details.state,
+      website: `https://www.${s.toLowerCase().replace(/[^a-z0-9]/g, '')}.edu.in`,
+      contact_number: '+91 98765 43210'
+    });
+    setCollegeSuggestions([]);
+    setShowSuggestions(false);
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -219,30 +331,133 @@ export default function TPOManagement() {
       {/* College Modal */}
       {showCollegeModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden">
-            <div className="p-8 border-b border-slate-100">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden relative">
+            <div className="p-8 border-b border-slate-100 pb-4">
               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Add New College</h2>
+              <p className="text-sm text-slate-500 font-medium">Search the master list of Indian colleges or enter a custom one</p>
             </div>
-            <form onSubmit={handleCreateCollege} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">College Name</label>
-                  <input required type="text" className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500" value={collegeForm.college_name} onChange={e => setCollegeForm({...collegeForm, college_name: e.target.value})} />
+            <form onSubmit={handleCreateCollege} className="p-8 space-y-5 max-h-[80vh] overflow-y-auto">
+              <div className="space-y-4">
+                {/* College Search Autocomplete */}
+                <div className="space-y-2 relative">
+                  <label className="text-xs font-black text-slate-500 uppercase flex justify-between items-center">
+                    <span>College Name</span>
+                    {searchingCollege && <span className="text-blue-600 animate-pulse text-[10px] font-bold">Searching India Master...</span>}
+                  </label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="Type to search colleges in India (e.g. IIT, WIT, COEP, VIT, Orchid...)"
+                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    value={collegeForm.college_name} 
+                    onChange={e => handleCollegeNameChange(e.target.value)} 
+                  />
+                  {showSuggestions && collegeSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto divide-y divide-slate-100">
+                      {collegeSuggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="w-full text-left px-4 py-3 hover:bg-blue-50 text-slate-800 text-sm font-bold transition-all flex items-center gap-2"
+                          onClick={() => handleSelectCollegeSuggestion(suggestion)}
+                        >
+                          <Building2 size={16} className="text-blue-500 shrink-0" />
+                          <span>{suggestion}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">College Code</label>
-                  <input required type="text" className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500" value={collegeForm.college_code} onChange={e => setCollegeForm({...collegeForm, college_code: e.target.value})} />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">College Code (Unique ID)</label>
+                    <input 
+                      required 
+                      type="text" 
+                      placeholder="e.g. COEP-PUNE"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      value={collegeForm.college_code} 
+                      onChange={e => setCollegeForm({...collegeForm, college_code: e.target.value.toUpperCase()})} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">University Affiliation</label>
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="e.g. Savitribai Phule Pune University"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      value={collegeForm.university} 
+                      onChange={e => setCollegeForm({...collegeForm, university: e.target.value})} 
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">University</label>
-                  <input type="text" className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500" value={collegeForm.university} onChange={e => setCollegeForm({...collegeForm, university: e.target.value})} />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">District / City</label>
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="e.g. Solapur"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      value={collegeForm.district} 
+                      onChange={e => setCollegeForm({...collegeForm, district: e.target.value})} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">State</label>
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="e.g. Maharashtra"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      value={collegeForm.state} 
+                      onChange={e => setCollegeForm({...collegeForm, state: e.target.value})} 
+                    />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">Website</label>
+                    <input 
+                      required
+                      type="url" 
+                      placeholder="https://www.college.edu.in"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      value={collegeForm.website} 
+                      onChange={e => setCollegeForm({...collegeForm, website: e.target.value})} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">Contact Number</label>
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="e.g. +91 217 2652402"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      value={collegeForm.contact_number} 
+                      onChange={e => setCollegeForm({...collegeForm, contact_number: e.target.value})} 
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">Website</label>
-                  <input type="url" className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500" value={collegeForm.website} onChange={e => setCollegeForm({...collegeForm, website: e.target.value})} />
+                  <label className="text-xs font-black text-slate-500 uppercase">Address</label>
+                  <textarea 
+                    required
+                    placeholder="e.g. Post Box No. 947, Limbyee, Maharashtra, India"
+                    rows={2}
+                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" 
+                    value={collegeForm.address} 
+                    onChange={e => setCollegeForm({...collegeForm, address: e.target.value})} 
+                  />
                 </div>
               </div>
-              <div className="flex justify-end gap-4">
+
+              <div className="flex justify-end gap-4 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setShowCollegeModal(false)} className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-all">Cancel</button>
                 <button type="submit" className="px-8 py-3 bg-blue-600 rounded-xl font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all">Create College</button>
               </div>

@@ -76,7 +76,7 @@ export default function TPOReports() {
             Need specific data for university audits or NAAC accreditation? Use our custom builder to filter and export any dataset.
           </p>
           <button 
-            onClick={() => toast.info('Custom Report Builder is currently in development.')}
+            onClick={() => toast('Custom Report Builder is currently in development.')}
             className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
           >
             Open Builder <ArrowRight size={16} />

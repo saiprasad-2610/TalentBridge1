@@ -4,6 +4,8 @@ import { TPOSidebar } from './TPOSidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTPOUI, TPOUIProvider } from '../../context/TPOUIContext';
 import { User, Bell, Search } from 'lucide-react';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
 
 function TPOLayoutContent() {
   const { user, logout } = useAuth();
