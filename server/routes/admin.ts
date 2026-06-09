@@ -80,6 +80,22 @@ router.post("/tpos", async (req, res) => {
   try {
     const { email, full_name, contact_number, designation, college_ids } = req.body;
 
+    // Check if user already exists
+    const [existingUsers]: any = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    if (existingUsers.length > 0) {
+      const existingUser = existingUsers[0];
+      // Check if they have a TPO profile
+      const [existingProfiles]: any = await db.query("SELECT * FROM tpo_profiles WHERE user_id = ?", [existingUser.id]);
+      if (existingProfiles.length > 0) {
+        return res.status(400).json({ success: false, message: "Email already exists" });
+      } else if (existingUser.role === 'TPO') {
+        // This is a stale TPO user from a failed previous creation attempt. Clean it up so we can recreate it!
+        await db.query("DELETE FROM users WHERE id = ?", [existingUser.id]);
+      } else {
+        return res.status(400).json({ success: false, message: "Email already exists" });
+      }
+    }
+
     // 1. Create User
     const tempPassword = crypto.randomBytes(8).toString("hex");
     const passwordHash = await bcrypt.hash(tempPassword, 10);
