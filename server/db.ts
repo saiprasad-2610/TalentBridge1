@@ -140,7 +140,7 @@ export async function initDb() {
           id INT PRIMARY KEY AUTO_INCREMENT,
           email VARCHAR(255) UNIQUE NOT NULL,
           password_hash VARCHAR(255) NOT NULL,
-          role ENUM('STUDENT', 'COMPANY', 'ADMIN', 'SUPER_ADMIN') NOT NULL,
+          role ENUM('STUDENT', 'COMPANY', 'TPO', 'ADMIN', 'SUPER_ADMIN') NOT NULL,
           status VARCHAR(50) DEFAULT 'ACTIVE',
           is_verified TINYINT DEFAULT 0,
           failed_login_attempts INT DEFAULT 0,
@@ -254,6 +254,7 @@ export async function initDb() {
         CREATE TABLE IF NOT EXISTS student_profiles (
           id INT PRIMARY KEY AUTO_INCREMENT,
           user_id INT UNIQUE NOT NULL,
+          college_id INT,
           full_name VARCHAR(255),
           bio TEXT,
           dob DATE,
@@ -328,6 +329,106 @@ export async function initDb() {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+
+      // --- TPO & COLLEGE MANAGEMENT TABLES ---
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS college_master (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          college_name VARCHAR(255) NOT NULL,
+          college_code VARCHAR(100) UNIQUE NOT NULL,
+          university VARCHAR(255),
+          address TEXT,
+          district VARCHAR(100),
+          state VARCHAR(100),
+          website VARCHAR(255),
+          contact_number VARCHAR(20),
+          status ENUM('ACTIVE', 'INACTIVE') DEFAULT 'ACTIVE',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS tpo_profiles (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          user_id INT UNIQUE NOT NULL,
+          full_name VARCHAR(255) NOT NULL,
+          contact_number VARCHAR(20),
+          designation VARCHAR(100),
+          status ENUM('ACTIVE', 'INACTIVE') DEFAULT 'ACTIVE',
+          first_login TINYINT DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS tpo_colleges (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          tpo_id INT NOT NULL,
+          college_id INT NOT NULL,
+          assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(tpo_id, college_id),
+          FOREIGN KEY (tpo_id) REFERENCES tpo_profiles(id) ON DELETE CASCADE,
+          FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS events (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          college_id INT NOT NULL,
+          tpo_id INT NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          event_type ENUM('PLACEMENT_DRIVE', 'WORKSHOP', 'SEMINAR', 'TRAINING', 'WEBINAR') NOT NULL,
+          start_date DATETIME NOT NULL,
+          end_date DATETIME,
+          location_or_link TEXT,
+          status ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED') DEFAULT 'UPCOMING',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE,
+          FOREIGN KEY (tpo_id) REFERENCES tpo_profiles(id) ON DELETE CASCADE
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS placement_drives (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          event_id INT UNIQUE NOT NULL,
+          company_name VARCHAR(255),
+          job_role VARCHAR(255),
+          eligibility_criteria TEXT,
+          package_details VARCHAR(255),
+          FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS event_registrations (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          event_id INT NOT NULL,
+          student_id INT NOT NULL,
+          status ENUM('REGISTERED', 'ATTENDED', 'SELECTED', 'REJECTED') DEFAULT 'REGISTERED',
+          registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(event_id, student_id),
+          FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+          FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS college_analytics (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          college_id INT UNIQUE NOT NULL,
+          total_students INT DEFAULT 0,
+          placed_students INT DEFAULT 0,
+          avg_talent_score FLOAT DEFAULT 0,
+          avg_coding_score FLOAT DEFAULT 0,
+          avg_interview_score FLOAT DEFAULT 0,
+          last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE
         );
       `);
 
@@ -1599,6 +1700,7 @@ async function runSqliteInit() {
     CREATE TABLE IF NOT EXISTS student_profiles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER UNIQUE NOT NULL,
+      college_id INTEGER,
       full_name TEXT,
       bio TEXT,
       dob DATE,
@@ -1666,6 +1768,116 @@ async function runSqliteInit() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- TPO & COLLEGE MANAGEMENT TABLES
+    CREATE TABLE IF NOT EXISTS college_master (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      college_name TEXT NOT NULL,
+      college_code TEXT UNIQUE NOT NULL,
+      university TEXT,
+      address TEXT,
+      district TEXT,
+      state TEXT,
+      website TEXT,
+      contact_number TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS tpo_profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER UNIQUE NOT NULL,
+      full_name TEXT NOT NULL,
+      contact_number TEXT,
+      designation TEXT,
+      status TEXT DEFAULT 'ACTIVE',
+      first_login INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS tpo_colleges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tpo_id INTEGER NOT NULL,
+      college_id INTEGER NOT NULL,
+      assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tpo_id, college_id),
+      FOREIGN KEY (tpo_id) REFERENCES tpo_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      college_id INTEGER NOT NULL,
+      tpo_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      event_type TEXT NOT NULL,
+      start_date DATETIME NOT NULL,
+      end_date DATETIME,
+      location_or_link TEXT,
+      status TEXT DEFAULT 'UPCOMING',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE,
+      FOREIGN KEY (tpo_id) REFERENCES tpo_profiles(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS placement_drives (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER UNIQUE NOT NULL,
+      company_name TEXT,
+      job_role TEXT,
+      eligibility_criteria TEXT,
+      package_details TEXT,
+      FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS event_registrations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER NOT NULL,
+      student_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'REGISTERED',
+      registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(event_id, student_id),
+      FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+      FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS college_analytics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      college_id INTEGER UNIQUE NOT NULL,
+      total_students INTEGER DEFAULT 0,
+      placed_students INTEGER DEFAULT 0,
+      avg_talent_score REAL DEFAULT 0,
+      avg_coding_score REAL DEFAULT 0,
+      avg_interview_score REAL DEFAULT 0,
+      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS tpo_tests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tpo_id INTEGER NOT NULL,
+      college_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      duration_minutes INTEGER DEFAULT 60,
+      total_marks INTEGER DEFAULT 100,
+      questions_json TEXT NOT NULL, -- Array of {question, options, correct, weight}
+      status TEXT DEFAULT 'ACTIVE',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tpo_id) REFERENCES tpo_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS student_test_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      test_id INTEGER NOT NULL,
+      score_obtained REAL DEFAULT 0,
+      time_taken_minutes INTEGER,
+      submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (test_id) REFERENCES tpo_tests(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS company_documents (
@@ -2217,6 +2429,12 @@ async function runSqliteInit() {
   try {
     const studentCols = sqliteDb.prepare("PRAGMA table_info(student_profiles)").all();
     const studentColNames = studentCols.map((c: any) => c.name);
+    if (!studentColNames.includes("college_id")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN college_id INTEGER");
+    
+    const collegeCols = sqliteDb.prepare("PRAGMA table_info(college_master)").all();
+    const collegeColNames = collegeCols.map((c: any) => c.name);
+    if (!collegeColNames.includes("status")) sqliteDb.exec("ALTER TABLE college_master ADD COLUMN status TEXT DEFAULT 'ACTIVE'");
+
     if (!studentColNames.includes("headline")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN headline TEXT");
     if (!studentColNames.includes("location")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN location TEXT");
     if (!studentColNames.includes("preferred_job_role")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN preferred_job_role TEXT");

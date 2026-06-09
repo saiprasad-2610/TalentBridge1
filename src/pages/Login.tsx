@@ -33,11 +33,19 @@ export function Login() {
       try {
         const { data } = await api.post("/auth/login", values);
         if (data.success) {
+          if (data.data.requiresPasswordChange) {
+            toast.success("Login successful. Security check required.");
+            navigate("/force-password-change", { 
+              state: { userId: data.data.user.id, email: data.data.user.email } 
+            });
+            return;
+          }
           toast.success("Login successful!");
           login(data.data);
           const role = data.data.user.role;
           if (role === "STUDENT") navigate("/student");
           else if (role === "COMPANY") navigate("/company");
+          else if (role === "TPO") navigate("/tpo");
           else if (role === "ADMIN" || role === "SUPER_ADMIN") navigate("/admin");
           else navigate("/");
         }

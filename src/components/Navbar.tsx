@@ -222,7 +222,7 @@ export function Navbar() {
             </button>
           )}
 
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to={user?.role === 'TPO' ? '/tpo' : user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? '/admin' : '/'} className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md group-hover:shadow-blue-500/30 transition-all duration-300">
               T
             </div>
@@ -294,6 +294,12 @@ export function Navbar() {
                 {user.role === "COMPANY" && (
                   <Link to="/company" className="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors">
                     {t('hiring_portal')}
+                  </Link>
+                )}
+
+                {user.role === "TPO" && (
+                  <Link to="/tpo" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1.5 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 shadow-sm shadow-blue-500/10">
+                    <LayoutDashboard size={16} /> TPO Dashboard
                   </Link>
                 )}
 
@@ -546,6 +552,10 @@ export function Navbar() {
             <div className="px-4 py-4 space-y-1">
               {user.role === "COMPANY" && (
                 <MobileNavLink to="/company" icon={<Building size={18} />}>{t('hiring_portal')}</MobileNavLink>
+              )}
+
+              {user.role === "TPO" && (
+                <MobileNavLink to="/tpo" icon={<LayoutDashboard size={18} />} className="text-blue-600">TPO Dashboard</MobileNavLink>
               )}
 
               {(user.role === "ADMIN" || user.role === "SUPER_ADMIN") && (

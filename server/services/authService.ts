@@ -1,10 +1,10 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "talentbridge_access_secret_123";
-const REFRESH_SECRET = process.env.REFRESH_SECRET || "talentbridge_refresh_secret_456";
+export const JWT_SECRET = process.env.JWT_SECRET || "talentbridge_secure_prod_secret_998877";
+export const REFRESH_SECRET = process.env.REFRESH_SECRET || "talentbridge_refresh_prod_secret_112233";
 
 export function generateToken(payload: any) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "15m" }); // Short-lived access token
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" }); // Increased to 24h for stable development
 }
 
 export function generateRefreshToken(payload: any) {

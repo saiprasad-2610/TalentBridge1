@@ -152,12 +152,19 @@ router.post("/login", async (req, res) => {
     await db.query("INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)", [user.id, refreshToken, refreshExpiresAt]);
 
     let profileData: any = null;
+    let requiresPasswordChange = false;
     if (user.role === "STUDENT") {
       const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [user.id]);
       profileData = profiles[0];
     } else if (user.role === "COMPANY") {
       const [profiles]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [user.id]);
       profileData = profiles[0];
+    } else if (user.role === "TPO") {
+      const [profiles]: any = await db.query("SELECT * FROM tpo_profiles WHERE user_id = ?", [user.id]);
+      profileData = profiles[0];
+      if (profileData && profileData.first_login === 1) {
+        requiresPasswordChange = true;
+      }
     }
 
     await logSecurityEvent(user.id, "LOGIN_SUCCESS", req);
@@ -168,7 +175,8 @@ router.post("/login", async (req, res) => {
         token: accessToken,
         refreshToken,
         user: { id: user.id, email: user.email, role: user.role, is_verified: user.is_verified },
-        profile: profileData
+        profile: profileData,
+        requiresPasswordChange
       }
     });
   } catch (error) {
@@ -355,7 +363,46 @@ router.post("/reset-password", async (req, res) => {
 
     res.json({ success: true, message: "Password reset successfully." });
   } catch (e) {
-    res.status(500).json({ success: false, message: "Reset failed" });
+    res.status(500).json({ success: false, message: "Refresh failed" });
+  }
+});
+
+// Change Password (for first login or manual change)
+router.post("/change-password", async (req, res) => {
+  const { userId, currentPassword, newPassword } = req.body;
+
+  try {
+    const [users]: any = await db.query("SELECT * FROM users WHERE id = ?", [userId]);
+    const user = users[0];
+
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    // Validate current password
+    const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isValid) return res.status(401).json({ success: false, message: "Incorrect current password" });
+
+    // Validate new password strength
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Password must be at least 8 characters, include uppercase, lowercase, number, and special character." 
+      });
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+    await db.query("UPDATE users SET password_hash = ? WHERE id = ?", [hashedNewPassword, userId]);
+
+    // If TPO, mark first_login as 0
+    if (user.role === 'TPO') {
+      await db.query("UPDATE tpo_profiles SET first_login = 0 WHERE user_id = ?", [userId]);
+    }
+
+    await logSecurityEvent(userId, "PASSWORD_CHANGE", req);
+
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error changing password" });
   }
 });
 

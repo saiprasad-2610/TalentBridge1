@@ -20,6 +20,7 @@ export function AdminSidebar() {
 
   const navItems = [
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+    { to: '/admin/tpo', icon: Building2, label: 'TPO & Colleges' },
     { to: '/admin/students', icon: Users, label: 'Students' },
     { to: '/admin/companies', icon: Building2, label: 'Companies' },
     { to: '/admin/jobs', icon: Briefcase, label: 'Jobs' },

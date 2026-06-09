@@ -2,6 +2,9 @@ import express from "express";
 import db from "../db.ts";
 import { authenticate, isAdmin } from "../middleware/auth.ts";
 import { XPService } from "../services/xpService.ts";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { sendTPOCredentials } from "../services/emailService.ts";
 
 const router = express.Router();
 
@@ -20,6 +23,240 @@ async function logAdminAction(adminId: number, action: string, details: any, req
     console.error("Logging failed:", error);
   }
 }
+
+// --- COLLEGE MANAGEMENT ---
+
+router.post("/colleges", async (req, res) => {
+  try {
+    const { college_name, college_code, university, address, district, state, website, contact_number } = req.body;
+    
+    const [result]: any = await db.query(`
+      INSERT INTO college_master (college_name, college_code, university, address, district, state, website, contact_number)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [college_name, college_code, university, address, district, state, website, contact_number]);
+
+    await logAdminAction((req as any).user.userId, "CREATE_COLLEGE", { college_name, college_code }, req);
+
+    res.json({ success: true, message: "College created successfully", collegeId: result.insertId });
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, message: "College code already exists" });
+    }
+    res.status(500).json({ success: false, message: "Error creating college" });
+  }
+});
+
+router.get("/colleges", async (req, res) => {
+  try {
+    const [colleges]: any = await db.query("SELECT * FROM college_master WHERE status = 'ACTIVE' ORDER BY college_name ASC");
+    res.json({ success: true, data: colleges });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching colleges" });
+  }
+});
+
+router.delete("/colleges/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Perform soft delete
+    await db.query("UPDATE college_master SET status = 'INACTIVE' WHERE id = ?", [id]);
+    
+    // Optionally: Unlink students or handle other dependencies if needed
+    // For soft-delete, we usually just change the status so they don't show up in lists.
+    
+    await logAdminAction((req as any).user.userId, "DELETE_COLLEGE", { collegeId: id, mode: "SOFT_DELETE" }, req);
+
+    res.json({ success: true, message: "College marked as INACTIVE successfully" });
+  } catch (error) {
+    console.error("Delete College Error:", error);
+    res.status(500).json({ success: false, message: "Error deleting college." });
+  }
+});
+
+// --- TPO MANAGEMENT ---
+
+router.post("/tpos", async (req, res) => {
+  try {
+    const { email, full_name, contact_number, designation, college_ids } = req.body;
+
+    // 1. Create User
+    const tempPassword = crypto.randomBytes(8).toString("hex");
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const [userResult]: any = await db.query(`
+      INSERT INTO users (email, password_hash, role, status, is_verified)
+      VALUES (?, ?, 'TPO', 'ACTIVE', 1)
+    `, [email, passwordHash]);
+
+    const userId = userResult.insertId;
+
+    // 2. Create TPO Profile
+    const [tpoResult]: any = await db.query(`
+      INSERT INTO tpo_profiles (user_id, full_name, contact_number, designation)
+      VALUES (?, ?, ?, ?)
+    `, [userId, full_name, contact_number, designation]);
+
+    const tpoId = tpoResult.insertId;
+
+    // 3. Assign Colleges
+    if (college_ids && Array.isArray(college_ids)) {
+      for (const collegeId of college_ids) {
+        await db.query("INSERT INTO tpo_colleges (tpo_id, college_id) VALUES (?, ?)", [tpoId, collegeId]);
+      }
+    }
+
+    // 4. Send Email
+    const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`;
+    await sendTPOCredentials(email, full_name, tempPassword, loginUrl);
+
+    await logAdminAction((req as any).user.userId, "CREATE_TPO", { email, full_name, college_ids }, req);
+
+    res.json({ success: true, message: "TPO account created and credentials sent" });
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error creating TPO account" });
+  }
+});
+
+// Seed High-Fidelity Mock Data for TPO Ecosystem
+router.post("/seed-tpo-data-v2", async (req, res) => {
+  try {
+    // 1. Colleges
+    const colleges = [
+      { name: "Orchid College of Engineering", code: "ORCHID-01", city: "Solapur" },
+      { name: "WIT Solapur (Walchand Institute of Technology)", code: "WIT-02", city: "Solapur" },
+      { name: "BMIT (Brahmdevdada Mane Institute of Technology)", code: "BMIT-03", city: "Solapur" }
+    ];
+
+    const collegeIds = [];
+    for (const c of colleges) {
+      const [existing]: any = await db.query("SELECT id FROM college_master WHERE college_code = ?", [c.code]);
+      if (existing.length > 0) {
+        collegeIds.push(existing[0].id);
+      } else {
+        const [res]: any = await db.query(`
+          INSERT INTO college_master (college_name, college_code, district, state)
+          VALUES (?, ?, ?, 'Maharashtra')
+        `, [c.name, c.code, c.city]);
+        collegeIds.push(res.insertId);
+      }
+    }
+
+    // 2. Ensure at least one TPO exists for events
+    let tpoId;
+    const [tpos]: any = await db.query("SELECT id FROM tpo_profiles LIMIT 1");
+    if (tpos.length > 0) {
+      tpoId = tpos[0].id;
+    } else {
+      // Create a dummy TPO for seeding
+      const tempPassword = await bcrypt.hash("Admin@123", 10);
+      const [u]: any = await db.query("INSERT INTO users (email, password_hash, role, is_verified) VALUES (?, ?, 'TPO', 1)", [`seed_tpo@talentbridge.com`, tempPassword]);
+      const [t]: any = await db.query("INSERT INTO tpo_profiles (user_id, full_name, designation) VALUES (?, 'System Seed TPO', 'Administrator')", [u.insertId]);
+      tpoId = t.insertId;
+      // Assign to all seeded colleges
+      for (const cid of collegeIds) {
+        await db.query("INSERT INTO tpo_colleges (tpo_id, college_id) VALUES (?, ?)", [tpoId, cid]);
+      }
+    }
+
+    // 3. Students (20 High-Fidelity Profiles)
+    const departments = ['CSE', 'ECE', 'Mechanical', 'Civil'];
+    const years = ['Third Year', 'Final Year'];
+    const names = ["Aditya", "Sneha", "Rohan", "Pooja", "Vikram", "Anjali", "Siddharth", "Nisha", "Sameer", "Riya", "Kunal", "Tanvi", "Pranav", "Ishita", "Yash", "Meera", "Abhishek", "Shweta", "Rahul", "Deepa"];
+
+    for (let i = 0; i < 20; i++) {
+      const email = `student${i + 100}@talentbridge.com`;
+      const [existing]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+      if (existing.length > 0) continue;
+
+      const passwordHash = await bcrypt.hash("Student123!", 10);
+      const [u]: any = await db.query("INSERT INTO users (email, password_hash, role, is_verified) VALUES (?, ?, 'STUDENT', 1)", [email, passwordHash]);
+      const userId = u.insertId;
+
+      const dept = departments[i % 4];
+      const year = years[i % 2];
+      const collegeId = collegeIds[i % collegeIds.length];
+      const score = 30 + Math.floor(Math.random() * 65); // 30-95
+
+      await db.query(`
+        INSERT INTO student_profiles (user_id, college_id, full_name, completeness_score, skills_json, education_json)
+        VALUES (?, ?, ?, 100, ?, ?)
+      `, [userId, collegeId, names[i] + " Patil", 100, JSON.stringify(['React', 'Node.js', 'SQL']), JSON.stringify({ department: dept, year: year })]);
+
+      await db.query(`
+        INSERT INTO talent_scores (user_id, overall_score, breakdown_json)
+        VALUES (?, ?, ?)
+      `, [userId, score, JSON.stringify({ technical: score, aptitude: score - 5, communication: score + 5 })]);
+    }
+
+    // 4. Companies & Drives
+    const dateSql = db.useMySQL ? "DATE_ADD(NOW(), INTERVAL 7 DAY)" : "datetime('now', '+7 days')";
+    const [driveRes]: any = await db.query(`
+      INSERT INTO events (college_id, tpo_id, title, description, event_type, start_date, status)
+      VALUES (?, ?, 'TCS Ninja Drive 2026', 'Campus recruitment for TCS Ninja role', 'PLACEMENT_DRIVE', ${dateSql}, 'UPCOMING')
+    `, [collegeIds[0], tpoId]);
+    
+    const eventId = driveRes.insertId;
+    await db.query(`
+      INSERT INTO placement_drives (event_id, company_name, job_role, package_details)
+      VALUES (?, 'TCS', 'System Engineer', '3.6 - 7.0 LPA')
+    `, [eventId]);
+
+    // 5. Update college analytics
+    for (const cid of collegeIds) {
+      const statsData = [cid, 7, 2, 69.2, 72.5, 65.0];
+      if (db.useMySQL) {
+        await db.query(`
+          INSERT INTO college_analytics (college_id, total_students, placed_students, avg_talent_score, avg_coding_score, avg_interview_score)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            total_students = VALUES(total_students), 
+            placed_students = VALUES(placed_students), 
+            avg_talent_score = VALUES(avg_talent_score),
+            avg_coding_score = VALUES(avg_coding_score),
+            avg_interview_score = VALUES(avg_interview_score)
+        `, statsData);
+      } else {
+        await db.query(`
+          INSERT INTO college_analytics (college_id, total_students, placed_students, avg_talent_score, avg_coding_score, avg_interview_score)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(college_id) DO UPDATE SET
+            total_students = excluded.total_students,
+            placed_students = excluded.placed_students,
+            avg_talent_score = excluded.avg_talent_score,
+            avg_coding_score = excluded.avg_coding_score,
+            avg_interview_score = excluded.avg_interview_score
+        `, statsData);
+      }
+    }
+
+    res.json({ success: true, message: "Production-grade mock data seeded successfully" });
+  } catch (error: any) {
+    console.error("Seeding Error:", error);
+    res.status(500).json({ success: false, message: `Seeding failed: ${error.message || 'Unknown error'}` });
+  }
+});
+
+router.get("/tpos", async (req, res) => {
+  try {
+    const [tpos]: any = await db.query(`
+      SELECT t.*, u.email, u.status as user_status, 
+      GROUP_CONCAT(c.college_name) as assigned_colleges
+      FROM tpo_profiles t
+      JOIN users u ON t.user_id = u.id
+      LEFT JOIN tpo_colleges tc ON t.id = tc.tpo_id
+      LEFT JOIN college_master c ON tc.college_id = c.id
+      GROUP BY t.id
+    `);
+    res.json({ success: true, data: tpos });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching TPOs" });
+  }
+});
 
 // Admin stats
 router.get("/stats", async (req, res) => {

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
@@ -19,6 +20,7 @@ import companyRoutes from "./server/routes/company.ts";
 import jobRoutes from "./server/routes/job.ts";
 import aiRoutes from "./server/routes/ai.ts";
 import adminRoutes from "./server/routes/admin.ts";
+import tpoRoutes from "./server/routes/tpo.ts";
 import resumeRoutes from "./server/routes/resume.ts";
 import analyticsRoutes from "./server/routes/analytics.ts";
 import psychometricRoutes from "./server/routes/psychometric.ts";
@@ -98,6 +100,7 @@ async function startServer() {
   app.use("/api/jobs", jobRoutes);
   app.use("/api/ai", aiRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/tpo", tpoRoutes);
   app.use("/api/resume", resumeRoutes);
   app.use("/api/analytics", analyticsRoutes);
   app.use("/api/psychometric", psychometricRoutes);

@@ -21,6 +21,7 @@ import { Register } from "./pages/Register.tsx";
 import { VerifyEmail } from "./pages/VerifyEmail.tsx";
 import { ForgotPassword } from "./pages/ForgotPassword.tsx";
 import { ResetPassword } from "./pages/ResetPassword.tsx";
+const ForcePasswordChange = lazy(() => import("./pages/ForcePasswordChange.tsx"));
 
 // Lazy-loaded dashboard & specialized experience components (Frontend Optimization)
 const StudentDashboard = lazy(() => import("./pages/dashboards/StudentDashboard.tsx").then(module => ({ default: module.StudentDashboard })));
@@ -47,6 +48,20 @@ const AdminMonitoring = lazy(() => import("./pages/admin/AdminMonitoring.tsx").t
 const AdminLogs = lazy(() => import("./pages/admin/AdminLogs.tsx").then(module => ({ default: module.AdminLogs })));
 const PsychometricManagement = lazy(() => import("./pages/admin/PsychometricManagement.tsx").then(module => ({ default: module.PsychometricManagement })));
 const PricingManagement = lazy(() => import("./pages/admin/PricingManagement.tsx").then(module => ({ default: module.PricingManagement })));
+const TPOManagement = lazy(() => import("./pages/admin/TPOManagement.tsx"));
+
+// TPO specialized experience components
+const TPOLayout = lazy(() => import("./components/tpo/TPOLayout.tsx").then(module => ({ default: module.TPOLayout })));
+const TPODashboard = lazy(() => import("./pages/tpo/TPODashboard.tsx"));
+const TPOStudents = lazy(() => import("./pages/tpo/TPOStudents.tsx"));
+const TPOColleges = lazy(() => import("./pages/tpo/TPOColleges.tsx"));
+const TPOEvents = lazy(() => import("./pages/tpo/TPOEvents.tsx"));
+const TPOAnalytics = lazy(() => import("./pages/tpo/TPOAnalytics.tsx"));
+const TPOAssessments = lazy(() => import("./pages/tpo/TPOAssessments.tsx"));
+const TPOSkillGap = lazy(() => import("./pages/tpo/TPOSkillGap.tsx"));
+const TPOVerification = lazy(() => import("./pages/tpo/TPOVerification.tsx"));
+const TPOReports = lazy(() => import("./pages/tpo/TPOReports.tsx"));
+const TPONotifications = lazy(() => import("./pages/tpo/TPONotifications.tsx"));
 
 const XPStore = lazy(() => import("./pages/XPStore.tsx").then(module => ({ default: module.XPStore })));
 const XPWallet = lazy(() => import("./pages/student/XPWallet.tsx").then(module => ({ default: module.XPWallet })));
@@ -178,6 +193,7 @@ export default function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/force-password-change" element={<ForcePasswordChange />} />
             
             <Route element={
               <PrivateRoute role="STUDENT">
@@ -226,9 +242,23 @@ export default function App() {
               <Route path="analytics" element={<AnalyticsDashboard />} />
               <Route path="interviews" element={<InterviewCenter />} />
             </Route>
+
+            <Route path="/tpo" element={<TPOLayout />}>
+                <Route index element={<TPODashboard />} />
+                <Route path="students" element={<TPOStudents />} />
+                <Route path="colleges" element={<TPOColleges />} />
+                <Route path="events" element={<TPOEvents />} />
+                <Route path="analytics" element={<TPOAnalytics />} />
+                <Route path="assessments" element={<TPOAssessments />} />
+                <Route path="skill-gap" element={<TPOSkillGap />} />
+                <Route path="verification" element={<TPOVerification />} />
+                <Route path="reports" element={<TPOReports />} />
+                <Route path="notifications" element={<TPONotifications />} />
+              </Route>
             
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
+              <Route path="tpo" element={<TPOManagement />} />
               <Route path="students" element={<StudentManagement />} />
               <Route path="companies" element={<CompanyManagement />} />
               <Route path="jobs" element={<JobManagement />} />
