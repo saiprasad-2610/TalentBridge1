@@ -959,6 +959,16 @@ export async function initDb() {
         }
       }
 
+      // Ensure role column supports 'TPO' and other roles in the ENUM
+      try {
+        console.log("📡 Ensuring users 'role' column ENUM values support 'TPO'...");
+        await connection.query(`
+          ALTER TABLE users MODIFY COLUMN role ENUM('STUDENT', 'COMPANY', 'TPO', 'ADMIN', 'SUPER_ADMIN') NOT NULL
+        `);
+      } catch (err: any) {
+        console.warn("⚠️ Migration warning for users role enum:", err.message);
+      }
+
       // Add missing users columns
       const [userCols]: any = await connection.query("SHOW COLUMNS FROM users");
       const userColNames = userCols.map((c: any) => c.Field);
