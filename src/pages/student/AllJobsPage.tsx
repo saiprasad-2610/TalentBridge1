@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Search, MapPin, Briefcase, Clock, Filter, CheckCircle2, ChevronRight, Zap, AlertTriangle } from 'lucide-react';
 import api from '../../services/api.ts';
@@ -23,8 +23,13 @@ export function AllJobsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [activeSection, setActiveSection] = useState<'recommended' | 'all'>('recommended');
 
-  const recommendedJobs = jobs.filter(job => (job.match_score || 0) >= 90);
-  const displayedJobs = activeSection === 'recommended' ? recommendedJobs : jobs;
+  const recommendedJobs = useMemo(() => {
+    return jobs.filter(job => (job.match_score || 0) >= 90);
+  }, [jobs]);
+
+  const displayedJobs = useMemo(() => {
+    return activeSection === 'recommended' ? recommendedJobs : jobs;
+  }, [activeSection, recommendedJobs, jobs]);
 
   // Debounce search input
   useEffect(() => {
