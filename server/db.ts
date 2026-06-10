@@ -1389,6 +1389,18 @@ export async function initDb() {
       }
     } catch (e) { console.error("Job table migration failed:", e); }
 
+    // Alter events table for event_type format and optional image_url
+    try {
+      if (useMySQL && pool) {
+        try {
+          await pool.query("ALTER TABLE events MODIFY COLUMN event_type VARCHAR(100) NOT NULL");
+        } catch (e) {}
+        try {
+          await pool.query("ALTER TABLE events ADD COLUMN image_url VARCHAR(1000) DEFAULT NULL");
+        } catch (e) {}
+      }
+    } catch (e) { console.error("Events table modification failed:", e); }
+
     // Apply High-Coverage Performance Indices for MySQL
     console.log("📡 Guaranteeing database indexes are configured on MySQL...");
     try {
@@ -2473,6 +2485,12 @@ async function runSqliteInit() {
     const interviewHistoryColNames = interviewHistoryCols.map((c: any) => c.name);
     if (!interviewHistoryColNames.includes("questions_answers_json")) {
       sqliteDb.exec("ALTER TABLE interview_history ADD COLUMN questions_answers_json TEXT");
+    }
+
+    const eventCols = sqliteDb.prepare("PRAGMA table_info(events)").all();
+    const eventColNames = eventCols.map((c: any) => c.name);
+    if (!eventColNames.includes("image_url")) {
+      sqliteDb.exec("ALTER TABLE events ADD COLUMN image_url TEXT DEFAULT NULL");
     }
 
     // Apply High-Coverage Performance Indices for SQLite

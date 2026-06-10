@@ -9,7 +9,9 @@ import {
   Filter,
   ArrowRight,
   MoreVertical,
-  X
+  X,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
@@ -23,9 +25,12 @@ export default function TPOEvents() {
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
-    event_type: 'PLACEMENT_DRIVE',
+    event_type: 'HACKATHON',
     start_date: '',
-    college_id: ''
+    end_date: '',
+    location_or_link: '',
+    college_id: '',
+    image_url: ''
   });
   const [colleges, setColleges] = useState<any[]>([]);
 
@@ -50,6 +55,16 @@ export default function TPOEvents() {
       if (res.data.success) {
         toast.success('Event created successfully');
         setShowCreateModal(false);
+        setNewEvent({
+          title: '',
+          description: '',
+          event_type: 'HACKATHON',
+          start_date: '',
+          end_date: '',
+          location_or_link: '',
+          college_id: '',
+          image_url: ''
+        });
         fetchEvents();
       }
     } catch (error) {
@@ -122,44 +137,68 @@ export default function TPOEvents() {
       {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-100 overflow-hidden">
+          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-100 overflow-hidden">
             <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest italic">Create New Event</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Schedule a recruitment drive or workshop</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Schedule a recruitment drive, competition, or hackathon</p>
               </div>
-              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white rounded-xl transition-all">
+              <button type="button" onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white rounded-xl transition-all">
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
             
-            <form onSubmit={handleCreateEvent} className="p-8 space-y-6">
+            <form onSubmit={handleCreateEvent} className="p-8 space-y-5 max-h-[75vh] overflow-y-auto">
+              {/* Event Title */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Event Title</label>
                 <input 
                   required
                   type="text" 
                   className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
-                  placeholder="e.g. TCS Ninja Drive 2026"
+                  placeholder="e.g. Smart College Hackathon 2026"
                   value={newEvent.title}
                   onChange={e => setNewEvent({...newEvent, title: e.target.value})}
                 />
               </div>
 
+              {/* Event Type & College */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Event Type</label>
                   <select 
-                    className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm appearance-none"
+                    className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm appearance-none cursor-pointer"
                     value={newEvent.event_type}
                     onChange={e => setNewEvent({...newEvent, event_type: e.target.value})}
                   >
-                    <option value="PLACEMENT_DRIVE">Placement Drive</option>
-                    <option value="WORKSHOP">Workshop</option>
-                    <option value="WEBINAR">Webinar</option>
-                    <option value="INTERVIEW">Interview</option>
+                    <option value="HACKATHON">Hackathon 🏆</option>
+                    <option value="COMPETITION">Competition 🎖️</option>
+                    <option value="PLACEMENT_DRIVE">Placement Drive 💼</option>
+                    <option value="WORKSHOP">Workshop 🛠️</option>
+                    <option value="WEBINAR">Webinar 🌐</option>
+                    <option value="INTERVIEW">Interview 📋</option>
+                    <option value="SEMINAR">Seminar 🎤</option>
+                    <option value="TRAINING">Training 📘</option>
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select College</label>
+                  <select 
+                    required
+                    className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm appearance-none cursor-pointer"
+                    value={newEvent.college_id}
+                    onChange={e => setNewEvent({...newEvent, college_id: e.target.value})}
+                  >
+                    <option value="">Select college...</option>
+                    {colleges.map(c => (
+                      <option key={c.id} value={c.id}>{c.college_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Start Date & End Date */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Start Date</label>
                   <input 
@@ -170,28 +209,85 @@ export default function TPOEvents() {
                     onChange={e => setNewEvent({...newEvent, start_date: e.target.value})}
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">End Date (Optional)</label>
+                  <input 
+                    type="date" 
+                    className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                    value={newEvent.end_date}
+                    onChange={e => setNewEvent({...newEvent, end_date: e.target.value})}
+                  />
+                </div>
               </div>
 
+              {/* Venue or Link */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select College</label>
-                <select 
-                  required
-                  className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm appearance-none"
-                  value={newEvent.college_id}
-                  onChange={e => setNewEvent({...newEvent, college_id: e.target.value})}
-                >
-                  <option value="">Select a college...</option>
-                  {colleges.map(c => (
-                    <option key={c.id} value={c.id}>{c.college_name}</option>
-                  ))}
-                </select>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Venue or Registration Link</label>
+                <input 
+                  type="text" 
+                  className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                  placeholder="e.g. Campus Seminar Hall or https://hackathon.org"
+                  value={newEvent.location_or_link}
+                  onChange={e => setNewEvent({...newEvent, location_or_link: e.target.value})}
+                />
               </div>
 
+              {/* Banner Image Dropzone / Picker */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Event Banner / Cover Image</label>
+                <div className="flex flex-col gap-3">
+                  {newEvent.image_url ? (
+                    <div className="relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                      <img src={newEvent.image_url} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setNewEvent({ ...newEvent, image_url: '' })}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 transition-all bg-slate-50 flex flex-col items-center justify-center gap-1.5 relative group cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setNewEvent({ ...newEvent, image_url: reader.result as string });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <Upload size={20} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                      <span className="text-xs font-bold text-slate-600 group-hover:text-blue-600 transition-colors">Upload Event Banner (Drag or Click)</span>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Supports PNG, JPG, WEBP formats</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0">Or Image URL</span>
+                    <input
+                      type="text"
+                      className="flex-1 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://example.com/banner.jpg"
+                      value={newEvent.image_url}
+                      onChange={(e) => setNewEvent({ ...newEvent, image_url: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description</label>
                 <textarea 
                   className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold text-sm min-h-[100px]"
-                  placeholder="Details about the drive, eligibility, etc."
+                  placeholder="Details about the drive, registration requirements, timeline, etc."
                   value={newEvent.description}
                   onChange={e => setNewEvent({...newEvent, description: e.target.value})}
                 />
@@ -221,11 +317,16 @@ export default function TPOEvents() {
           events.map((event) => (
             <div key={event.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
               <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
-                <div className="w-full md:w-48 h-32 bg-slate-100 rounded-2xl shrink-0 flex flex-col items-center justify-center text-slate-400">
-                   <p className="text-2xl font-black">{new Date(event.start_date).getDate()}</p>
-                   <p className="text-xs font-black uppercase tracking-tighter">
-                     {new Date(event.start_date).toLocaleString('default', { month: 'short', year: 'numeric' })}
-                   </p>
+                <div className="w-full md:w-48 h-32 bg-slate-100 rounded-2xl shrink-0 overflow-hidden relative flex flex-col items-center justify-center text-slate-400 border border-slate-100 shadow-inner">
+                  {event.image_url ? (
+                    <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+                  ) : null}
+                  <div className={`absolute bottom-2 left-2 ${event.image_url ? 'bg-slate-950/90 text-white border border-slate-800' : 'bg-slate-100 text-slate-800 border border-slate-200'} backdrop-blur-md px-3 py-1.5 rounded-xl shadow-md flex flex-col items-center justify-center min-w-[50px]`}>
+                     <p className="text-sm font-black leading-none">{new Date(event.start_date).getDate()}</p>
+                     <p className="text-[9px] font-black uppercase tracking-tighter mt-0.5">
+                       {new Date(event.start_date).toLocaleString('default', { month: 'short' })}
+                     </p>
+                  </div>
                 </div>
                 
                 <div className="flex-1">

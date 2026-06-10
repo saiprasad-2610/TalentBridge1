@@ -232,19 +232,20 @@ router.post("/events", async (req: any, res) => {
     const context = await getTPOContext(req.user.userId);
     if (!context) return res.status(403).json({ success: false, message: "TPO profile not found" });
 
-    const { title, description, event_type, start_date, end_date, location_or_link, college_id } = req.body;
+    const { title, description, event_type, start_date, end_date, location_or_link, college_id, image_url } = req.body;
 
     if (!context.collegeIds.includes(college_id)) {
       return res.status(403).json({ success: false, message: "Unauthorized for this college" });
     }
 
     const [result]: any = await db.query(`
-      INSERT INTO events (college_id, tpo_id, title, description, event_type, start_date, end_date, location_or_link)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [college_id, context.tpoId, title, description, event_type, start_date, end_date, location_or_link]);
+      INSERT INTO events (college_id, tpo_id, title, description, event_type, start_date, end_date, location_or_link, image_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [college_id, context.tpoId, title, description, event_type, start_date, end_date, location_or_link, image_url || null]);
 
     res.json({ success: true, message: "Event created successfully", eventId: result.insertId });
   } catch (error) {
+    console.error("Error creating event:", error);
     res.status(500).json({ success: false, message: "Error creating event" });
   }
 });

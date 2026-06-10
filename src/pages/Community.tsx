@@ -667,61 +667,75 @@ export function Community() {
                           key={ev.id}
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="bg-slate-950 border border-slate-900 hover:border-slate-800/80 rounded-2xl p-5 md:p-6 shadow-xl relative overflow-hidden flex flex-col justify-between group"
+                          className="bg-slate-950 border border-slate-900 hover:border-purple-900/40 rounded-3xl shadow-xl relative overflow-hidden flex flex-col justify-between group transition-all duration-300 hover:-translate-y-1"
                         >
-                          <div className="absolute top-0 right-0 p-3 flex gap-2">
-                            <span className="bg-purple-500/15 text-purple-300 border border-purple-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
-                              {ev.event_type}
-                            </span>
-                          </div>
-
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-bold text-purple-400">
-                                🎓
-                              </div>
-                              <div>
-                                <h4 className="font-extrabold text-slate-100 group-hover:text-purple-400 transition-colors">{ev.title}</h4>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{ev.college_name || "Partner College"}</p>
-                              </div>
-                            </div>
-
-                            <p className="text-xs text-slate-400 font-medium leading-relaxed line-clamp-3">
-                              {ev.description}
-                            </p>
-
-                            <div className="pt-2 flex flex-col gap-1.5 text-[11px] font-bold text-slate-400">
-                              <span className="flex items-center gap-1.5"><Calendar size={13} className="text-purple-400" /> Runs: {new Date(ev.start_date).toLocaleDateString()} {ev.end_date ? `to ${new Date(ev.end_date).toLocaleDateString()}` : ""}</span>
-                              {ev.location_or_link && (
-                                <span className="flex items-center gap-1.5 text-blue-400 hover:underline">
-                                  🔗 <a href={ev.location_or_link.startsWith("http") ? ev.location_or_link : `https://${ev.location_or_link}`} target="_blank" rel="noopener noreferrer">{ev.location_or_link}</a>
+                          {ev.image_url ? (
+                            <div className="w-full h-36 relative overflow-hidden select-none">
+                              <img src={ev.image_url} alt={ev.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                              <div className="absolute top-3 right-3 z-10">
+                                <span className="bg-purple-600/95 text-white backdrop-blur-md border border-purple-500/20 text-[9px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider">
+                                  {ev.event_type}
                                 </span>
-                              )}
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="absolute top-3 right-3 z-10">
+                              <span className="bg-purple-500/15 text-purple-300 border border-purple-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider">
+                                {ev.event_type}
+                              </span>
+                            </div>
+                          )}
 
-                          <div className="mt-5 pt-4 border-t border-slate-900 flex items-center justify-between">
-                            <span className="text-[10px] font-semibold text-slate-500 uppercase">
-                              🔥 {ev.registration_count || 0} Registered Candidates
-                            </span>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const { data } = await api.post(`/community/events/register/${ev.id}`);
-                                  if (data.success) {
-                                    toast.success("Successfully registered for event!");
-                                    fetchEvents();
-                                  } else {
-                                    toast.error(data.message || "Failed to register");
+                          <div className="p-5 md:p-6 space-y-4 flex-1 flex flex-col justify-between">
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-bold text-purple-400">
+                                  🎓
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-extrabold text-slate-100 group-hover:text-purple-400 transition-colors truncate">{ev.title}</h4>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{ev.college_name || "Partner College"}</p>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-slate-400 font-medium leading-relaxed line-clamp-3">
+                                {ev.description}
+                              </p>
+
+                              <div className="pt-2 flex flex-col gap-1.5 text-[11px] font-bold text-slate-400">
+                                <span className="flex items-center gap-1.5"><Calendar size={13} className="text-purple-400" /> Runs: {new Date(ev.start_date).toLocaleDateString()} {ev.end_date ? `to ${new Date(ev.end_date).toLocaleDateString()}` : ""}</span>
+                                {ev.location_or_link && (
+                                  <span className="flex items-center gap-1.5 text-blue-400">
+                                    🔗 <a href={ev.location_or_link.startsWith("http") ? ev.location_or_link : `https://${ev.location_or_link}`} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">{ev.location_or_link}</a>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-5 pt-4 border-t border-slate-900 flex items-center justify-between">
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase">
+                                🔥 {ev.registration_count || 0} Registered Candidates
+                              </span>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const { data } = await api.post(`/community/events/register/${ev.id}`);
+                                    if (data.success) {
+                                      toast.success("Successfully registered for event!");
+                                      fetchEvents();
+                                    } else {
+                                      toast.error(data.message || "Failed to register");
+                                    }
+                                  } catch (err: any) {
+                                    toast.error(err.response?.data?.message || "Already registered for this event!");
                                   }
-                                } catch (err: any) {
-                                  toast.error(err.response?.data?.message || "Already registered for this event!");
-                                }
-                              }}
-                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95"
-                            >
-                              Register Now
-                            </button>
+                                }}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+                              >
+                                Register Now
+                              </button>
+                            </div>
                           </div>
                         </motion.div>
                       ))}
