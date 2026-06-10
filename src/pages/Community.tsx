@@ -60,6 +60,7 @@ export function Community() {
   const [postSubTab, setPostSubTab] = useState<"experience" | "blog">("experience");
   const [events, setEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [selectedEventDetails, setSelectedEventDetails] = useState<any | null>(null);
 
   // New Post States
   const [newPost, setNewPost] = useState({
@@ -125,6 +126,34 @@ export function Community() {
       console.error("Xp balance fetching failed:", e);
     } finally {
       setEventsLoading(false);
+    }
+  };
+
+  const handleRegisterEvent = async (eventId: number) => {
+    try {
+      const { data } = await api.post(`/community/events/register/${eventId}`);
+      if (data.success) {
+        toast.success("Successfully registered for event!");
+        // Refresh full list
+        fetchEvents();
+        // Sync modal local state if it's currently open
+        setEvents(prevEvents => {
+          return prevEvents.map(e => {
+            if (e.id === eventId) {
+              const updatedObj = { ...e, registration_count: (e.registration_count || 0) + 1 };
+              if (selectedEventDetails && selectedEventDetails.id === eventId) {
+                setSelectedEventDetails(updatedObj);
+              }
+              return updatedObj;
+            }
+            return e;
+          });
+        });
+      } else {
+        toast.error(data.message || "Failed to register");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Already registered for this event!");
     }
   };
 
@@ -667,23 +696,35 @@ export function Community() {
                           key={ev.id}
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="bg-slate-950 border border-slate-900 hover:border-purple-900/40 rounded-3xl shadow-xl relative overflow-hidden flex flex-col justify-between group transition-all duration-300 hover:-translate-y-1"
+                          onClick={() => setSelectedEventDetails(ev)}
+                          className="bg-slate-950 border border-slate-900 hover:border-purple-900/40 rounded-3xl shadow-xl relative overflow-hidden flex flex-col justify-between group transition-all duration-300 hover:-translate-y-1 cursor-pointer"
                         >
                           {ev.image_url ? (
-                            <div className="w-full h-36 relative overflow-hidden select-none">
-                              <img src={ev.image_url} alt={ev.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                            <div className="w-full h-44 relative overflow-hidden select-none">
+                              <img src={ev.image_url} alt={ev.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" />
                               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
                               <div className="absolute top-3 right-3 z-10">
                                 <span className="bg-purple-600/95 text-white backdrop-blur-md border border-purple-500/20 text-[9px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider">
                                   {ev.event_type}
                                 </span>
                               </div>
+                              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                                <span className="bg-slate-900/90 text-white font-extrabold text-[11px] uppercase tracking-widest px-4 py-2 rounded-xl border border-slate-700/50 shadow-xl">
+                                  🔍 Click to View Full poster & Details
+                                </span>
+                              </div>
                             </div>
                           ) : (
-                            <div className="absolute top-3 right-3 z-10">
-                              <span className="bg-purple-500/15 text-purple-300 border border-purple-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider">
+                            <div className="w-full h-24 bg-gradient-to-br from-slate-900 to-purple-950/30 relative overflow-hidden select-none border-b border-slate-900 flex items-center justify-center">
+                              <Calendar className="text-purple-500/20 w-16 h-16 absolute -right-4 -bottom-4 rotate-12" />
+                              <span className="text-xs font-black uppercase tracking-widest text-purple-400">
                                 {ev.event_type}
                               </span>
+                              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                                <span className="bg-slate-900/90 text-white font-extrabold text-[11px] uppercase tracking-widest px-4 py-2 rounded-xl border border-slate-700/50 shadow-xl">
+                                  🔍 View Event details
+                                </span>
+                              </div>
                             </div>
                           )}
 
@@ -699,42 +740,46 @@ export function Community() {
                                 </div>
                               </div>
 
-                              <p className="text-xs text-slate-400 font-medium leading-relaxed line-clamp-3">
+                              <p className="text-xs text-slate-350 font-medium leading-relaxed line-clamp-2">
                                 {ev.description}
                               </p>
 
                               <div className="pt-2 flex flex-col gap-1.5 text-[11px] font-bold text-slate-400">
                                 <span className="flex items-center gap-1.5"><Calendar size={13} className="text-purple-400" /> Runs: {new Date(ev.start_date).toLocaleDateString()} {ev.end_date ? `to ${new Date(ev.end_date).toLocaleDateString()}` : ""}</span>
                                 {ev.location_or_link && (
-                                  <span className="flex items-center gap-1.5 text-blue-400">
+                                  <span className="flex items-center gap-1.5 text-blue-400" onClick={(e) => e.stopPropagation()}>
                                     🔗 <a href={ev.location_or_link.startsWith("http") ? ev.location_or_link : `https://${ev.location_or_link}`} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">{ev.location_or_link}</a>
                                   </span>
                                 )}
                               </div>
                             </div>
 
-                            <div className="mt-5 pt-4 border-t border-slate-900 flex items-center justify-between">
+                            <div className="mt-4 pt-4 border-t border-slate-900 flex items-center justify-between gap-2">
                               <span className="text-[10px] font-semibold text-slate-500 uppercase">
-                                🔥 {ev.registration_count || 0} Registered Candidates
+                                🔥 {ev.registration_count || 0} Registered
                               </span>
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    const { data } = await api.post(`/community/events/register/${ev.id}`);
-                                    if (data.success) {
-                                      toast.success("Successfully registered for event!");
-                                      fetchEvents();
-                                    } else {
-                                      toast.error(data.message || "Failed to register");
-                                    }
-                                  } catch (err: any) {
-                                    toast.error(err.response?.data?.message || "Already registered for this event!");
-                                  }
-                                }}
-                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
-                              >
-                                Register Now
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEventDetails(ev);
+                                  }}
+                                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-black uppercase tracking-wider rounded-xl border border-slate-800 hover:border-slate-700 transition-all active:scale-95 cursor-pointer"
+                                >
+                                  View details
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRegisterEvent(ev.id);
+                                  }}
+                                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 cursor-pointer animate-shimmer"
+                                >
+                                  Register Now
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </motion.div>
@@ -1703,6 +1748,144 @@ export function Community() {
             >
               Acknowledge & Edit Post
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🔮 Event Detail Immersive Modal */}
+      {selectedEventDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative my-8 animate-in fade-in-50 zoom-in-95 duration-200">
+            {/* Header / Banner bar */}
+            {selectedEventDetails.image_url ? (
+              <div className="relative w-full max-h-[350px] bg-slate-950 overflow-hidden group select-none border-b border-slate-800">
+                <img 
+                  src={selectedEventDetails.image_url} 
+                  alt={selectedEventDetails.title} 
+                  className="w-full h-auto max-h-[320px] object-contain mx-auto" 
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
+                <button
+                  type="button"
+                  onClick={() => setSelectedEventDetails(null)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer bg-slate-900/90 hover:bg-slate-800 p-2 rounded-full transition-all border border-slate-700/50 shadow-lg"
+                >
+                  <X size={18} />
+                </button>
+                <div className="absolute top-4 left-4">
+                  <span className="bg-purple-600/95 text-white backdrop-blur-md border border-purple-500/20 text-[10px] font-black uppercase px-3 py-1.5 rounded-lg tracking-widest shadow-md">
+                    {selectedEventDetails.event_type}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
+                <div>
+                  <span className="bg-purple-600/95 text-white backdrop-blur-md border border-purple-500/20 text-[10px] font-black uppercase px-3 py-1.5 rounded-lg tracking-widest shadow-md">
+                    {selectedEventDetails.event_type}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedEventDetails(null)}
+                  className="text-slate-400 hover:text-white cursor-pointer bg-slate-800 p-2 rounded-full transition-colors animate-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* Modal Body */}
+            <div className="p-6 md:p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+              {/* College & Title */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-purple-400">
+                  <span className="text-[10px] font-bold uppercase tracking-widest bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-md">
+                    🏢 {selectedEventDetails.college_name || "Partner College"}
+                  </span>
+                </div>
+                <h2 className="text-xl md:text-2xl font-black text-slate-100 hover:text-purple-400 transition-colors leading-tight">
+                  {selectedEventDetails.title}
+                </h2>
+              </div>
+
+              {/* Grid Metadata parameters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/50 p-4 rounded-2xl border border-slate-800/80">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Event Start date</span>
+                  <div className="flex items-center gap-2 text-slate-300 font-bold text-xs md:text-sm">
+                    <Calendar size={14} className="text-purple-400" />
+                    <span>{new Date(selectedEventDetails.start_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  </div>
+                </div>
+
+                {selectedEventDetails.end_date && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Event End date</span>
+                    <div className="flex items-center gap-2 text-slate-300 font-bold text-xs md:text-sm">
+                      <Calendar size={14} className="text-rose-400" />
+                      <span>{new Date(selectedEventDetails.end_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedEventDetails.location_or_link && (
+                  <div className="space-y-1 md:col-span-2 border-t border-slate-800/50 pt-2.5 mt-1">
+                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Venue / Access Link</span>
+                    <div className="flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm">
+                      <span className="text-sm">🔗</span>
+                      <a 
+                        href={selectedEventDetails.location_or_link.startsWith("http") ? selectedEventDetails.location_or_link : `https://${selectedEventDetails.location_or_link}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="hover:underline hover:text-blue-300 break-all"
+                      >
+                        {selectedEventDetails.location_or_link}
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Event full description */}
+              <div className="space-y-2">
+                <h4 className="text-xs uppercase font-black tracking-widest text-slate-400">About the Event / Description</h4>
+                <p className="text-xs md:text-sm text-slate-300 font-medium leading-relaxed whitespace-pre-wrap bg-slate-950/20 p-4 rounded-2xl border border-slate-800/40">
+                  {selectedEventDetails.description || "No further details provided."}
+                </p>
+              </div>
+
+              {/* Community Registration metrics */}
+              <div className="flex items-center justify-between p-4 bg-purple-950/20 border border-purple-900/30 rounded-2xl gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🔥</span>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-200 uppercase tracking-widest">Active Candidates</p>
+                    <p className="text-xs font-bold text-purple-300">{selectedEventDetails.registration_count || 0} registered</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleRegisterEvent(selectedEventDetails.id)}
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer shrink-0"
+                >
+                  Register Now
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-slate-800 bg-slate-950/40 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedEventDetails(null)}
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Close View
+              </button>
+            </div>
           </div>
         </div>
       )}
