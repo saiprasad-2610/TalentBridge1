@@ -880,6 +880,7 @@ export async function initDb() {
       const [studentCols]: any = await connection.query("SHOW COLUMNS FROM student_profiles");
       const studentColNames = studentCols.map((c: any) => c.Field);
       const requiredStudentCols = [
+        { name: "college_id", type: "INT" },
         { name: "bio", type: "TEXT" },
         { name: "dob", type: "DATE" },
         { name: "gender", type: "VARCHAR(20)" },
