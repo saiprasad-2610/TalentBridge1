@@ -38,7 +38,7 @@ export function OnboardingPage() {
   const [selectedIndustry, setSelectedIndustry] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedSource, setSelectedSource] = useState("");
-  const [selectedActions, setSelectedActions] = useState<string[]>([]);
+  const [selectedActions, setSelectedActions] = useState<string[]>(["resume", "jobs"]);
 
   const handleActionToggle = (action: string) => {
     setSelectedActions(prev => 
@@ -69,11 +69,6 @@ export function OnboardingPage() {
   };
 
   const handleComplete = async () => {
-    if (selectedActions.length === 0) {
-      toast.error("Please select at least one option to get started");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const response = await api.put(`/students/profile/${user?.id}/section/onboarding`, {
@@ -98,8 +93,8 @@ export function OnboardingPage() {
         };
         updateProfile(updatedProfile);
         
-        // Navigate to the student dashboard
-        navigate("/student");
+        // Navigate to the student profile page
+        navigate("/profile");
       } else {
         toast.error(response.data.message || "Failed to save options");
       }
@@ -112,7 +107,7 @@ export function OnboardingPage() {
   };
 
   // Progress Calculations
-  const progressPercent = currentStep * 25;
+  const progressPercent = (currentStep / 3) * 100;
 
   return (
     <div className="min-h-screen bg-slate-50/75 flex flex-col justify-between p-6 md:p-12 relative overflow-hidden select-none">
@@ -299,60 +294,6 @@ export function OnboardingPage() {
               </motion.div>
             )}
 
-            {/* STEP 4: App Purpose */}
-            {currentStep === 4 && (
-              <motion.div 
-                key="step4"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-                className="w-full"
-              >
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight text-center md:text-left mb-8">
-                  How can TalentBridge help you?
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {[
-                    { id: "resume", label: "Building/improving my resume", icon: FileText, color: "text-violet-500 bg-violet-50", desc: "Craft an elite ATS-optimized template with AI assistance." },
-                    { id: "jobs", label: "Track my job applications", icon: Briefcase, color: "text-indigo-500 bg-indigo-50", desc: "Orchestrate status updates and prepare for next stage milestones." },
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    const isSelected = selectedActions.includes(item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleActionToggle(item.id)}
-                        className={`flex flex-col items-start gap-4 p-6 rounded-2xl border text-left transition-all duration-300 w-full group relative ${
-                          isSelected 
-                            ? "bg-white border-violet-500 shadow-md shadow-violet-100 ring-2 ring-violet-500/20" 
-                            : "bg-white hover:bg-slate-50/50 border-slate-100 hover:border-slate-300 shadow-sm"
-                        }`}
-                      >
-                        <div className="flex items-center gap-4 w-full">
-                          <div className={`p-3 rounded-xl ${item.color} group-hover:scale-110 transition-transform duration-300`}>
-                            <Icon size={20} className="stroke-[2.5]" />
-                          </div>
-                          <span className="font-extrabold text-slate-800 text-sm">{item.label}</span>
-                        </div>
-                        <p className="text-slate-400 text-xs font-semibold leading-relaxed pl-1">
-                          {item.desc}
-                        </p>
-
-                        {/* Top corner radio check bubble style */}
-                        <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-200 ${
-                          isSelected ? "bg-violet-600 border-violet-600" : "border-slate-300 bg-transparent"
-                        }`}>
-                          {isSelected && <div className="w-2.5 h-2.5 bg-white rounded-full animate-scale-up" />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-
           </AnimatePresence>
         </div>
 
@@ -370,7 +311,7 @@ export function OnboardingPage() {
             <div />
           )}
 
-          {currentStep < 4 ? (
+          {currentStep < 3 ? (
             <button
               onClick={handleNext}
               className="flex items-center gap-1.5 px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-extrabold rounded-xl text-xs shadow-md shadow-violet-100 hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
