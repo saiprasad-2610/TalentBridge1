@@ -108,6 +108,22 @@ router.get("/student/:userId/applications", async (req, res) => {
   }
 });
 
+// GET Student Check-ins
+router.get("/student/:userId/check-ins", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const [checkins]: any = await db.query(`
+      SELECT task_date 
+      FROM daily_tasks 
+      WHERE user_id = ? AND is_check_in_completed = 1
+    `, [userId]);
+    res.json({ success: true, data: checkins });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error fetching check-ins" });
+  }
+});
+
 // GET Employer Analytics & Candidates
 router.get("/employer/:companyUserId", async (req, res) => {
   const { companyUserId } = req.params;

@@ -389,10 +389,7 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
              </div>
            </div>
            
-           {/* Dynamic Status / Score Badge on Avatar */}
-           <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border border-white shadow-md text-white ${score < 40 ? 'bg-red-500' : score < 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}>
-             {score < 40 ? 'LOW' : score < 70 ? 'MID' : 'PASS'}
-           </div>
+           
          </div>
 
          {/* Student Name */}
@@ -760,7 +757,54 @@ function ReferBanner({ user }: { user: any }) {
 
 function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [activeType, setActiveType] = useState<'JOB_APPLY' | 'AI_MOCK_INTERVIEW' | 'AI_QUIZ' | 'DAILY_STREAK'>('JOB_APPLY');
+
+  const [mockInterviews, setMockInterviews] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [checkins, setCheckins] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadInterviews = async () => {
+      try {
+        const { data } = await api.get(`/ai/history/${user.id}`);
+        if (data.success && Array.isArray(data.data)) {
+          setMockInterviews(data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load interview history:", err);
+      }
+    };
+
+    const loadQuizzes = async () => {
+      try {
+        const { data } = await api.get(`/quiz/history/${user.id}`);
+        if (data.success && Array.isArray(data.quizzes)) {
+          setQuizzes(data.quizzes);
+        }
+      } catch (err) {
+        console.error("Failed to load quiz history:", err);
+      }
+    };
+
+    const loadCheckins = async () => {
+      try {
+        const { data } = await api.get(`/analytics/student/${user.id}/check-ins`);
+        if (data.success && Array.isArray(data.data)) {
+          setCheckins(data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load check-ins history:", err);
+      }
+    };
+
+    loadInterviews();
+    loadQuizzes();
+    loadCheckins();
+  }, [user?.id]);
 
   const getLocalDateString = (d: Date) => {
     const y = d.getFullYear();
@@ -769,26 +813,62 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
     return `${y}-${m}-${r}`;
   };
 
-  const applicationCounts: Record<string, number> = {};
-  applications.forEach(app => {
-    if (app.applied_at) {
-      try {
-        const d = new Date(app.applied_at);
-        if (!isNaN(d.getTime())) {
-          const key = getLocalDateString(d);
-          applicationCounts[key] = (applicationCounts[key] || 0) + 1;
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  });
+  const activeCounts: Record<string, number> = {};
 
-  const activeCounts = applicationCounts;
+  if (activeType === 'JOB_APPLY') {
+    applications.forEach(app => {
+      if (app.applied_at) {
+        try {
+          const d = new Date(app.applied_at);
+          if (!isNaN(d.getTime())) {
+            const key = getLocalDateString(d);
+            activeCounts[key] = (activeCounts[key] || 0) + 1;
+          }
+        } catch (e) { console.error(e); }
+      }
+    });
+  } else if (activeType === 'AI_MOCK_INTERVIEW') {
+    mockInterviews.forEach(interview => {
+      const dateToUse = interview.created_at || interview.scheduled_at;
+      if (dateToUse) {
+        try {
+          const d = new Date(dateToUse);
+          if (!isNaN(d.getTime())) {
+            const key = getLocalDateString(d);
+            activeCounts[key] = (activeCounts[key] || 0) + 1;
+          }
+        } catch (e) { console.error(e); }
+      }
+    });
+  } else if (activeType === 'AI_QUIZ') {
+    quizzes.forEach(quiz => {
+      if (quiz.created_at) {
+        try {
+          const d = new Date(quiz.created_at);
+          if (!isNaN(d.getTime())) {
+            const key = getLocalDateString(d);
+            activeCounts[key] = (activeCounts[key] || 0) + 1;
+          }
+        } catch (e) { console.error(e); }
+      }
+    });
+  } else if (activeType === 'DAILY_STREAK') {
+    checkins.forEach(ci => {
+      if (ci.task_date) {
+        try {
+          const d = new Date(ci.task_date);
+          if (!isNaN(d.getTime())) {
+            const key = getLocalDateString(d);
+            activeCounts[key] = (activeCounts[key] || 0) + 1;
+          }
+        } catch (e) { console.error(e); }
+      }
+    });
+  }
 
   const calculateStreak = (activeDates: Set<string>) => {
     let streak = 0;
-    const today = new Date("2026-06-01T09:00:00Z");
+    const today = new Date("2026-06-10T10:00:00Z");
     const checkDate = new Date(today);
     
     for (let i = 0; i < 365; i++) {
@@ -810,7 +890,7 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
   const activeDatesSet = new Set(activeDatesList);
   const currentStreak = calculateStreak(activeDatesSet);
 
-  const totalApplications = Object.values(activeCounts).reduce((acc, curr) => acc + curr, 0);
+  const totalCount = Object.values(activeCounts).reduce((acc, curr) => acc + curr, 0);
 
   let peakDay = "None";
   let peakFreq = 0;
@@ -847,15 +927,54 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
 
   const getCellBgClass = (count: number) => {
     if (count === 0) return "bg-slate-100 hover:bg-slate-200 border-transparent";
-    if (count === 1) return "bg-[#dedeff] hover:bg-indigo-200 border-[#c7d2fe]/30";
-    if (count === 2) return "bg-[#9c93f9] hover:bg-[#818cf8]/80 border-[#9c93f9]";
-    if (count === 3) return "bg-[#766bf6] hover:bg-[#6366f1]/80 border-[#766bf6]";
-    return "bg-[#5f5af6] hover:bg-[#4f46e5] border-[#5f5af6]";
+    
+    if (activeType === 'JOB_APPLY') {
+      if (count === 1) return "bg-[#dedeff] hover:bg-indigo-200 border-[#c7d2fe]/30";
+      if (count === 2) return "bg-[#9c93f9] hover:bg-[#818cf8]/80 border-[#9c93f9]";
+      if (count === 3) return "bg-[#766bf6] hover:bg-[#6366f1]/80 border-[#766bf6]";
+      return "bg-[#5f5af6] hover:bg-[#4f46e5] border-[#5f5af6]";
+    } else if (activeType === 'AI_MOCK_INTERVIEW') {
+      if (count === 1) return "bg-amber-100 hover:bg-amber-200 border-amber-200/30";
+      if (count === 2) return "bg-amber-300 hover:bg-amber-400 border-amber-300";
+      if (count === 3) return "bg-amber-500 hover:bg-amber-600 border-amber-500";
+      return "bg-amber-600 hover:bg-amber-700 border-amber-600";
+    } else if (activeType === 'AI_QUIZ') {
+      if (count === 1) return "bg-violet-100 hover:bg-violet-200 border-violet-200/30";
+      if (count === 2) return "bg-violet-300 hover:bg-violet-400 border-violet-300";
+      if (count === 3) return "bg-violet-500 hover:bg-violet-600 border-violet-500";
+      return "bg-violet-600 hover:bg-violet-700 border-violet-600";
+    } else { // DAILY_STREAK
+      if (count === 1) return "bg-emerald-100 hover:bg-emerald-200 border-emerald-200/30";
+      if (count === 2) return "bg-emerald-300 hover:bg-emerald-400 border-emerald-300";
+      if (count === 3) return "bg-emerald-500 hover:bg-emerald-600 border-emerald-500";
+      return "bg-emerald-600 hover:bg-emerald-700 border-[#059669]";
+    }
+  };
+
+  const getLabelForTooltip = () => {
+    if (activeType === 'JOB_APPLY') return "Application";
+    if (activeType === 'AI_MOCK_INTERVIEW') return "Mock Interview";
+    if (activeType === 'AI_QUIZ') return "AI Quiz";
+    return "Check-in";
   };
 
   const formattedPeakDay = peakDay !== "None" 
     ? new Date(peakDay).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : "No records";
+
+  const performanceTypes = [
+    { id: 'JOB_APPLY', label: 'Job Applied', icon: Briefcase, color: 'text-indigo-600 bg-indigo-50 border-indigo-200' },
+    { id: 'AI_MOCK_INTERVIEW', label: 'AI Interviews', icon: MessageSquare, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+    { id: 'AI_QUIZ', label: 'AI Quizzes', icon: BrainCircuit, color: 'text-violet-600 bg-violet-50 border-violet-200' },
+    { id: 'DAILY_STREAK', label: 'Daily Streak', icon: Flame, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+  ];
+
+  const getMetricTitle = () => {
+    if (activeType === 'JOB_APPLY') return "Job apply frequency";
+    if (activeType === 'AI_MOCK_INTERVIEW') return "AI Interview activity";
+    if (activeType === 'AI_QUIZ') return "AI Quiz performance";
+    return "Daily login check-ins";
+  };
 
   return (
     <div className="bg-white border border-slate-100 rounded-[32px] p-6 shadow-md shadow-slate-200/40 relative overflow-hidden transition-all duration-300">
@@ -866,7 +985,7 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
              <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Performance Metrics</h3>
           </div>
-          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Job apply frequency</h2>
+          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{getMetricTitle()}</h2>
         </div>
         
         <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-start">
@@ -881,104 +1000,161 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
         </div>
       </div>
 
+      {/* Premium Performance Filters */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {performanceTypes.map((type) => {
+          const IconComponent = type.icon;
+          const isActive = activeType === type.id;
+          return (
+            <button
+              key={type.id}
+              onClick={() => {
+                setActiveType(type.id as any);
+                setTooltip(null);
+              }}
+              className={`flex items-center justify-center gap-2 px-3 py-3 rounded-2xl border text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                isActive 
+                  ? `${type.color} shadow-sm font-black scale-[1.02]` 
+                  : 'bg-white border-slate-150 text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <IconComponent size={14} className={isActive ? 'animate-pulse' : ''} />
+              <span>{type.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         <div className="col-span-1 lg:col-span-8 overflow-visible relative">
            <div className="overflow-x-auto scrollbar-thin pb-4">
-             <div className="min-w-[780px] select-none relative" id="heatmap-grid-viewport">
-                
-                <div className="h-6 w-full relative mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  {monthHeaders.map((header, idx) => (
-                    <span 
-                      key={idx} 
-                      className="absolute transform -translate-x-1/2" 
-                      style={{ left: `calc(${(header.index / 53) * 100}% + 42px)` }}
-                    >
-                      {header.label}
-                    </span>
-                  ))}
-                </div>
+              <div className="min-w-[780px] select-none relative" id="heatmap-grid-viewport">
+                 
+                 <div className="h-6 w-full relative mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                   {monthHeaders.map((header, idx) => (
+                     <span 
+                       key={idx} 
+                       className="absolute transform -translate-x-1/2" 
+                       style={{ left: `calc(${(header.index / 53) * 100}% + 42px)` }}
+                     >
+                       {header.label}
+                     </span>
+                   ))}
+                 </div>
 
-                <div className="flex gap-4 items-center">
-                   
-                   <div className="flex gap-3 items-center w-10 shrink-0">
-                      <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350 font-mono -rotate-90 whitespace-nowrap translate-x-[-4px]">
-                         {selectedYear}
-                      </div>
+                 <div className="flex gap-4 items-center">
+                    
+                    <div className="flex gap-3 items-center w-10 shrink-0">
+                       <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350 font-mono -rotate-90 whitespace-nowrap translate-x-[-4px]">
+                          {selectedYear}
+                       </div>
 
-                      <div className="flex flex-col justify-between h-[104px] text-[9px] font-black text-slate-400 uppercase tracking-widest pt-[14px]">
-                         <span>Mon</span>
-                         <span>Wed</span>
-                         <span>Fri</span>
-                      </div>
-                   </div>
+                       <div className="flex flex-col justify-between h-[104px] text-[9px] font-black text-slate-400 uppercase tracking-widest pt-[14px]">
+                          <span>Mon</span>
+                          <span>Wed</span>
+                          <span>Fri</span>
+                       </div>
+                    </div>
 
-                   <div className="flex-1 flex gap-[3.2px] relative" onMouseLeave={() => setTooltip(null)}>
-                      
-                      {tooltip && (
-                        <div 
-                          className="absolute z-30 bg-slate-900 text-white rounded-lg px-3 py-1.5 text-center text-[10px] font-black tracking-wide pointer-events-none shadow-xl border border-slate-800 flex flex-col gap-0.5 whitespace-nowrap"
-                          style={{ 
-                            left: `${tooltip.x}px`, 
-                            top: `${tooltip.y}px`, 
-                            transform: "translateX(-50%)",
-                            transition: "left 0.1s ease-out, top 0.1s ease-out"
-                          }}
-                        >
-                          <span className="text-slate-400 uppercase text-[8px] tracking-widest font-bold">{tooltip.date}</span>
-                          <span>{tooltip.count === 0 ? "No applications" : `${tooltip.count} application${tooltip.count > 1 ? "s" : ""}`}</span>
-                          <div className="absolute bottom-[-4px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-900 border-r border-b border-slate-800 rotate-45" />
-                        </div>
-                      )}
+                    <div className="flex-1 flex gap-[3.2px] relative" onMouseLeave={() => setTooltip(null)}>
+                       
+                       {tooltip && (
+                         <div 
+                           className="absolute z-30 bg-slate-900 text-white rounded-lg px-3 py-1.5 text-center text-[10px] font-black tracking-wide pointer-events-none shadow-xl border border-slate-800 flex flex-col gap-0.5 whitespace-nowrap"
+                           style={{ 
+                             left: `${tooltip.x}px`, 
+                             top: `${tooltip.y}px`, 
+                             transform: "translateX(-50%)",
+                             transition: "left 0.1s ease-out, top 0.1s ease-out"
+                           }}
+                         >
+                           <span className="text-slate-400 uppercase text-[8px] tracking-widest font-bold">{tooltip.date}</span>
+                           <span>
+                             {tooltip.count === 0 
+                               ? `No ${getLabelForTooltip().toLowerCase()}s` 
+                               : `${tooltip.count} ${getLabelForTooltip()}${tooltip.count > 1 ? (activeType === 'AI_QUIZ' ? 'zes' : 's') : ''}`}
+                           </span>
+                           <div className="absolute bottom-[-4px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-900 border-r border-b border-slate-800 rotate-45" />
+                         </div>
+                       )}
 
-                      {Array.from({ length: 53 }).map((_, cIndex) => (
-                        <div key={cIndex} className="flex flex-col gap-[3.2px]">
-                           {Array.from({ length: 7 }).map((_, rIndex) => {
-                             const cellDate = new Date(startDate);
-                             cellDate.setDate(startDate.getDate() + cIndex * 7 + rIndex);
-                             const dateStringKey = getLocalDateString(cellDate);
-                             
-                             const count = activeCounts[dateStringKey] || 0;
-                             const isCurrentYear = cellDate.getFullYear() === selectedYear;
+                       {Array.from({ length: 53 }).map((_, cIndex) => (
+                         <div key={cIndex} className="flex flex-col gap-[3.2px]">
+                            {Array.from({ length: 7 }).map((_, rIndex) => {
+                              const cellDate = new Date(startDate);
+                              cellDate.setDate(startDate.getDate() + cIndex * 7 + rIndex);
+                              const dateStringKey = getLocalDateString(cellDate);
+                              
+                              const count = activeCounts[dateStringKey] || 0;
+                              const isCurrentYear = cellDate.getFullYear() === selectedYear;
 
-                             return (
-                               <div 
-                                 key={rIndex}
-                                 className={`w-[12px] h-[12px] rounded-[3px] border transition-all duration-150 shrink-0 cursor-crosshair ${
-                                   isCurrentYear ? getCellBgClass(count) : 'bg-transparent border-transparent pointer-events-none'
-                                 } ${isCurrentYear && 'hover:scale-125'}`}
-                                 onMouseEnter={(e) => {
-                                   if (!isCurrentYear) return;
-                                   const rect = e.currentTarget.getBoundingClientRect();
-                                   const viewport = document.getElementById("heatmap-grid-viewport");
-                                   if (viewport) {
-                                     const vpRect = viewport.getBoundingClientRect();
-                                     setTooltip({
-                                       date: cellDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                                       count,
-                                       x: rect.left - vpRect.left + rect.width / 2,
-                                       y: rect.top - vpRect.top - 46
-                                     });
-                                   }
-                                 }}
-                               />
-                             );
-                           })}
-                        </div>
-                      ))}
-                   </div>
-                </div>
-             </div>
+                              return (
+                                <div 
+                                  key={rIndex}
+                                  className={`w-[12px] h-[12px] rounded-[3px] border transition-all duration-150 shrink-0 cursor-crosshair ${
+                                    isCurrentYear ? getCellBgClass(count) : 'bg-transparent border-transparent pointer-events-none'
+                                  } ${isCurrentYear && 'hover:scale-125'}`}
+                                  onMouseEnter={(e) => {
+                                    if (!isCurrentYear) return;
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const viewport = document.getElementById("heatmap-grid-viewport");
+                                    if (viewport) {
+                                      const vpRect = viewport.getBoundingClientRect();
+                                      setTooltip({
+                                        date: cellDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                                        count,
+                                        x: rect.left - vpRect.left + rect.width / 2,
+                                        y: rect.top - vpRect.top - 46
+                                      });
+                                    }
+                                  }}
+                                />
+                              );
+                            })}
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
            </div>
 
            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-medium text-slate-400 uppercase tracking-widest mt-2 border-t border-slate-50 pt-4">
               <div className="flex items-center gap-1.5 flex-wrap">
                  <span>Less</span>
                  <div className="w-3 h-3 bg-slate-100 rounded-[3px] border border-transparent" />
-                 <div className="w-3 h-3 bg-[#dedeff] rounded-[3px] border border-[#c7d2fe]/30" />
-                 <div className="w-3 h-3 bg-[#9c93f9] rounded-[3px] border border-[#9c93f9]" />
-                 <div className="w-3 h-3 bg-[#766bf6] rounded-[3px] border border-[#766bf6]" />
-                 <div className="w-3 h-3 bg-[#5f5af6] rounded-[3px] border border-[#5f5af6]" />
+                 {activeType === 'JOB_APPLY' && (
+                    <>
+                      <div className="w-3 h-3 bg-[#dedeff] rounded-[3px] border border-[#c7d2fe]/30" />
+                      <div className="w-3 h-3 bg-[#9c93f9] rounded-[3px] border border-[#9c93f9]" />
+                      <div className="w-3 h-3 bg-[#766bf6] rounded-[3px] border border-[#766bf6]" />
+                      <div className="w-3 h-3 bg-[#5f5af6] rounded-[3px] border border-[#5f5af6]" />
+                    </>
+                 )}
+                 {activeType === 'AI_MOCK_INTERVIEW' && (
+                    <>
+                      <div className="w-3 h-3 bg-amber-100 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-amber-300 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-amber-500 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-amber-600 rounded-[3px] border border-transparent" />
+                    </>
+                 )}
+                 {activeType === 'AI_QUIZ' && (
+                    <>
+                      <div className="w-3 h-3 bg-violet-100 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-violet-300 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-violet-500 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-violet-600 rounded-[3px] border border-transparent" />
+                    </>
+                 )}
+                 {activeType === 'DAILY_STREAK' && (
+                    <>
+                      <div className="w-3 h-3 bg-emerald-100 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-emerald-300 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-emerald-500 rounded-[3px] border border-transparent" />
+                      <div className="w-3 h-3 bg-emerald-600 rounded-[3px] border border-transparent" />
+                    </>
+                 )}
                  <span>More</span>
               </div>
               <div className="text-[9px] font-bold text-slate-400">
@@ -987,7 +1163,7 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
            </div>
         </div>
 
-        <div className="col-span-1 lg:col-span-4 bg-slate-50 rounded-2xl p-4 md:p-5 border border-slate-100 flex flex-col justify-between h-full">
+        <div className="col-span-1 lg:col-span-4 bg-slate-50 rounded-2xl p-4 md:p-5 border border-slate-100 flex flex-col justify-between h-full w-full">
            <div>
               <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-4 flex items-center gap-2">
                  <Award size={13} className="text-indigo-600" /> Career Preparation Intelligence
@@ -997,11 +1173,21 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
                  
                  <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-150">
                     <div>
-                       <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Total Submissions</p>
-                       <p className="text-xl font-black text-slate-800 leading-none">{totalApplications}</p>
+                       <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
+                         {activeType === 'JOB_APPLY' ? 'Total Submissions' : 
+                          activeType === 'AI_MOCK_INTERVIEW' ? 'Interviews Evaluated' :
+                          activeType === 'AI_QUIZ' ? 'Quizzes Completed' : 'Total Check-ins'}
+                       </p>
+                       <p className="text-xl font-black text-slate-800 leading-none">{totalCount}</p>
                     </div>
-                    <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
-                       <Target size={16} />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      activeType === 'JOB_APPLY' ? 'bg-indigo-50 text-indigo-600' :
+                      activeType === 'AI_MOCK_INTERVIEW' ? 'bg-amber-50 text-amber-600' :
+                      activeType === 'AI_QUIZ' ? 'bg-violet-50 text-violet-600' : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                       {activeType === 'JOB_APPLY' ? <Target size={16} /> :
+                        activeType === 'AI_MOCK_INTERVIEW' ? <MessageSquare size={14} /> :
+                        activeType === 'AI_QUIZ' ? <BrainCircuit size={14} /> : <Trophy size={14} />}
                     </div>
                  </div>
 
@@ -1020,9 +1206,9 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
 
                  <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-150">
                     <div>
-                       <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Peak Prep Day</p>
+                       <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Peak Performance Day</p>
                        <p className="text-xs font-black text-slate-700 tracking-tight">{formattedPeakDay}</p>
-                       {peakFreq > 0 && <p className="text-[8px] font-black uppercase text-emerald-600 mt-0.5">{peakFreq} sub / day max</p>}
+                       {peakFreq > 0 && <p className="text-[8px] font-black uppercase text-emerald-600 mt-0.5">{peakFreq} sessions / day max</p>}
                     </div>
                     <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
                        <Calendar size={16} />
@@ -1037,8 +1223,8 @@ function JobApplyFrequencyCard({ applications }: { applications: any[] }) {
                  <div>
                     <h4 className="text-[9px] font-black text-indigo-800 uppercase tracking-wider mb-0.5">Consistency Bonus</h4>
                     <p className="text-[10px] text-indigo-700 leading-relaxed font-semibold">
-                      {totalApplications < 5 
-                        ? "Increase your submission frequency to hit a 5-day streak and boost your profile placement views by up to 2.5x!"
+                      {totalCount < 5 
+                        ? "Increase your active frequency to hit a 5-day streak and boost your talent score views by up to 2.5x!"
                         : "Outstanding consistency! Keeping your career prep streak alive grants you a 1.25x community multiplier."}
                     </p>
                  </div>
