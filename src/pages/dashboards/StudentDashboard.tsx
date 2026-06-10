@@ -308,7 +308,7 @@ function WelcomeBanner({ profile, applications }: { profile: any, applications: 
   );
 }
 
-function ProfileCompactCard({ profile }: { profile: any }) {
+export function ProfileCompactCard({ profile }: { profile: any }) {
   const { t } = useLanguage();
   const score = profile?.completeness_score || 0;
 
@@ -370,58 +370,58 @@ function ProfileCompactCard({ profile }: { profile: any }) {
   const sectionsList = getSectionsList();
 
   return (
-    <div className="h-full bg-white border border-slate-100 rounded-3xl p-6 text-center relative overflow-hidden group shadow-md shadow-slate-200/40 flex flex-col hover:shadow-xl transition-all duration-500">
+    <div className="h-full bg-white border border-slate-100 rounded-3xl p-5 text-center relative overflow-hidden group shadow-md shadow-slate-200/40 flex flex-col justify-between hover:shadow-xl transition-all duration-500">
        {/* Background decorative design */}
        <div className="absolute top-0 inset-x-0 h-28 bg-gradient-to-b from-indigo-50/60 to-transparent -z-0" />
        
-       <div className="relative z-10 flex flex-col items-center mb-5">
+       <div className="relative z-10 flex flex-col items-center mb-3">
          {/* Profile Photo with premium rings */}
-         <div className="relative mb-3">
-           <div className={`w-20 h-20 rounded-full p-[3px] bg-gradient-to-tr ${score >= 100 ? 'from-emerald-400 to-teal-500' : 'from-indigo-500 via-purple-500 to-pink-500'} shadow-md relative z-10 overflow-hidden shrink-0`}>
-             <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
+         <div className="relative mb-2">
+           <div className={`w-16 h-16 rounded-full p-[2.5px] bg-gradient-to-tr ${score >= 100 ? 'from-emerald-400 to-teal-500' : 'from-indigo-500 via-purple-500 to-pink-500'} shadow-md relative z-10 overflow-hidden shrink-0`}>
+             <div className="w-full h-full rounded-full bg-white p-[1.5px] overflow-hidden">
                {profile?.profile_photo_url ? (
                  <img src={profile.profile_photo_url} className="w-full h-full object-cover rounded-full" />
                ) : (
                  <div className="w-full h-full rounded-full bg-indigo-50 flex items-center justify-center">
-                   <FileUser size={34} className="text-indigo-400" />
+                   <FileUser size={28} className="text-indigo-400" />
                  </div>
                )}
              </div>
            </div>
            
            {/* Dynamic Status / Score Badge on Avatar */}
-           <div className={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[9px] font-black border-2 border-white shadow-md text-white ${score >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+           <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border border-white shadow-md text-white ${score >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}>
              {score >= 70 ? 'PASS' : 'REQ'}
            </div>
          </div>
 
          {/* Student Name */}
-         <h2 className="text-base font-black text-slate-900 uppercase tracking-tight mb-0.5 max-w-full truncate px-1">
+         <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-0.5 max-w-full truncate px-1">
            <DynamicText text={profile?.full_name || t('my_profile')} />
          </h2>
          
          {/* Headline */}
-         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-full truncate px-4 mb-2">
+         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest max-w-full truncate px-4">
            <DynamicText text={profile?.headline || t('setup_headline')} />
          </p>
        </div>
 
        {/* Profile strength visual indicator bar */}
-       <div className="w-full bg-slate-50 border border-slate-100/70 rounded-2xl p-4 mb-5 text-left relative z-10">
-          <div className="flex justify-between items-baseline mb-2">
-             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">{t('profile_strength') || "Profile Strength"}</span>
-             <div className="flex items-center gap-1.5">
-               <span className={`text-sm font-extrabold ${score >= 70 ? 'text-emerald-600' : 'text-indigo-600'}`}>{score}%</span>
+       <div className="w-full bg-slate-50 border border-slate-100/70 rounded-2xl p-3 mb-4 text-left relative z-10">
+          <div className="flex justify-between items-baseline mb-1.5">
+             <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{t('profile_strength') || "Profile Strength"}</span>
+             <div className="flex items-center gap-1">
+               <span className={`text-xs font-extrabold ${score >= 70 ? 'text-emerald-600' : 'text-indigo-600'}`}>{score}%</span>
                {score >= 70 ? (
-                 <span className="text-[9px] font-black text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded uppercase">{t('completed') || "Active"}</span>
+                 <span className="text-[8px] font-black text-emerald-600 bg-emerald-100/50 px-1 py-0.5 rounded uppercase">{t('completed') || "Active"}</span>
                ) : (
-                 <span className="text-[9px] font-black text-amber-600 bg-amber-100/50 px-1.5 py-0.5 rounded uppercase">{t('incomplete') || "Incomplete"}</span>
+                 <span className="text-[8px] font-black text-amber-600 bg-amber-100/50 px-1 py-0.5 rounded uppercase">{t('incomplete') || "Incomplete"}</span>
                )}
              </div>
           </div>
           
           {/* Beautiful glowing gradient progress track */}
-          <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden relative shadow-inner">
+          <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden relative shadow-inner">
              <div 
                className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${
                  score < 30 ? 'bg-gradient-to-r from-red-500 to-rose-400' :
@@ -431,49 +431,38 @@ function ProfileCompactCard({ profile }: { profile: any }) {
                style={{ width: `${score}%` }} 
              />
           </div>
-          {score < 70 && (
-            <p className="text-[9px] font-bold text-amber-600 mt-2 flex items-center gap-1">
-              <AlertTriangle size={10} /> {t('need_70_unlock') || "Reach 70% to unlock hiring features!"}
-            </p>
-          )}
        </div>
 
        {/* Detailed Checklist Sections (Gives dynamic % breakdown as requested) */}
-       <div className="w-full space-y-2 mb-6 text-left relative z-10 flex-1">
-         <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 flex justify-between">
+       <div className="w-full text-left relative z-10 mb-4">
+         <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1.5 flex justify-between px-1">
            <span>{t('section_breakdown') || "Section Weights"}</span>
            <span>{t('status') || "Status"}</span>
          </div>
          
-         <div className="grid grid-cols-1 gap-1.5 max-h-[195px] overflow-y-auto pr-1 select-none scrollbar-thin">
+         <div className="grid grid-cols-2 gap-1.5 select-none">
            {sectionsList.map((sect) => (
              <div 
                key={sect.id} 
-               className={`flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all border ${
+               className={`flex items-center gap-1 p-1 rounded-lg text-[9px] font-bold transition-all border ${
                  sect.isComplete 
-                   ? 'bg-emerald-50/40 border-emerald-100/40 text-slate-700' 
-                   : 'bg-slate-50/50 border-slate-100/40 text-slate-500 hover:bg-slate-50'
+                   ? 'bg-emerald-55/30 border-emerald-100/30 text-slate-700' 
+                   : 'bg-slate-50/60 border-slate-100/30 text-slate-400 hover:bg-slate-50'
                }`}
              >
-               <div className="flex items-center gap-2 truncate">
-                 <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
-                   sect.isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                 }`}>
-                   {sect.isComplete ? <Check size={12} strokeWidth={3} /> : <span className="text-[9px] font-black font-mono">+{sect.weight}</span>}
-                 </div>
-                 <span className="truncate text-[11px] font-semibold">{sect.name}</span>
+               <div className={`w-3.5 h-3.5 rounded-md flex items-center justify-center shrink-0 ${
+                 sect.isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
+               }`}>
+                 {sect.isComplete ? <Check size={8} strokeWidth={3} /> : <span className="text-[7.5px] font-black font-mono">+{sect.weight}</span>}
                </div>
-               
-               <div className="flex items-center gap-1 shrink-0">
-                 <span className="text-[10px] font-black font-mono opacity-80">{sect.weight}%</span>
-                 {sect.isComplete ? (
-                   <span className="text-[8px] font-black tracking-wider uppercase text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-md">{t('done') || "Done"}</span>
-                 ) : (
-                   <Link to="/profile" className="text-[8px] font-black tracking-wider uppercase text-indigo-600 bg-indigo-50/80 px-1 py-0.5 rounded-md hover:bg-indigo-600 hover:text-white transition-colors">
-                     {t('add') || "+ Add"}
-                   </Link>
-                 )}
-               </div>
+               <span className="truncate text-[9px] font-semibold flex-1 leading-tight">{sect.name}</span>
+               {sect.isComplete ? (
+                 <span className="w-1 h-1 rounded-full bg-emerald-500 shrink-0 opacity-85" title="Completed" />
+               ) : (
+                 <Link to="/profile" className="text-[9px] font-black text-indigo-500 hover:text-indigo-600 shrink-0 cursor-pointer" title="Add Info">
+                   +
+                 </Link>
+               )}
              </div>
            ))}
          </div>
@@ -482,9 +471,9 @@ function ProfileCompactCard({ profile }: { profile: any }) {
        {/* Action navigation button */}
        <Link 
          to="/profile" 
-         className="w-full py-3 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-600 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-1.5 mt-auto shadow-sm"
+         className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-indigo-600 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-1 mt-auto shadow-sm"
        >
-         {t('edit_profile') || "Update Profile"} <ArrowRight size={14} />
+         {t('edit_profile') || "Update Profile"} <ArrowRight size={12} />
        </Link>
     </div>
   );
