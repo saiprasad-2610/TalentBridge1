@@ -203,7 +203,7 @@ export function AllJobsPage() {
                     <div>
                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Job Type</label>
                        <div className="space-y-2">
-                          {['Internship', 'Full-time', 'Contract'].map(type => (
+                          {['Full-time', 'Part-time', 'Internship', 'Remote', 'Regional Remote', 'On-site', 'Hybrid'].map(type => (
                              <label key={type} className="flex items-center gap-2 cursor-pointer group">
                                 <input 
                                    type="radio" 
@@ -318,10 +318,22 @@ export function AllJobsPage() {
                                          </div>
                                       ) : null}
                                    </div>
-                                   <p className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2">
+                                   <p className="text-sm font-bold text-slate-500 uppercase flex items-center flex-wrap gap-2">
                                       {job.company_name}
                                       <span className="w-1 h-1 bg-slate-300 rounded-full" />
                                       <span className="flex items-center gap-1"><MapPin size={14} /> {job.location || 'Remote'}</span>
+                                      {job.experience_level && (
+                                         <>
+                                            <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                            <span className="bg-slate-50 text-slate-700 px-2.5 py-0.5 rounded-full text-xs font-semibold normal-case">💼 Exp: {job.experience_level}</span>
+                                         </>
+                                      )}
+                                      {job.salary_range && (
+                                         <>
+                                            <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                            <span className="bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full text-xs font-semibold normal-case">💰 {job.salary_range}</span>
+                                         </>
+                                      )}
                                    </p>
                                 </div>
                              </div>

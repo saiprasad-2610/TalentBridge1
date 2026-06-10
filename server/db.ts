@@ -467,6 +467,7 @@ export async function initDb() {
           location VARCHAR(255),
           job_type VARCHAR(100), -- Internship, Full-time, Remote
           experience_level VARCHAR(100),
+          salary_range VARCHAR(100),
           education_requirement TEXT,
           responsibilities TEXT,
           qualifications TEXT,
@@ -1368,6 +1369,7 @@ export async function initDb() {
         { name: "location", type: "VARCHAR(255)" },
         { name: "job_type", type: "VARCHAR(100)" },
         { name: "experience_level", type: "VARCHAR(100)" },
+        { name: "salary_range", type: "VARCHAR(100)" },
         { name: "education_requirement", type: "TEXT" },
         { name: "responsibilities", type: "TEXT" },
         { name: "qualifications", type: "TEXT" },
@@ -1920,6 +1922,7 @@ async function runSqliteInit() {
       location TEXT,
       job_type TEXT,
       experience_level TEXT,
+      salary_range TEXT,
       education_requirement TEXT,
       responsibilities TEXT,
       qualifications TEXT,

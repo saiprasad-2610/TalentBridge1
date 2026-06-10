@@ -30,7 +30,8 @@ export function JobPostingPage() {
     qualifications: "",
     additionalNotes: "",
     startDate: "",
-    deadline: ""
+    deadline: "",
+    salaryRange: ""
   });
 
   // Hiring Stages State
@@ -196,20 +197,27 @@ export function JobPostingPage() {
                           <option>Full-time</option>
                           <option>Internship</option>
                           <option>Part-time</option>
-                          <option>Remote Contract</option>
+                          <option>Remote</option>
+                          <option>Regional Remote</option>
+                          <option>On-site</option>
+                          <option>Hybrid</option>
                         </select>
                      </FormGroup>
-                     <FormGroup label="Experience Level">
-                        <select 
-                          className="form-input appearance-none"
-                          value={formData.experienceLevel}
-                          onChange={e => setFormData({ ...formData, experienceLevel: e.target.value })}
-                        >
-                          <option>Entry Level</option>
-                          <option>Mid-Senior Level</option>
-                          <option>Senior Level</option>
-                          <option>Director/VP</option>
-                        </select>
+                     <FormGroup label="Experience Needed" required>
+                        <input 
+                           className="form-input" 
+                           placeholder="e.g. 2+ Years or Entry Level"
+                           value={formData.experienceLevel}
+                           onChange={e => setFormData({ ...formData, experienceLevel: e.target.value })}
+                        />
+                     </FormGroup>
+                     <FormGroup label="Salary Range" required>
+                        <input 
+                           className="form-input" 
+                           placeholder="e.g. $80,000 - $100,000 / Year"
+                           value={formData.salaryRange}
+                           onChange={e => setFormData({ ...formData, salaryRange: e.target.value })}
+                        />
                      </FormGroup>
                    </div>
 

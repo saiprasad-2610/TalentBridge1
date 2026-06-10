@@ -71,7 +71,8 @@ router.post("/", async (req, res) => {
   const { 
     companyId, title, description, skills, location, jobType, 
     experienceLevel, educationRequirement, responsibilities, 
-    qualifications, additionalNotes, startDate, deadline, stages 
+    qualifications, additionalNotes, startDate, deadline, stages,
+    salaryRange
   } = req.body;
 
   try {
@@ -84,13 +85,13 @@ router.post("/", async (req, res) => {
     const [result]: any = await db.query(`
       INSERT INTO jobs (
         company_id, title, description, skills_json, location, job_type,
-        experience_level, education_requirement, responsibilities,
+        experience_level, salary_range, education_requirement, responsibilities,
         qualifications, additional_notes, application_start_date, deadline
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       companyId, title, description, JSON.stringify(skills), location, jobType,
-      experienceLevel, educationRequirement, responsibilities,
+      experienceLevel, salaryRange || "", educationRequirement, responsibilities,
       qualifications, additionalNotes, startDate, deadline
     ]);
 
