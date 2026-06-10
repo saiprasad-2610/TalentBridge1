@@ -390,8 +390,8 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
            </div>
            
            {/* Dynamic Status / Score Badge on Avatar */}
-           <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border border-white shadow-md text-white ${score >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-             {score >= 70 ? 'PASS' : 'REQ'}
+           <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border border-white shadow-md text-white ${score < 40 ? 'bg-red-500' : score < 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+             {score < 40 ? 'LOW' : score < 70 ? 'MID' : 'PASS'}
            </div>
          </div>
 
@@ -411,12 +411,8 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
           <div className="flex justify-between items-baseline mb-1.5">
              <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{t('profile_strength') || "Profile Strength"}</span>
              <div className="flex items-center gap-1">
-               <span className={`text-xs font-extrabold ${score >= 70 ? 'text-emerald-600' : 'text-indigo-600'}`}>{score}%</span>
-               {score >= 70 ? (
-                 <span className="text-[8px] font-black text-emerald-600 bg-emerald-100/50 px-1 py-0.5 rounded uppercase">{t('completed') || "Active"}</span>
-               ) : (
-                 <span className="text-[8px] font-black text-amber-600 bg-amber-100/50 px-1 py-0.5 rounded uppercase">{t('incomplete') || "Incomplete"}</span>
-               )}
+               <span className={`text-xs font-extrabold ${score < 40 ? 'text-red-500' : score < 70 ? 'text-amber-500' : 'text-emerald-500'}`}>{score}%</span>
+               {score < 40 ? <span className="text-[8px] font-black text-red-600 bg-red-100/50 px-1 py-0.5 rounded uppercase">{t('low') || "Low"}</span> : score < 70 ? <span className="text-[8px] font-black text-amber-600 bg-amber-100/50 px-1 py-0.5 rounded uppercase">{t('medium') || "Medium"}</span> : <span className="text-[8px] font-black text-emerald-600 bg-emerald-100/50 px-1 py-0.5 rounded uppercase">{t('completed') || "Active"}</span>}
              </div>
           </div>
           
@@ -424,9 +420,9 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
           <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden relative shadow-inner">
              <div 
                className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${
-                 score < 30 ? 'bg-gradient-to-r from-red-500 to-rose-400' :
-                 score < 70 ? 'bg-gradient-to-r from-amber-500 to-orange-400' :
-                 'bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 --glow'
+                 score < 40 ? 'bg-gradient-to-r from-red-500 to-rose-500 shadow-red-200/50' :
+                 score < 70 ? 'bg-gradient-to-r from-yellow-400 to-amber-500 shadow-yellow-100' :
+                 'bg-gradient-to-r from-green-400 to-emerald-500 shadow-emerald-250'
                }`} 
                style={{ width: `${score}%` }} 
              />
