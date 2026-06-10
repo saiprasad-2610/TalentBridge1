@@ -56,8 +56,10 @@ export function Community() {
   const [selectedType, setSelectedType] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
   const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
-  const [feedSubTab, setFeedSubTab] = useState<"experiences" | "blogs">("experiences");
+  const [feedSubTab, setFeedSubTab] = useState<"all" | "post" | "experience" | "events" | "blogs">("all");
   const [postSubTab, setPostSubTab] = useState<"experience" | "blog">("experience");
+  const [events, setEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
 
   // New Post States
   const [newPost, setNewPost] = useState({
@@ -94,10 +96,37 @@ export function Community() {
   // Load Initial Data
   useEffect(() => {
     fetchFeed();
+    if (activeTab === "feed" && (feedSubTab === "all" || feedSubTab === "events")) {
+      fetchEvents();
+    }
     fetchLeaderboard();
     fetchAnalytics();
     fetchXpBalance();
   }, [selectedType, selectedTag, showVerifiedOnly, activeTab, feedSubTab]);
+
+  // Handle Navbar 'Drops' subtabs query routing
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && ["all", "post", "experience", "events", "blogs"].includes(tabParam)) {
+      setFeedSubTab(tabParam as any);
+      setActiveTab("feed");
+    }
+  }, [window.location.search]);
+
+  const fetchEvents = async () => {
+    try {
+      setEventsLoading(true);
+      const { data } = await api.get("/community/events");
+      if (data && data.success) {
+        setEvents(data.data || []);
+      }
+    } catch (e) {
+      console.error("Xp balance fetching failed:", e);
+    } finally {
+      setEventsLoading(false);
+    }
+  };
 
   const fetchXpBalance = async () => {
     try {
@@ -450,24 +479,28 @@ export function Community() {
                 {/* Category Type Select */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                    {feedSubTab === "experiences" ? "Experience Type" : "Blog Type"}
+                    {feedSubTab === "blogs" ? "Blog Type" : feedSubTab === "events" ? "Event Type" : "Experience Type"}
                   </label>
                   <select
                     value={selectedType}
                     onChange={(e) => setSelectedType(e.target.value)}
                     className="w-full bg-slate-900 text-slate-300 text-sm px-3 py-2 rounded-xl outline-none border border-slate-800 focus:border-blue-500 font-medium cursor-pointer"
                   >
-                    {feedSubTab === "experiences" ? (
-                      <>
-                        <option value="">All Experiences</option>
-                        <option value="Short Experience">Short Experience (10 XP)</option>
-                        <option value="Full Placement Journey">Full Placement Story (50 XP)</option>
-                      </>
-                    ) : (
+                    {feedSubTab === "blogs" ? (
                       <>
                         <option value="">All Blogs</option>
                         <option value="Premium Blog">Premium Blog (25 XP)</option>
                         <option value="Company Preparation Guide">Company Prep Guide (40 XP)</option>
+                      </>
+                    ) : feedSubTab === "events" ? (
+                      <>
+                        <option value="">All Events</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="">All Experiences</option>
+                        <option value="Short Experience">Short Experience (10 XP)</option>
+                        <option value="Full Placement Journey">Full Placement Story (50 XP)</option>
                       </>
                     )}
                   </select>
@@ -529,49 +562,185 @@ export function Community() {
 
             {/* List Feed Area */}
             <div className="lg:col-span-3 space-y-6">
-              {/* LinkedIn Segmented Dual Stream Selector */}
-              <div className="bg-slate-900/50 p-1 rounded-xl border border-slate-800 flex gap-1 shadow-inner">
+              {/* LinkedIn Segmented SaaS Stream Selector */}
+              <div className="bg-slate-900/50 p-1.5 rounded-xl border border-slate-800 flex flex-wrap gap-1 shadow-inner">
                 <button
                   type="button"
                   onClick={() => {
-                    setFeedSubTab("experiences");
-                    setSelectedType(""); // Reset detailed filters
+                    setFeedSubTab("all");
+                    setSelectedType("");
                   }}
-                  className={`flex-1 py-2.5 text-xs uppercase tracking-wider font-extrabold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    feedSubTab === "experiences"
+                  className={`flex-1 min-w-[80px] py-2.5 text-xs uppercase tracking-wider font-extrabold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    feedSubTab === "all"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black shadow-lg"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedSubTab("post");
+                    setSelectedType("");
+                  }}
+                  className={`flex-1 min-w-[80px] py-2.5 text-xs uppercase tracking-wider font-extrabold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    feedSubTab === "post"
                       ? "bg-blue-600 text-white font-black shadow-lg"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
                   }`}
                 >
-                  <Flame size={14} className={feedSubTab === "experiences" ? "animate-pulse text-amber-300" : ""} />
-                  Placement &amp; Interview Experiences
+                  Post
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedSubTab("experience");
+                    setSelectedType("");
+                  }}
+                  className={`flex-1 min-w-[80px] py-2.5 text-xs uppercase tracking-wider font-extrabold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    feedSubTab === "experience"
+                      ? "bg-teal-600 text-white font-black shadow-lg"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+                  }`}
+                >
+                  Experience
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedSubTab("events");
+                    setSelectedType("");
+                  }}
+                  className={`flex-1 min-w-[80px] py-2.5 text-xs uppercase tracking-wider font-extrabold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    feedSubTab === "events"
+                      ? "bg-purple-600 text-white font-black shadow-lg animate-pulse"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+                  }`}
+                >
+                  <Calendar size={13} />
+                  Events
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setFeedSubTab("blogs");
-                    setSelectedType(""); // Reset detailed filters
+                    setSelectedType("");
                   }}
-                  className={`flex-1 py-2.5 text-xs uppercase tracking-wider font-extrabold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`flex-1 min-w-[80px] py-2.5 text-xs uppercase tracking-wider font-extrabold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                     feedSubTab === "blogs"
                       ? "bg-amber-500 text-slate-950 font-black shadow-lg"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
                   }`}
                 >
-                  <FileText size={14} />
-                  Tech &amp; Career Blogs
+                  Blogs
                 </button>
               </div>
 
               {(() => {
-                const experiencesTypes = ["Short Experience", "Full Placement Journey"];
-                const blogsTypes = ["Premium Blog", "Company Preparation Guide"];
+                // If it is Events view tab
+                if (feedSubTab === "events") {
+                  if (eventsLoading) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-20 bg-slate-950 border border-slate-900 rounded-3xl">
+                        <div className="w-10 h-10 border-4 border-slate-800 border-t-purple-500 rounded-full animate-spin mb-4" />
+                        <p className="text-slate-400 text-sm font-semibold">Fetching all college hackathons and events...</p>
+                      </div>
+                    );
+                  }
+                  if (events.length === 0) {
+                    return (
+                      <div className="bg-slate-950 border border-slate-900 rounded-3xl p-12 text-center shadow-xl space-y-4">
+                        <Calendar className="w-12 h-12 text-slate-700 mx-auto" />
+                        <p className="text-slate-300 text-lg font-black">No college events posted yet</p>
+                        <p className="text-slate-500 text-sm max-w-sm mx-auto">
+                          Once any college TPO schedules placement drives, workshops, seminars, or hackathons, they will show up here for everyone.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {events.map((ev: any) => (
+                        <motion.div
+                          key={ev.id}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="bg-slate-950 border border-slate-900 hover:border-slate-800/80 rounded-2xl p-5 md:p-6 shadow-xl relative overflow-hidden flex flex-col justify-between group"
+                        >
+                          <div className="absolute top-0 right-0 p-3 flex gap-2">
+                            <span className="bg-purple-500/15 text-purple-300 border border-purple-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
+                              {ev.event_type}
+                            </span>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-bold text-purple-400">
+                                🎓
+                              </div>
+                              <div>
+                                <h4 className="font-extrabold text-slate-100 group-hover:text-purple-400 transition-colors">{ev.title}</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{ev.college_name || "Partner College"}</p>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-slate-400 font-medium leading-relaxed line-clamp-3">
+                              {ev.description}
+                            </p>
+
+                            <div className="pt-2 flex flex-col gap-1.5 text-[11px] font-bold text-slate-400">
+                              <span className="flex items-center gap-1.5"><Calendar size={13} className="text-purple-400" /> Runs: {new Date(ev.start_date).toLocaleDateString()} {ev.end_date ? `to ${new Date(ev.end_date).toLocaleDateString()}` : ""}</span>
+                              {ev.location_or_link && (
+                                <span className="flex items-center gap-1.5 text-blue-400 hover:underline">
+                                  🔗 <a href={ev.location_or_link.startsWith("http") ? ev.location_or_link : `https://${ev.location_or_link}`} target="_blank" rel="noopener noreferrer">{ev.location_or_link}</a>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-5 pt-4 border-t border-slate-900 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase">
+                              🔥 {ev.registration_count || 0} Registered Candidates
+                            </span>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { data } = await api.post(`/community/events/register/${ev.id}`);
+                                  if (data.success) {
+                                    toast.success("Successfully registered for event!");
+                                    fetchEvents();
+                                  } else {
+                                    toast.error(data.message || "Failed to register");
+                                  }
+                                } catch (err: any) {
+                                  toast.error(err.response?.data?.message || "Already registered for this event!");
+                                }
+                              }}
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95"
+                            >
+                              Register Now
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                const experiencesTypes = ["Short Experience", "Full Placement Journey", "Experience", "Post"];
+                const blogsTypes = ["Premium Blog", "Company Preparation Guide", "Blog"];
 
                 const filteredPosts = posts.filter((post: any) => {
                   if (selectedType) {
                     return post.type === selectedType;
                   }
-                  if (feedSubTab === "experiences") {
+                  if (feedSubTab === "all") {
+                    return true;
+                  } else if (feedSubTab === "post") {
+                    return ["Short Experience", "Post"].includes(post.type);
+                  } else if (feedSubTab === "experience") {
                     return experiencesTypes.includes(post.type);
                   } else {
                     return blogsTypes.includes(post.type);

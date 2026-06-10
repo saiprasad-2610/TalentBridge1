@@ -401,6 +401,53 @@ router.post("/posts", authenticate, async (req: any, res) => {
   }
 });
 
+router.get("/events", authenticate, async (req: any, res) => {
+  try {
+    const [events]: any = await db.query(`
+      SELECT e.*, cm.college_name,
+             (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as registration_count
+      FROM events e
+      LEFT JOIN college_master cm ON e.college_id = cm.id
+      ORDER BY e.start_date DESC
+    `);
+    res.json({ success: true, data: events });
+  } catch (error: any) {
+    console.error("Error fetching community events:", error);
+    res.status(500).json({ success: false, message: "Error fetching community events: " + error.message });
+  }
+});
+
+router.post("/events/register/:id", authenticate, async (req: any, res) => {
+  const currentUserId = req.user.userId;
+  const eventId = req.params.id;
+
+  try {
+    const [students]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [currentUserId]);
+    if (!students || students.length === 0) {
+      return res.status(400).json({ success: false, message: "Student profile not found" });
+    }
+    const studentId = students[0].id;
+
+    const [existing]: any = await db.query(
+      "SELECT * FROM event_registrations WHERE event_id = ? AND student_id = ?",
+      [eventId, studentId]
+    );
+    if (existing && existing.length > 0) {
+      return res.status(400).json({ success: false, message: "You are already registered for this event" });
+    }
+
+    await db.query(
+      "INSERT INTO event_registrations (event_id, student_id) VALUES (?, ?)",
+      [eventId, studentId]
+    );
+
+    res.json({ success: true, message: "Registered for event successfully" });
+  } catch (err: any) {
+    console.error("Error registering for event:", err);
+    res.status(500).json({ success: false, message: "Error registering for event: " + err.message });
+  }
+});
+
 /**
  * 📱 GET RELEVANT RECOMMENDATION FEED
  * Support skills matching, search parameters, company terms, and follows

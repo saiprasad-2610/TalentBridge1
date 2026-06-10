@@ -237,6 +237,30 @@ export function Navbar() {
             <Link to="/contact" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">
               Contact
             </Link>
+            {/* Drops Hover Dropdown */}
+            <div className="relative group/drops">
+              <button className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-1 cursor-pointer py-2 focus:outline-none">
+                <span>Drops</span>
+                <ChevronDown size={14} className="group-hover/drops:rotate-180 transition-transform duration-200 text-slate-400" />
+              </button>
+              <div className="absolute top-full left-0 mt-0 w-44 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 overflow-hidden z-50 opacity-0 invisible group-hover/drops:opacity-100 group-hover/drops:visible transition-all duration-200">
+                <Link to="/community?tab=all" className="block w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">
+                  All
+                </Link>
+                <Link to="/community?tab=post" className="block w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">
+                  Post
+                </Link>
+                <Link to="/community?tab=experience" className="block w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">
+                  Experience
+                </Link>
+                <Link to="/community?tab=events" className="block w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">
+                  Events
+                </Link>
+                <Link to="/community?tab=blogs" className="block w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">
+                  Blogs
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
 

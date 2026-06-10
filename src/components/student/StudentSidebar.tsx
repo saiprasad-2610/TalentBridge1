@@ -80,7 +80,6 @@ export function StudentSidebar() {
         { to: '/student', icon: LayoutDashboard, label: t('dashboard'), end: true },
         { to: '/jobs', icon: Briefcase, label: t('browse_jobs') },
         { to: '/applied-jobs', icon: FileText, label: t('my_applications') },
-        { to: '/community', icon: Users, label: 'Community Hub' },
       ]
     },
     {
