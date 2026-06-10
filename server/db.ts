@@ -382,10 +382,11 @@ export async function initDb() {
           tpo_id INT NOT NULL,
           title VARCHAR(255) NOT NULL,
           description TEXT,
-          event_type ENUM('PLACEMENT_DRIVE', 'WORKSHOP', 'SEMINAR', 'TRAINING', 'WEBINAR') NOT NULL,
+          event_type VARCHAR(100) NOT NULL,
           start_date DATETIME NOT NULL,
           end_date DATETIME,
           location_or_link TEXT,
+          image_url LONGTEXT,
           status ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED') DEFAULT 'UPCOMING',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE,
@@ -1397,8 +1398,12 @@ export async function initDb() {
           await pool.query("ALTER TABLE events MODIFY COLUMN event_type VARCHAR(100) NOT NULL");
         } catch (e) {}
         try {
-          await pool.query("ALTER TABLE events ADD COLUMN image_url VARCHAR(1000) DEFAULT NULL");
-        } catch (e) {}
+          await pool.query("ALTER TABLE events ADD COLUMN image_url LONGTEXT DEFAULT NULL");
+        } catch (e) {
+          try {
+            await pool.query("ALTER TABLE events MODIFY COLUMN image_url LONGTEXT DEFAULT NULL");
+          } catch (err) {}
+        }
       }
     } catch (e) { console.error("Events table modification failed:", e); }
 
@@ -1841,6 +1846,7 @@ async function runSqliteInit() {
       start_date DATETIME NOT NULL,
       end_date DATETIME,
       location_or_link TEXT,
+      image_url TEXT,
       status TEXT DEFAULT 'UPCOMING',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (college_id) REFERENCES college_master(id) ON DELETE CASCADE,
