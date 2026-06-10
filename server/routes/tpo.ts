@@ -234,14 +234,15 @@ router.post("/events", async (req: any, res) => {
 
     const { title, description, event_type, start_date, end_date, location_or_link, college_id, image_url } = req.body;
 
-    if (!context.collegeIds.includes(college_id)) {
+    const targetCollegeId = Number(college_id);
+    if (!context.collegeIds.map((id: any) => Number(id)).includes(targetCollegeId)) {
       return res.status(403).json({ success: false, message: "Unauthorized for this college" });
     }
 
     const [result]: any = await db.query(`
       INSERT INTO events (college_id, tpo_id, title, description, event_type, start_date, end_date, location_or_link, image_url)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [college_id, context.tpoId, title, description, event_type, start_date, end_date, location_or_link, image_url || null]);
+    `, [targetCollegeId, context.tpoId, title, description, event_type, start_date, end_date, location_or_link, image_url || null]);
 
     res.json({ success: true, message: "Event created successfully", eventId: result.insertId });
   } catch (error) {
