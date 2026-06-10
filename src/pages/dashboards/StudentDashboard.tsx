@@ -1295,22 +1295,9 @@ export function StudentDashboard() {
              <TalentScoreWidget talent={analytics?.talentScore || {}} psychometric={psychometric} />
           </div>
 
-          {/* Row 2: Applications (8), Daily Tasks (4) */}
-          <div className="col-span-1 md:col-span-12 lg:col-span-6 lg:h-[400px]">
+          {/* Row 2: Applications (Full-width) */}
+          <div className="col-span-1 md:col-span-12 lg:col-span-12 lg:h-[350px]">
              <ApplicationTracker applications={applications} />
-          </div>
-          <div className="col-span-1 md:col-span-6 lg:col-span-3 lg:h-[400px]">
-             <DailyTasksWidget 
-               tasks={analytics?.dailyTasks || {}} 
-               xp={analytics?.performance?.xp_balance || 0} 
-               streak={analytics?.performance?.login_streak || 0}
-               onCheckIn={handleCheckIn}
-               dailyRewardBase={analytics?.dailyRewardBase}
-               streakBonusStep={analytics?.streakBonusStep}
-              />
-          </div>
-          <div className="col-span-1 md:col-span-6 lg:col-span-3 lg:h-[400px]">
-             <ReferAndEarnWidget user={user} />
           </div>
 
           {/* Job Apply Frequency Heatmap */}

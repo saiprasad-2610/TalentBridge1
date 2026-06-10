@@ -453,7 +453,7 @@ export function AutocompleteInput({
 // --- Main Page ---
 
 export function StudentProfile() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -494,6 +494,9 @@ export function StudentProfile() {
       const { data } = await api.get(`/students/profile/${user?.id}`);
       if (data.success) {
         setProfile(data.data);
+        if (updateProfile) {
+          updateProfile(data.data);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -789,6 +792,23 @@ export function StudentProfile() {
             </div>
           </div>
         </div>
+
+        {score < 70 && (
+          <div className="mb-8 p-6 bg-gradient-to-r from-red-50 to-amber-50 border border-red-200/60 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-pulse-slow">
+            <div className="flex gap-4 items-start">
+              <div className="p-3 bg-red-100 text-red-600 rounded-2xl shrink-0 mt-0.5">
+                <AlertCircle size={22} />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-red-900 text-base">Complete Your Student Profile First</h4>
+                <p className="text-sm font-semibold text-red-700/80 mt-1">Your profile is currently at {score}% completeness. Please complete the missing sections to reach at least 70% completeness to unlock all other pages, services, mock interviews, and job applications on TalentBridge.</p>
+              </div>
+            </div>
+            <div className="shrink-0 bg-white border border-red-100 px-4 py-2 rounded-xl font-bold text-xs text-red-700 font-mono shadow-sm">
+              Required: 70% • Current: {score}%
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           

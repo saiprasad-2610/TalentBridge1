@@ -16,6 +16,13 @@ export function StudentLayout() {
     }
   }
 
+  // Force student to complete their profile first. If completeness score is under 70%, redirect to /profile
+  if (profile && (profile.completeness_score || 0) < 70) {
+    if (location.pathname !== '/profile' && location.pathname !== '/onboarding') {
+      return <Navigate to="/profile" replace />;
+    }
+  }
+
   return (
     <div className="flex bg-[#F8FAFC] min-h-screen">
       <StudentSidebar />

@@ -10,18 +10,24 @@ import { LogIn, HelpCircle, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } f
 import toast from "react-hot-toast";
 
 export function Login() {
-  const { login, user, loading } = useAuth();
+  const { login, user, loading, profile } = useAuth();
   const navigate = useNavigate();
   const { setPageContext } = useAccessibility();
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
-      if (user.role === "STUDENT") navigate("/student");
+      if (user.role === "STUDENT") {
+        if (!profile || profile.onboarding_completed === 0 || (profile.completeness_score || 0) < 70) {
+          navigate("/profile");
+        } else {
+          navigate("/student");
+        }
+      }
       else if (user.role === "COMPANY") navigate("/company");
       else if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") navigate("/admin");
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, profile, navigate]);
 
   const formik = useFormik({
     initialValues: { email: "", password: "" },
@@ -43,7 +49,14 @@ export function Login() {
           toast.success("Login successful!");
           login(data.data);
           const role = data.data.user.role;
-          if (role === "STUDENT") navigate("/student");
+          if (role === "STUDENT") {
+            const p = data.data.profile;
+            if (!p || p.onboarding_completed === 0 || (p.completeness_score || 0) < 70) {
+              navigate("/profile");
+            } else {
+              navigate("/student");
+            }
+          }
           else if (role === "COMPANY") navigate("/company");
           else if (role === "TPO") navigate("/tpo");
           else if (role === "ADMIN" || role === "SUPER_ADMIN") navigate("/admin");
