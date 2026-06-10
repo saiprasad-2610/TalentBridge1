@@ -61,6 +61,7 @@ export function Community() {
   const [events, setEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [selectedEventDetails, setSelectedEventDetails] = useState<any | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // New Post States
   const [newPost, setNewPost] = useState({
@@ -1755,137 +1756,199 @@ export function Community() {
       {/* 🔮 Event Detail Immersive Modal */}
       {selectedEventDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative my-8 animate-in fade-in-50 zoom-in-95 duration-200">
-            {/* Header / Banner bar */}
-            {selectedEventDetails.image_url ? (
-              <div className="relative w-full max-h-[350px] bg-slate-950 overflow-hidden group select-none border-b border-slate-800">
-                <img 
-                  src={selectedEventDetails.image_url} 
-                  alt={selectedEventDetails.title} 
-                  className="w-full h-auto max-h-[320px] object-contain mx-auto" 
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
-                <button
-                  type="button"
-                  onClick={() => setSelectedEventDetails(null)}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer bg-slate-900/90 hover:bg-slate-800 p-2 rounded-full transition-all border border-slate-700/50 shadow-lg"
-                >
-                  <X size={18} />
-                </button>
-                <div className="absolute top-4 left-4">
-                  <span className="bg-purple-600/95 text-white backdrop-blur-md border border-purple-500/20 text-[10px] font-black uppercase px-3 py-1.5 rounded-lg tracking-widest shadow-md">
-                    {selectedEventDetails.event_type}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="p-6 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
-                <div>
-                  <span className="bg-purple-600/95 text-white backdrop-blur-md border border-purple-500/20 text-[10px] font-black uppercase px-3 py-1.5 rounded-lg tracking-widest shadow-md">
-                    {selectedEventDetails.event_type}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedEventDetails(null)}
-                  className="text-slate-400 hover:text-white cursor-pointer bg-slate-800 p-2 rounded-full transition-colors animate-all"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
+          <div className="w-full max-w-5xl bg-slate-900 border border-slate-800/80 rounded-3xl overflow-hidden shadow-2xl relative my-8 animate-in fade-in-50 zoom-in-95 duration-200">
+            
+            {/* Absolute close button in upper right */}
+            <button
+              type="button"
+              onClick={() => setSelectedEventDetails(null)}
+              className="absolute top-4 right-4 z-40 text-slate-400 hover:text-white cursor-pointer bg-slate-950/90 hover:bg-slate-850 p-2.5 rounded-full transition-all border border-slate-800 hover:border-slate-700 shadow-xl"
+            >
+              <X size={18} />
+            </button>
 
-            {/* Modal Body */}
-            <div className="p-6 md:p-8 space-y-6 max-h-[60vh] overflow-y-auto">
-              {/* College & Title */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-purple-400">
-                  <span className="text-[10px] font-bold uppercase tracking-widest bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-md">
-                    🏢 {selectedEventDetails.college_name || "Partner College"}
-                  </span>
-                </div>
-                <h2 className="text-xl md:text-2xl font-black text-slate-100 hover:text-purple-400 transition-colors leading-tight">
-                  {selectedEventDetails.title}
-                </h2>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-12 min-h-[500px]">
+              
+              {/* Left Side: High Fidelity Poster Section */}
+              <div className="md:col-span-5 bg-slate-950 border-r border-slate-800/80 p-6 flex flex-col justify-between relative min-h-[320px] md:min-h-[550px]">
+                {selectedEventDetails.image_url ? (
+                  <div className="relative w-full h-full min-h-[250px] bg-slate-950/40 overflow-hidden rounded-2xl border border-slate-800/60 flex flex-col items-center justify-center shadow-2xl group flex-1">
+                    {/* Ambient Blurred Background Poster (for luxurious branding backdrop) */}
+                    <img 
+                      src={selectedEventDetails.image_url} 
+                      alt="" 
+                      className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-110 pointer-events-none select-none"
+                    />
+                    
+                    {/* Crisp Real Poster Overlay */}
+                    <img 
+                      src={selectedEventDetails.image_url} 
+                      alt={selectedEventDetails.title} 
+                      className="relative z-10 max-w-full max-h-[460px] object-contain rounded-xl hover:scale-[1.02] transition-transform duration-300 shadow-xl cursor-zoom-in"
+                      referrerPolicy="no-referrer"
+                      onClick={() => setLightboxUrl(selectedEventDetails.image_url)}
+                    />
 
-              {/* Grid Metadata parameters */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/50 p-4 rounded-2xl border border-slate-800/80">
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Event Start date</span>
-                  <div className="flex items-center gap-2 text-slate-300 font-bold text-xs md:text-sm">
-                    <Calendar size={14} className="text-purple-400" />
-                    <span>{new Date(selectedEventDetails.start_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                  </div>
-                </div>
-
-                {selectedEventDetails.end_date && (
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Event End date</span>
-                    <div className="flex items-center gap-2 text-slate-300 font-bold text-xs md:text-sm">
-                      <Calendar size={14} className="text-rose-400" />
-                      <span>{new Date(selectedEventDetails.end_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    {/* Floating Zoom Action Bar */}
+                    <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
+                      <span className="bg-slate-900/90 text-purple-400 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-slate-800 shadow-lg backdrop-blur-sm group-hover:bg-purple-600 group-hover:text-white transition-all pointer-events-auto cursor-pointer" onClick={() => setLightboxUrl(selectedEventDetails.image_url)}>
+                        🔎 View Full Poster
+                      </span>
                     </div>
                   </div>
+                ) : (
+                  // Fallback beautiful banner style if no image exists or is requested
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-950/40 via-slate-950 to-purple-950/40 rounded-2xl border border-slate-800/60 flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden flex-1">
+                    <div className="absolute inset-x-0 -top-12 h-44 bg-gradient-to-b from-purple-500/10 to-transparent blur-3xl" />
+                    <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4">
+                      <Calendar className="text-purple-400 w-8 h-8" />
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-widest text-purple-400 mb-2">
+                      {selectedEventDetails.event_type}
+                    </span>
+                    <h3 className="text-slate-400 font-extrabold text-sm max-w-[200px]">
+                      Campus Academic & Recruiting Program
+                    </h3>
+                  </div>
                 )}
+              </div>
 
-                {selectedEventDetails.location_or_link && (
-                  <div className="space-y-1 md:col-span-2 border-t border-slate-800/50 pt-2.5 mt-1">
-                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Venue / Access Link</span>
-                    <div className="flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm">
-                      <span className="text-sm">🔗</span>
-                      <a 
-                        href={selectedEventDetails.location_or_link.startsWith("http") ? selectedEventDetails.location_or_link : `https://${selectedEventDetails.location_or_link}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="hover:underline hover:text-blue-300 break-all"
+              {/* Right Side: Detailed Event Information & Interactive Workflow */}
+              <div className="md:col-span-7 p-6 md:p-8 flex flex-col justify-between space-y-6 bg-slate-900/40 max-h-[600px] overflow-y-auto custom-scrollbar">
+                
+                {/* Meta details & title heading */}
+                <div className="space-y-4">
+                  
+                  {/* Category labels row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-purple-500/15 text-purple-300 border border-purple-500/25 text-[9px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider shadow-sm">
+                      ✨ {selectedEventDetails.event_type}
+                    </span>
+                    <span className="bg-slate-800 text-slate-300 border border-slate-700/50 text-[9px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider shadow-sm flex items-center gap-1">
+                      🏢 {selectedEventDetails.college_name || "Partner College"}
+                    </span>
+                  </div>
+
+                  {/* Header Title */}
+                  <div className="space-y-1.5">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-100 uppercase tracking-tight leading-snug">
+                      {selectedEventDetails.title}
+                    </h2>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Hosted by college administration
+                    </p>
+                  </div>
+
+                  {/* Grid Fields & Badges for timing parameters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/50 p-4 rounded-2xl border border-slate-800/60 shadow-lg">
+                    <div className="space-y-1">
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500">Event Start Date</span>
+                      <div className="flex items-center gap-2 text-slate-200 font-extrabold text-xs">
+                        <Calendar size={13} className="text-purple-400" />
+                        <span>{new Date(selectedEventDetails.start_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500">Event End Date</span>
+                      <div className="flex items-center gap-2 text-slate-200 font-extrabold text-xs">
+                        <Calendar size={13} className="text-rose-400" />
+                        <span>{selectedEventDetails.end_date ? new Date(selectedEventDetails.end_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) : "Single Day Event"}</span>
+                      </div>
+                    </div>
+
+                    {selectedEventDetails.location_or_link && (
+                      <div className="space-y-1 sm:col-span-2 border-t border-slate-800/40 pt-3 mt-1">
+                        <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500">Location Venue & Link</span>
+                        <div className="flex items-center gap-2 text-blue-400 font-bold text-xs">
+                          <span className="text-sm">🔗</span>
+                          <a 
+                            href={selectedEventDetails.location_or_link.startsWith("http") ? selectedEventDetails.location_or_link : `https://${selectedEventDetails.location_or_link}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="hover:underline hover:text-blue-300 break-all select-all flex items-center gap-1 text-[11px]"
+                          >
+                            {selectedEventDetails.location_or_link}
+                            <ArrowUpRight size={12} className="opacity-70" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fully formatted and beautifully spaced description block */}
+                  <div className="space-y-2">
+                    <h4 className="text-[9px] uppercase font-bold tracking-widest text-slate-500">Event Overview / Description</h4>
+                    <div className="text-xs md:text-[13px] text-slate-300 font-medium leading-relaxed whitespace-pre-line bg-slate-950/40 p-4 rounded-2xl border border-slate-800/40 max-h-[180px] overflow-y-auto custom-scrollbar shadow-inner">
+                      {selectedEventDetails.description || "No description provided."}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Registration workflow action panel at the very bottom */}
+                <div className="mt-auto border-t border-slate-800/80 pt-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gradient-to-r from-purple-950/15 via-slate-900 to-indigo-950/15 border border-purple-900/30 rounded-2xl">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg shadow-inner">
+                        🔥
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Registration Status</p>
+                        <p className="text-xs font-bold text-purple-300">
+                          {selectedEventDetails.registration_count || 0} Registered Candidates
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEventDetails(null)}
+                        className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer"
                       >
-                        {selectedEventDetails.location_or_link}
-                      </a>
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRegisterEvent(selectedEventDetails.id)}
+                        className="flex-1 sm:flex-none px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-purple-500/10 transition-all active:scale-95 cursor-pointer"
+                      >
+                        Register Now
+                      </button>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Event full description */}
-              <div className="space-y-2">
-                <h4 className="text-xs uppercase font-black tracking-widest text-slate-400">About the Event / Description</h4>
-                <p className="text-xs md:text-sm text-slate-300 font-medium leading-relaxed whitespace-pre-wrap bg-slate-950/20 p-4 rounded-2xl border border-slate-800/40">
-                  {selectedEventDetails.description || "No further details provided."}
-                </p>
-              </div>
-
-              {/* Community Registration metrics */}
-              <div className="flex items-center justify-between p-4 bg-purple-950/20 border border-purple-900/30 rounded-2xl gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🔥</span>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-200 uppercase tracking-widest">Active Candidates</p>
-                    <p className="text-xs font-bold text-purple-300">{selectedEventDetails.registration_count || 0} registered</p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleRegisterEvent(selectedEventDetails.id)}
-                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer shrink-0"
-                >
-                  Register Now
-                </button>
               </div>
+              
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-slate-800 bg-slate-950/40 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedEventDetails(null)}
-                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                Close View
-              </button>
-            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔍 Poster Lightbox Modal */}
+      {lightboxUrl && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 transition-all duration-300 cursor-zoom-out"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col justify-center items-center">
+            <button 
+              type="button" 
+              onClick={(e) => { e.stopPropagation(); setLightboxUrl(null); }}
+              className="absolute -top-12 right-0 md:-right-12 text-slate-400 hover:text-white bg-slate-910 border border-slate-800 p-2.5 rounded-full transition-all flex items-center justify-center shadow-2xl cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            <img 
+              src={lightboxUrl} 
+              alt="Full Poster Zoom" 
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-800/85 pointer-events-auto cursor-default animate-in fade-in-50 zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+              referrerPolicy="no-referrer"
+            />
           </div>
         </div>
       )}

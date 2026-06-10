@@ -273,6 +273,63 @@ router.get("/events", async (req: any, res) => {
   }
 });
 
+router.get("/events/:id/registrations", async (req: any, res) => {
+  try {
+    const context = await getTPOContext(req.user.userId);
+    if (!context || context.collegeIds.length === 0) return res.status(403).json({ success: false, message: "Unauthorized" });
+
+    const eventId = Number(req.params.id);
+
+    // Verify if this event belongs to the TPO's colleges
+    const [eventRow]: any = await db.query(`SELECT college_id FROM events WHERE id = ?`, [eventId]);
+    if (eventRow.length === 0 || !context.collegeIds.map((id: any) => Number(id)).includes(Number(eventRow[0].college_id))) {
+      return res.status(403).json({ success: false, message: "Unauthorized for this event" });
+    }
+
+    const [registrations]: any = await db.query(`
+      SELECT er.id as registration_id, er.status, er.registered_at, 
+             sp.id as student_id, sp.full_name, sp.contact, sp.profile_photo_url, sp.resume_url, sp.aadhar_or_college_id
+      FROM event_registrations er
+      JOIN student_profiles sp ON er.student_id = sp.id
+      WHERE er.event_id = ?
+      ORDER BY er.registered_at DESC
+    `, [eventId]);
+
+    res.json({ success: true, data: registrations });
+  } catch (error) {
+    console.error("Error fetching event registrations:", error);
+    res.status(500).json({ success: false, message: "Error fetching registrations" });
+  }
+});
+
+router.put("/events/:id/registrations/:regId", async (req: any, res) => {
+  try {
+    const context = await getTPOContext(req.user.userId);
+    if (!context || context.collegeIds.length === 0) return res.status(403).json({ success: false, message: "Unauthorized" });
+
+    const eventId = Number(req.params.id);
+    const regId = Number(req.params.regId);
+    const { status } = req.body;
+
+    // Verify if this event belongs to the TPO's colleges
+    const [eventRow]: any = await db.query(`SELECT college_id FROM events WHERE id = ?`, [eventId]);
+    if (eventRow.length === 0 || !context.collegeIds.map((id: any) => Number(id)).includes(Number(eventRow[0].college_id))) {
+      return res.status(403).json({ success: false, message: "Unauthorized for this event" });
+    }
+
+    await db.query(`
+      UPDATE event_registrations 
+      SET status = ? 
+      WHERE id = ? AND event_id = ?
+    `, [status, regId, eventId]);
+
+    res.json({ success: true, message: "Registration status updated successfully" });
+  } catch (error) {
+    console.error("Error updating event registration status:", error);
+    res.status(500).json({ success: false, message: "Error updating registration status" });
+  }
+});
+
 // --- ASSESSMENT ENGINE ---
 
 router.post("/tests", async (req: any, res) => {
