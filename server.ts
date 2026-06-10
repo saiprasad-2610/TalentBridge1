@@ -53,7 +53,7 @@ async function startServer() {
     }
   });
 
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   app.use(configureCors());
   app.use(express.json({ limit: "15mb" }));

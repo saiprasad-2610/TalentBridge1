@@ -5,8 +5,14 @@ import path from "path";
 
 dotenv.config();
 
+const mysqlHost = process.env.DB_HOST || process.env.MYSQLHOST;
+const mysqlUser = process.env.DB_USER || process.env.MYSQLUSER;
+const mysqlPassword = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD;
+const mysqlDatabase = process.env.DB_NAME || process.env.MYSQLDATABASE;
+const mysqlPort = process.env.DB_PORT || process.env.MYSQLPORT;
+
 let isProduction = process.env.NODE_ENV === "production";
-let useMySQL = !!process.env.DB_HOST; // Use MySQL if DB_HOST is set
+let useMySQL = !!mysqlHost; // Use MySQL if DB_HOST or MYSQLHOST is set
 
 let pool: any = null;
 let sqliteDb: any = null;
@@ -28,11 +34,11 @@ function setupSQLite() {
 
 function initializeMySQLPool() {
   pool = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME || "talentbridge",
-    port: parseInt(process.env.DB_PORT || "3306"),
+    host: mysqlHost || "localhost",
+    user: mysqlUser || "root",
+    password: mysqlPassword || "",
+    database: mysqlDatabase || "talentbridge",
+    port: parseInt((mysqlPort || "3306").toString()),
     waitForConnections: true,
     connectionLimit: 150, // Optimal high-concurrency connection pool limit
     maxIdle: 50,
