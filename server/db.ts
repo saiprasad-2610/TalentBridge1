@@ -6,7 +6,7 @@ import path from "path";
 dotenv.config();
 
 let isProduction = process.env.NODE_ENV === "production";
-let useMySQL = !!(process.env.DB_HOST && !isProduction); // Use MySQL if DB_HOST is set, except in cloud preview
+let useMySQL = !!process.env.DB_HOST; // Use MySQL if DB_HOST is set
 
 let pool: any = null;
 let sqliteDb: any = null;
