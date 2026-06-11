@@ -17,16 +17,17 @@ router.post("/generate", async (req, res) => {
   }
 
   try {
-    // Check dynamic XP cost
-    const cost = await XPService.getConfigValue('QUIZ_GENERATION_COST', 40);
+    // Check dynamic XP cost (per question cost * amount of questions)
+    const perQuestionCost = await XPService.getConfigValue('QUIZ_QUESTION_COST', 5);
+    const cost = perQuestionCost * parseInt(amount.toString());
     const [users]: any = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
     const xpBalance = users[0]?.xp_balance || 0;
     if (xpBalance < cost) {
-      return res.status(403).json({ success: false, message: `Insufficient XP. Attempting this quiz assessment requires ${cost} XP.` });
+      return res.status(403).json({ success: false, message: `Insufficient XP. Attempting this ${amount}-question quiz requires ${cost} XP (${perQuestionCost} XP per question).` });
     }
 
     // Deduct cost
-    await XPService.deductXP(userId, cost, 'QUIZ_ATTEMPT', `AI Custom Quiz Assessment Session: ${role}`);
+    await XPService.deductXP(userId, cost, 'QUIZ_ATTEMPT', `AI Custom Quiz Assessment Session: ${role} (${amount} Qs)`);
 
     // Insert initial record
     const [result]: any = await db.query(`

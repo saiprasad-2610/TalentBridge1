@@ -50,6 +50,7 @@ const FOCUS_AREAS = [
   { title: "Technical Interview", desc: "Deep technical questions, coding, architecture, tech stack fundamentals, debugging, and edge cases.", emoji: "💻" },
   { title: "HR Interview", desc: "Behavioral questions, core values, motivations, culture fit, situational prompts, and career goals.", emoji: "👔" },
   { title: "Managerial Interview", desc: "Project management, leadership under pressure, conflict resolution, developer growth, delegation, and operational strategy.", emoji: "🤝" },
+  { title: "Introduction Mock Interview", desc: "Learn and practice your self-introduction/elevator pitch. The interviewer will guide you on how it must be structured and provide customized coaching.", emoji: "👋" },
   { title: "Salary Negotiation / Compensation Discussion", desc: "Practicing critical negotiation scenarios, countering offers, base vs bonus discussion, benefits, and value articulation.", emoji: "💰" }
 ];
 

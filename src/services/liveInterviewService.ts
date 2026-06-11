@@ -205,6 +205,24 @@ export class LiveInterviewService {
         3. **Project Management & Execution**: Ask how they estimate resources, handle severe scope creep, align with product/design timelines, or deal with missing milestones.
         4. **Conflict & Team Growth**: Ask scenarios such as: "How do you handle a senior engineer who refuses to follow team standards?" or "Describe how you've handled low-performing team members."
         5. **Resource Trade-offs**: Ask a scenario regarding delivery constraints vs technical debt and how they weigh those conflicts.`;
+      } else if (interviewFocus.includes("Introduction") || interviewFocus.includes("Pitch")) {
+        focusRoleplayDirectives = `
+        ROLE-PLAY DIRECTIVES (INTRODUCTION & ELEVATOR PITCH SPECIALIST):
+        - Your main goal is to coach and evaluate the candidate's self-introduction (elevator pitch).
+        - You must guide them step-by-step on how a professional introduction must be structured.
+        - The standard structural model for an outstanding elevator pitch is:
+          1. The Hook (Present): Who they are, their core expertise, passions, and current focus area.
+          2. The Proof (Past): Relevant academic or professional projects and achievements that match ${profileData.role}.
+          3. The Future: Real excitement and clear value proposition indicating why they are perfect for this role.
+        - Provide active, constructive coaching and feedback. Guide them in perfecting these components.
+        - Gently highlight areas for improvements, such as rambling, unconfident tone, lack of relevance, or forgetting a call to action.`;
+
+        flowDirectives = `
+        1. **Pitch Definition & Start**: Welcome the student to this special self-introduction mastery session. Explain the 3 core pillars (Present Hook, Past Achievements/Projects/Skills, Future connection/goals) clearly and invite them to give their raw first-draft self-introduction.
+        2. **Present Hook Coaching**: Give short, targeted constructive feedback on their greeting & hook. Ask them to reframe or enrich the "Present" portion to align with ${profileData.role}.
+        3. **Highlighting Achievements/Skills**: Ask them about their main achievements or academic projects. Coach them on translating lists of features/skills into high-impact highlights.
+        4. **Expressing Future Motivation**: Guide them on how to express sincere motivation for ${profileData.company || "the target company"} and explain how their skills solve key problems.
+        5. **Polished Master Pitch**: Challenge them to assemble all these coached adjustments and deliver their final self-introduction from start to finish. Conclude with feedback on this final result.`;
       } else if (interviewFocus.includes("Salary") || interviewFocus.includes("Negotiation") || interviewFocus.includes("Compensation")) {
         focusRoleplayDirectives = `
         ROLE-PLAY DIRECTIVES (RECRUITER & COMPENSATION NEGOTIATOR):
@@ -327,9 +345,12 @@ ${this.previousTranscript}
 Please greet the candidate warmly acknowledging the quick connection recovery, recap where we were, and ask the next natural question.`);
               } else {
                 const isNegotiation = profileData.focus && (profileData.focus.includes("Salary") || profileData.focus.includes("Negotiation") || profileData.focus.includes("Compensation"));
+                const isIntro = profileData.focus && (profileData.focus.includes("Introduction") || profileData.focus.includes("Pitch"));
                 const triggerMsg = isNegotiation 
                   ? `We are starting a live Salary Negotiation session now. Greet the candidate warmly, celebrate their offer for cleared interviews of the ${profileData.role} role${profileData.company ? ` at ` + profileData.company : ''}, present the initial starting salary package of $110,000 base, and ask for their verbal feedback on it.`
-                  : `Start the mock interview session now. Greet the candidate warmly, state the target role is ${profileData.role}, and ask them to introduce themselves.`;
+                  : isIntro
+                    ? `We are starting an Introduction Mock Interview and Pitch prep session now. Greet the candidate warmly, state that today we will design and perfect their professional self-introduction for the ${profileData.role} role${profileData.company ? ` at ` + profileData.company : ''} together, and ask them to give their draft self-introduction now.`
+                    : `Start the mock interview session now. Greet the candidate warmly, state the target role is ${profileData.role}, and ask them to introduce themselves.`;
                 this.sendText(triggerMsg);
               }
             }

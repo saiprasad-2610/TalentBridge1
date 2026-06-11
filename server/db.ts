@@ -1475,6 +1475,7 @@ export async function initDb() {
     { key: 'COMMUNITY_LIKE_XP_REWARD', value: '1', desc: 'XP rewarded to author per post like' },
     { key: 'COMMUNITY_COMMENT_XP_REWARD', value: '2', desc: 'XP rewarded to author per comment' },
     { key: 'COMMUNITY_UNLOCK_XP_REWARD', value: '5', desc: 'XP rewarded to author per premium unlock purchase' },
+    { key: 'QUIZ_QUESTION_COST', value: '5', desc: 'XP deducted per dynamic AI quiz question' },
   ];
 
   if (configCount === 0) {
@@ -1486,17 +1487,15 @@ export async function initDb() {
       );
     }
   } else {
-    // Standalone check to guarantee new community parameters are active on already-initialized databases
+    // Standalone check to guarantee new parameters are active on already-initialized databases
     for (const item of defaultConfigValues) {
-      if (item.key.startsWith('COMMUNITY_')) {
-        const [found]: any = await performQuery("SELECT * FROM system_configs WHERE config_key = ?", [item.key]);
-        if (found.length === 0) {
-          await performQuery(
-            "INSERT INTO system_configs (config_key, config_value, description) VALUES (?, ?, ?)",
-            [item.key, item.value, item.desc]
-          );
-          console.log(`🌱 Seeded missing community parameter: ${item.key}`);
-        }
+      const [found]: any = await performQuery("SELECT * FROM system_configs WHERE config_key = ?", [item.key]);
+      if (found.length === 0) {
+        await performQuery(
+          "INSERT INTO system_configs (config_key, config_value, description) VALUES (?, ?, ?)",
+          [item.key, item.value, item.desc]
+        );
+        console.log(`🌱 Seeded missing configuration: ${item.key}`);
       }
     }
   }
