@@ -304,6 +304,15 @@ export async function initDb() {
       `);
 
       await connection.query(`
+        CREATE TABLE IF NOT EXISTS admin_sidebar_permissions (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          user_id INT UNIQUE NOT NULL,
+          allowed_pages TEXT NOT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+
+      await connection.query(`
         CREATE TABLE IF NOT EXISTS company_profiles (
           id INT PRIMARY KEY AUTO_INCREMENT,
           user_id INT UNIQUE NOT NULL,
@@ -2219,6 +2228,13 @@ async function runSqliteInit() {
       ip_address TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_sidebar_permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER UNIQUE NOT NULL,
+      allowed_pages TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS psychometric_questions (

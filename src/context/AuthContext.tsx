@@ -5,6 +5,7 @@ interface User {
   email: string;
   role: "STUDENT" | "COMPANY" | "ADMIN" | "SUPER_ADMIN" | "TPO";
   is_verified: boolean;
+  sidebarPermissions?: string[] | null;
 }
 
 interface AuthContextType {

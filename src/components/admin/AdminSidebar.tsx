@@ -16,10 +16,11 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 export function AdminSidebar() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const navItems = [
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+    { to: '/admin/staff', icon: ShieldAlert, label: 'Staff & Officers' },
     { to: '/admin/tpo', icon: Building2, label: 'TPO & Colleges' },
     { to: '/admin/students', icon: Users, label: 'Students' },
     { to: '/admin/companies', icon: Building2, label: 'Companies' },
@@ -32,6 +33,23 @@ export function AdminSidebar() {
     { to: '/admin/logs', icon: ShieldAlert, label: 'Audit Logs' },
   ];
 
+  // Dynamic dashboard filtering
+  const filteredNavItems = React.useMemo(() => {
+    // If user is SUPER_ADMIN, show everything
+    if (user?.role === 'SUPER_ADMIN') {
+      return navItems;
+    }
+    // If user is ADMIN with explicit permissions, filter links
+    if (user?.sidebarPermissions && Array.isArray(user.sidebarPermissions)) {
+      // Base Dashboard is always visible
+      return navItems.filter(
+        item => item.to === '/admin' || user.sidebarPermissions.includes(item.to)
+      );
+    }
+    // Default fallback
+    return navItems;
+  }, [user]);
+
   return (
     <div className="w-64 bg-slate-900 min-h-screen flex flex-col fixed left-0 top-0">
       <div className="p-8">
@@ -42,7 +60,7 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
-        {navItems.map((item) => (
+        {filteredNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

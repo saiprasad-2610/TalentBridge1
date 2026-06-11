@@ -153,6 +153,8 @@ router.post("/login", async (req, res) => {
 
     let profileData: any = null;
     let requiresPasswordChange = false;
+    let sidebarPermissions: string[] | null = null;
+
     if (user.role === "STUDENT") {
       const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [user.id]);
       profileData = profiles[0];
@@ -167,6 +169,17 @@ router.post("/login", async (req, res) => {
       }
     }
 
+    if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
+      try {
+        const [perms]: any = await db.query("SELECT allowed_pages FROM admin_sidebar_permissions WHERE user_id = ?", [user.id]);
+        if (perms && perms.length > 0) {
+          sidebarPermissions = JSON.parse(perms[0].allowed_pages);
+        }
+      } catch (e) {
+        console.error("Error loading sidebar permissions:", e);
+      }
+    }
+
     await logSecurityEvent(user.id, "LOGIN_SUCCESS", req);
 
     res.json({
@@ -174,7 +187,13 @@ router.post("/login", async (req, res) => {
       data: {
         token: accessToken,
         refreshToken,
-        user: { id: user.id, email: user.email, role: user.role, is_verified: user.is_verified },
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          role: user.role, 
+          is_verified: user.is_verified,
+          sidebarPermissions
+        },
         profile: profileData,
         requiresPasswordChange
       }

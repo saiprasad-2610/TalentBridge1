@@ -572,151 +572,222 @@ export default function TPOManagement() {
       {/* TPO Modal */}
       {showTPOModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden">
-            <div className="p-8 border-b border-slate-100">
+          <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Create TPO Account</h2>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowTPOModal(false);
+                  setTpoStudentsText('');
+                  setTpoParsedStudents([]);
+                }} 
+                className="text-slate-400 hover:text-slate-600 font-black text-lg p-2 transition-colors"
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
-            <form onSubmit={handleCreateTPO} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">Full Name</label>
-                  <input required type="text" className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500" value={tpoForm.full_name} onChange={e => setTpoForm({...tpoForm, full_name: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">Email Address</label>
-                  <input required type="email" className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500" value={tpoForm.email} onChange={e => setTpoForm({...tpoForm, email: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">Designation</label>
-                  <input required type="text" className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500" value={tpoForm.designation} onChange={e => setTpoForm({...tpoForm, designation: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">Assign Colleges</label>
-                  {colleges.length > 0 ? (
-                    <>
-                      <select 
-                        multiple 
-                        className="w-full p-3 bg-slate-50 rounded-xl border-none font-medium focus:ring-2 focus:ring-blue-500 min-h-[100px]"
-                        value={tpoForm.college_ids.map(String)}
-                        onChange={e => setTpoForm({...tpoForm, college_ids: Array.from(e.target.selectedOptions, option => parseInt(option.value))})}
-                      >
-                        {colleges.map(c => <option key={c.id} value={c.id}>{c.college_name}</option>)}
-                      </select>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Hold Ctrl to select multiple</p>
-                    </>
-                  ) : (
-                    <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl">
-                      <p className="text-xs text-orange-700 font-bold uppercase tracking-tight">
-                        No colleges found. Please add a college first using the "Add College" button.
-                      </p>
+            <form onSubmit={handleCreateTPO} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                
+                {/* Information columns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Left Column: TPO Professional Profile */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">TPO Personal Details</h3>
+                    
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-600 uppercase">Full Name</label>
+                      <input 
+                        required 
+                        type="text" 
+                        placeholder="e.g. Prof. Rajesh Kulkarni"
+                        className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                        value={tpoForm.full_name} 
+                        onChange={e => setTpoForm({...tpoForm, full_name: e.target.value})} 
+                      />
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Optional Batch Student Onboarding Section */}
-              <div className="border-t border-slate-100 pt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <FileSpreadsheet className="text-emerald-500" size={16} />
-                    Optional Parallel Batch Student Onboarding
-                  </h4>
-                </div>
-                <p className="text-xs text-slate-500">
-                  Register all first-year or final-year students for the assigned college(s) immediately under a custom batch. Each student will receive their generated credentials automatically.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-500 uppercase">Batch Name</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. 2026 CS-A" 
-                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      value={tpoForm.batch_name}
-                      onChange={e => setTpoForm({...tpoForm, batch_name: e.target.value})}
-                    />
+                    
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-600 uppercase">Email Address</label>
+                      <input 
+                        required 
+                        type="email" 
+                        placeholder="e.g. rajesh.kulkarni@institute.edu"
+                        className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                        value={tpoForm.email} 
+                        onChange={e => setTpoForm({...tpoForm, email: e.target.value})} 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-600 uppercase">Designation</label>
+                      <input 
+                        required 
+                        type="text" 
+                        placeholder="e.g. Head of Training & Placement"
+                        className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                        value={tpoForm.designation} 
+                        onChange={e => setTpoForm({...tpoForm, designation: e.target.value})} 
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-500 uppercase flex items-center gap-1.5">
-                      Upload CSV / Excel Export
-                      <span className="text-[9px] lowercase text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">.csv or .txt</span>
-                    </label>
-                    <div className="relative flex items-center justify-center border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50 p-2 text-center cursor-pointer transition-all">
+                  {/* Right Column: College mapping selector */}
+                  <div className="space-y-4 flex flex-col">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">Assign Institutional Campus</h3>
+                    
+                    <div className="space-y-2 flex-1 flex flex-col">
+                      <label className="text-xs font-black text-slate-600 uppercase">Assign Colleges</label>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Hold Ctrl / Cmd on Mac to select multiple colleges</p>
+                      
+                      {colleges.length > 0 ? (
+                        <select 
+                          multiple 
+                          required
+                          className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-blue-500 flex-1 min-h-[140px] focus:border-transparent transition-all"
+                          value={tpoForm.college_ids.map(String)}
+                          onChange={e => setTpoForm({...tpoForm, college_ids: Array.from(e.target.selectedOptions, option => parseInt(option.value))})}
+                        >
+                          {colleges.map(c => (
+                            <option key={c.id} value={c.id} className="py-2 px-3 hover:bg-slate-100 rounded text-sm text-slate-800 font-medium">
+                              {c.college_name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl flex-1 flex items-center justify-center">
+                          <p className="text-xs text-orange-700 font-bold uppercase tracking-tight text-center">
+                            No colleges found. Please add a college first using the "Add College" button.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Optional Batch Student Onboarding Section */}
+                <div className="border-t border-slate-100 pt-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <FileSpreadsheet className="text-emerald-500" size={16} />
+                      Optional Parallel Batch Student Onboarding
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Register all first-year or final-year students for the assigned college(s) immediately under a custom batch. Each student will receive their generated credentials automatically.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-500 uppercase">Batch Name</label>
                       <input 
-                        type="file" 
-                        accept=".csv,.txt"
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const text = event.target?.result as string;
-                            setTpoStudentsText(text);
-                            const parsed = parseStudentsFromRawText(text);
-                            setTpoParsedStudents(parsed);
-                            toast.success(`Loaded ${parsed.length} students from ${file.name}`);
-                          };
-                          reader.readAsText(file);
-                        }}
+                        type="text" 
+                        placeholder="e.g. 2026 CS-A" 
+                        className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        value={tpoForm.batch_name}
+                        onChange={e => setTpoForm({...tpoForm, batch_name: e.target.value})}
                       />
-                      <div className="flex items-center gap-2">
-                        <Upload size={14} className="text-slate-400" />
-                        <span className="text-xs font-bold text-slate-600">Choose File</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-500 uppercase flex items-center gap-1.5">
+                        Upload CSV / Excel Export
+                        <span className="text-[9px] lowercase text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">.csv or .txt</span>
+                      </label>
+                      <div className="relative flex items-center justify-center border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50 p-2.5 text-center cursor-pointer transition-all">
+                        <input 
+                          type="file" 
+                          accept=".csv,.txt"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const text = event.target?.result as string;
+                              setTpoStudentsText(text);
+                              const parsed = parseStudentsFromRawText(text);
+                              setTpoParsedStudents(parsed);
+                              toast.success(`Loaded ${parsed.length} students from ${file.name}`);
+                            };
+                            reader.readAsText(file);
+                          }}
+                        />
+                        <div className="flex items-center gap-2">
+                          <Upload size={14} className="text-slate-400" />
+                          <span className="text-xs font-bold text-slate-600">Choose File</span>
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">
+                      Pasted Student List / Raw CSV Text
+                    </label>
+                    <textarea 
+                      placeholder="Rahul Sharma, rahul@college.edu&#10;Sneha Patil, sneha@college.edu&#10;Amit Shinde, amit@college.edu"
+                      rows={4}
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none font-semibold text-slate-700"
+                      value={tpoStudentsText}
+                      onChange={(e) => {
+                        setTpoStudentsText(e.target.value);
+                        const parsed = parseStudentsFromRawText(e.target.value);
+                        setTpoParsedStudents(parsed);
+                      }}
+                    />
+                    <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
+                      Paste student names and emails here from your Excel sheets (Name, Email format, or copy-paste directly).
+                    </p>
+                  </div>
+
+                  {tpoParsedStudents.length > 0 && (
+                    <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-emerald-800 font-bold text-xs uppercase tracking-wider">
+                        <span>Detected Student list ({tpoParsedStudents.length})</span>
+                        <span className="text-emerald-700 font-black text-[10px] bg-emerald-100 px-2 py-0.5 rounded">Ready</span>
+                      </div>
+                      <div className="max-h-[120px] overflow-y-auto divide-y divide-emerald-100 border border-emerald-100 rounded-lg bg-white text-xs">
+                        {tpoParsedStudents.map((st, i) => (
+                          <div key={i} className="px-3 py-1.5 flex justify-between font-medium">
+                            <span className="text-slate-700 font-semibold">{st.name}</span>
+                            <span className="text-slate-500 font-mono text-[11px]">{st.email}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase">
-                    Pasted Student List / Raw CSV Text
-                  </label>
-                  <textarea 
-                    placeholder="Rahul Sharma, rahul@college.edu&#10;Sneha Patil, sneha@college.edu&#10;Amit Shinde, amit@college.edu"
-                    rows={4}
-                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
-                    value={tpoStudentsText}
-                    onChange={(e) => {
-                      setTpoStudentsText(e.target.value);
-                      const parsed = parseStudentsFromRawText(e.target.value);
-                      setTpoParsedStudents(parsed);
-                    }}
-                  />
-                  <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
-                    Paste student names and emails here from your Excel sheets (Name, Email format, or copy-paste directly).
+                <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
+                  <ShieldCheck className="text-blue-600 shrink-0" size={20} />
+                  <p className="text-xs text-blue-700 leading-relaxed font-semibold">
+                    The principal TPO Account will be created with a secure temporary password. Access logs and secure login URLs will be dispatched directly to their professional address.
                   </p>
                 </div>
-
-                {tpoParsedStudents.length > 0 && (
-                  <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl space-y-2">
-                    <div className="flex justify-between items-center text-emerald-800 font-bold text-xs uppercase tracking-wider">
-                      <span>Detected Student list ({tpoParsedStudents.length})</span>
-                      <span className="text-emerald-700 font-black">Ready</span>
-                    </div>
-                    <div className="max-h-[120px] overflow-y-auto divide-y divide-emerald-100 border border-emerald-100 rounded-lg bg-white text-xs">
-                      {tpoParsedStudents.map((st, i) => (
-                        <div key={i} className="px-3 py-1.5 flex justify-between font-medium">
-                          <span className="text-slate-700 font-semibold">{st.name}</span>
-                          <span className="text-slate-500 font-mono text-[11px]">{st.email}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
-                <ShieldCheck className="text-blue-600 shrink-0" size={20} />
-                <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                  Account will be created with a secure temporary password. Credentials and login instructions will be automatically emailed to the TPO.
-                </p>
-              </div>
-              <div className="flex justify-end gap-4 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setShowTPOModal(false)} className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-all">Cancel</button>
-                <button type="submit" className="px-8 py-3 bg-blue-600 rounded-xl font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all">Create TPO Account</button>
+              {/* Fixed Footer */}
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-4 shrink-0">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowTPOModal(false);
+                    setTpoStudentsText('');
+                    setTpoParsedStudents([]);
+                  }} 
+                  className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-all text-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-8 py-3 bg-blue-600 rounded-xl font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all text-sm"
+                >
+                  Create TPO Account
+                </button>
               </div>
             </form>
           </div>

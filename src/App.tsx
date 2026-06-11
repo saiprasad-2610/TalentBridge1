@@ -49,6 +49,7 @@ const AdminLogs = lazy(() => import("./pages/admin/AdminLogs.tsx").then(module =
 const PsychometricManagement = lazy(() => import("./pages/admin/PsychometricManagement.tsx").then(module => ({ default: module.PsychometricManagement })));
 const PricingManagement = lazy(() => import("./pages/admin/PricingManagement.tsx").then(module => ({ default: module.PricingManagement })));
 const TPOManagement = lazy(() => import("./pages/admin/TPOManagement.tsx"));
+const StaffManagement = lazy(() => import("./pages/admin/StaffManagement.tsx").then(module => ({ default: module.StaffManagement })));
 
 // TPO specialized experience components
 const TPOLayout = lazy(() => import("./components/tpo/TPOLayout.tsx").then(module => ({ default: module.TPOLayout })));
@@ -260,6 +261,7 @@ export default function App() {
             
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
+              <Route path="staff" element={<StaffManagement />} />
               <Route path="tpo" element={<TPOManagement />} />
               <Route path="students" element={<StudentManagement />} />
               <Route path="companies" element={<CompanyManagement />} />
