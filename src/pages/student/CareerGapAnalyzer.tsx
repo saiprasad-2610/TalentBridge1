@@ -14,6 +14,25 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend
 } from "recharts";
 
+// Robust, exception-safe utility to parse any skill format: array, stringified array, or comma-separated lists
+export const parseSkillsHelper = (val: any): string[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(s => String(s).trim());
+      } catch (e) {
+        // Fallback to comma split if JSON parsing fails
+      }
+    }
+    return trimmed.split(",").map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+};
+
 export default function CareerGapAnalyzer() {
   const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<"compare" | "gallery" | "search" | "insights" | "history">("compare");
@@ -29,6 +48,11 @@ export default function CareerGapAnalyzer() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
+
+  // Real-time recommendation system when search query is typed (especially matching unique IDs)
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   
   // AI Outputs
   const [gapAnalysis, setGapAnalysis] = useState<any>(null);
@@ -52,6 +76,30 @@ export default function CareerGapAnalyzer() {
       loadSuccessGallery();
     }
   }, [user]);
+
+  // Handle auto-recommendations whenever searchQuery changes
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      setRecommendations([]);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+        setLoadingRecommendations(true);
+        const res = await api.get(`/career-gap/search?query=${encodeURIComponent(searchQuery)}`);
+        if (res.data?.success) {
+          setRecommendations(res.data.students || []);
+        }
+      } catch (err) {
+        console.error("Failed fetching search recommendations", err);
+      } finally {
+        setLoadingRecommendations(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
 
   const loadMyProfile = async () => {
     try {
@@ -306,14 +354,7 @@ export default function CareerGapAnalyzer() {
   };
 
   const getMySkills = () => {
-    if (myProfile?.skills_json) {
-      try {
-        return JSON.parse(myProfile.skills_json);
-      } catch (e) {
-        return Array.isArray(myProfile.skills_json) ? myProfile.skills_json : [];
-      }
-    }
-    return myProfile?.skills || [];
+    return parseSkillsHelper(myProfile?.skills_json || myProfile?.skills);
   };
 
   return (
@@ -526,22 +567,22 @@ export default function CareerGapAnalyzer() {
                         </div>
 
                         <div className="space-y-3 pt-3 border-t border-slate-800/60">
-                          <div>
-                            <span className="text-slate-500 text-[11px] font-bold block mb-1">Target Skills</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {targetProfile.skills?.slice(0, 5).map((s: string, idx: number) => (
-                                <span key={idx} className="bg-slate-800 text-slate-300 text-xs px-2.5 py-1 rounded-md">
-                                  {s}
-                                </span>
-                              ))}
-                              {targetProfile.skills?.length > 5 && (
-                                <span className="bg-emerald-950/20 text-emerald-400 text-xs px-2.5 py-1 rounded-md border border-emerald-900/30">
-                                  +{targetProfile.skills.length - 5} More
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                           <div>
+                             <span className="text-slate-500 text-[11px] font-bold block mb-1">Target Skills</span>
+                             <div className="flex flex-wrap gap-1.5">
+                               {parseSkillsHelper(targetProfile.skills || targetProfile.skills_json).slice(0, 5).map((s: string, idx: number) => (
+                                 <span key={idx} className="bg-slate-800 text-slate-300 text-xs px-2.5 py-1 rounded-md">
+                                   {s}
+                                 </span>
+                               ))}
+                               {parseSkillsHelper(targetProfile.skills || targetProfile.skills_json).length > 5 && (
+                                 <span className="bg-emerald-950/20 text-emerald-400 text-xs px-2.5 py-1 rounded-md border border-emerald-900/30">
+                                   +{parseSkillsHelper(targetProfile.skills || targetProfile.skills_json).length - 5} More
+                                 </span>
+                               )}
+                             </div>
+                           </div>
+                         </div>
                       </div>
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-center p-4">
@@ -971,21 +1012,94 @@ export default function CareerGapAnalyzer() {
                   Locate any registered student profile. Searching respects strict candidate visual privacy bounds (Private profiles cannot be discovered).
                 </p>
 
-                <form onSubmit={handleSearch} className="flex gap-3 max-w-2xl">
+                <form onSubmit={handleSearch} className="flex gap-3 max-w-2xl relative">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input
                       type="text"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setIsFocused(true);
+                      }}
+                      onFocus={() => setIsFocused(true)}
+                      onBlur={() => setTimeout(() => setIsFocused(false), 250)}
                       placeholder="Search by full name, TalentBridge unique ID (e.g. TB-2026-10482), college or core skill..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-500"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-500 text-white"
                     />
+
+                    {/* Auto-Recommend Suggestions Popup */}
+                    {isFocused && (recommendations.length > 0 || loadingRecommendations) && (
+                      <div className="absolute left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto divide-y divide-slate-800/60 text-left">
+                        {loadingRecommendations && (
+                          <div className="p-3 text-xs text-slate-400 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-ping" />
+                            Filtering matched connection recommendations...
+                          </div>
+                        )}
+                        {!loadingRecommendations && recommendations.map((rec) => (
+                          <div
+                            key={rec.id}
+                            onClick={() => {
+                              setSearchQuery(rec.tb_id);
+                              setSearchResults([rec]);
+                              setIsFocused(false);
+                            }}
+                            className="p-3 hover:bg-slate-800/70 transition-colors cursor-pointer flex items-center justify-between gap-3 text-slate-300"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {rec.profile_photo_url ? (
+                                <img
+                                  src={rec.profile_photo_url}
+                                  alt={rec.full_name}
+                                  className="w-8 h-8 rounded-full border border-slate-700 object-cover shrink-0"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                  {rec.full_name.charAt(0)}
+                                </div>
+                              )}
+                              <div className="truncate">
+                                <div className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
+                                  <span className="truncate">{rec.full_name}</span>
+                                  <span className="text-[10px] bg-slate-950 text-indigo-400 px-1.5 py-0.5 rounded font-mono font-bold border border-indigo-950 shrink-0">
+                                    {rec.tb_id}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                                  {rec.college_name || "LDRP Institute"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {rec.is_placed === 1 && (
+                                <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">
+                                  Placed @ {rec.placed_company || "TCS"}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectTargetStudent(rec.id, rec.tb_id);
+                                  setIsFocused(false);
+                                }}
+                                className="bg-indigo-600/25 hover:bg-indigo-600 text-indigo-300 hover:text-white px-2 py-1 rounded text-[10px] font-bold transition-all shadow-sm"
+                              >
+                                Select
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="submit"
                     disabled={searchLoading}
-                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all flex items-center gap-1 cursor-pointer"
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all flex items-center gap-1 cursor-pointer shrink-0"
                   >
                     {searchLoading ? "Exploring..." : "Search"}
                   </button>
@@ -996,7 +1110,7 @@ export default function CareerGapAnalyzer() {
               {searchResults.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {searchResults.map((student) => {
-                    const skArr = student.skills_json ? JSON.parse(student.skills_json) : [];
+                    const skArr = parseSkillsHelper(student.skills_json || student.skills);
                     return (
                       <div 
                         key={student.id} 
