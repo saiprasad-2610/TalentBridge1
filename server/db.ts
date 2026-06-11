@@ -286,6 +286,7 @@ export async function initDb() {
           onboarding_status VARCHAR(100),
           onboarding_source VARCHAR(100),
           onboarding_help_actions JSON,
+          batch VARCHAR(100) DEFAULT NULL,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
       `);
@@ -911,7 +912,8 @@ export async function initDb() {
         { name: "onboarding_source", type: "VARCHAR(100)" },
         { name: "onboarding_help_actions", type: "JSON" },
         { name: "last_resume_reset_at", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
-        { name: "daily_resume_count", type: "INT DEFAULT 0" }
+        { name: "daily_resume_count", type: "INT DEFAULT 0" },
+        { name: "batch", type: "VARCHAR(100)" }
       ];
 
       for (const col of requiredStudentCols) {
@@ -1459,6 +1461,12 @@ export async function initDb() {
   }
 
   // Seed Default System Configs
+  try {
+    await performQuery("DELETE FROM system_configs WHERE config_key = 'QUIZ_GENERATION_COST'");
+  } catch (err) {
+    console.error("Failed to delete legacy config key:", err);
+  }
+
   const [existingConfigs]: any = await performQuery("SELECT COUNT(*) as count FROM system_configs");
   const configCount = existingConfigs[0]?.count || 0;
   
@@ -1468,7 +1476,6 @@ export async function initDb() {
     { key: 'REFERRAL_REWARD', value: '60', desc: 'XP points given to referrer' },
     { key: 'MOCK_INTERVIEW_COST', value: '125', desc: 'XP deducted to attempt mock interview' },
     { key: 'RESUME_ANALYSIS_COST', value: '50', desc: 'XP deducted to create resume draft' },
-    { key: 'QUIZ_GENERATION_COST', value: '40', desc: 'XP deducted to attempt a custom AI quiz' },
     { key: 'XP_PER_RUPEE', value: '5', desc: 'Conversion rate of XP points per 1 INR' },
     { key: 'COMMUNITY_POST_XP_REWARD_BASE', value: '10', desc: 'Base XP rewarded for publishing an experience article' },
     { key: 'COMMUNITY_POST_XP_REWARD_HIGH_SCORE', value: '15', desc: 'High quality content XP bonus (Score >= 90)' },
@@ -1766,6 +1773,7 @@ async function runSqliteInit() {
       onboarding_status TEXT,
       onboarding_source TEXT,
       onboarding_help_actions TEXT,
+      batch TEXT,
       last_resume_reset_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       daily_resume_count INTEGER DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -2482,6 +2490,7 @@ async function runSqliteInit() {
     if (!studentColNames.includes("onboarding_status")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN onboarding_status TEXT");
     if (!studentColNames.includes("onboarding_source")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN onboarding_source TEXT");
     if (!studentColNames.includes("onboarding_help_actions")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN onboarding_help_actions TEXT");
+    if (!studentColNames.includes("batch")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN batch TEXT");
     
     const userCols = sqliteDb.prepare("PRAGMA table_info(users)").all();
     const userColNames = userCols.map((c: any) => c.name);

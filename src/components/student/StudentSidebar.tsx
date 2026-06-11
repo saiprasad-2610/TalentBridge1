@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   Users,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Gift
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useSidebar } from '../../context/SidebarContext.tsx';
@@ -102,6 +103,7 @@ export function StudentSidebar() {
       title: 'Rewards',
       items: [
         { to: '/xp-store', icon: Award, label: 'XP Store' },
+        { to: '/refer-and-earn', icon: Gift, label: 'Refer & Earn' },
       ]
     }
   ];

@@ -4,7 +4,7 @@ import { authenticate, isAdmin } from "../middleware/auth.ts";
 import { XPService } from "../services/xpService.ts";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { sendTPOCredentials } from "../services/emailService.ts";
+import { sendTPOCredentials, sendStudentCredentials } from "../services/emailService.ts";
 
 const router = express.Router();
 
@@ -78,7 +78,7 @@ router.delete("/colleges/:id", async (req, res) => {
 
 router.post("/tpos", async (req, res) => {
   try {
-    const { email, full_name, contact_number, designation, college_ids } = req.body;
+    const { email, full_name, contact_number, designation, college_ids, batch_name, onboard_students } = req.body;
 
     // Check if user already exists
     const [existingUsers]: any = await db.query("SELECT * FROM users WHERE email = ?", [email]);
@@ -126,15 +126,133 @@ router.post("/tpos", async (req, res) => {
     const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`;
     await sendTPOCredentials(email, full_name, tempPassword, loginUrl);
 
-    await logAdminAction((req as any).user.userId, "CREATE_TPO", { email, full_name, college_ids }, req);
+    // 5. Bulk Onboard Students if provided
+    let onboardingResults: any[] = [];
+    if (onboard_students && Array.isArray(onboard_students) && onboard_students.length > 0 && college_ids && college_ids.length > 0 && batch_name) {
+      const collegeId = college_ids[0]; // Map to the first assigned college for this TPO
+      const [colleges]: any = await db.query("SELECT college_name FROM college_master WHERE id = ?", [collegeId]);
+      const collegeName = colleges[0]?.college_name || "Assigned College";
 
-    res.json({ success: true, message: "TPO account created and credentials sent" });
+      for (const student of onboard_students) {
+        const { name, email: studentEmail } = student;
+        if (!studentEmail || !name) continue;
+
+        try {
+          // Check if student already exists
+          const [existingStudent]: any = await db.query("SELECT id FROM users WHERE email = ?", [studentEmail]);
+          if (existingStudent.length > 0) {
+            onboardingResults.push({ email: studentEmail, status: "SKIPPED", reason: "Email already exists" });
+            continue;
+          }
+
+          const studentTempPassword = crypto.randomBytes(8).toString("hex");
+          const studentPasswordHash = await bcrypt.hash(studentTempPassword, 10);
+
+          // Create student user with 100 bonus XP reward
+          const [studentUserResult]: any = await db.query(`
+            INSERT INTO users (email, password_hash, role, status, is_verified, xp_balance)
+            VALUES (?, ?, 'STUDENT', 'ACTIVE', 1, 100)
+          `, [studentEmail, studentPasswordHash]);
+
+          const studentUserId = studentUserResult.insertId;
+
+          // Create student profile with batch
+          await db.query(`
+            INSERT INTO student_profiles (user_id, college_id, full_name, batch, onboarding_completed, completeness_score)
+            VALUES (?, ?, ?, ?, 1, 40)
+          `, [studentUserId, collegeId, name, batch_name]);
+
+          // Dispatch email credentials
+          await sendStudentCredentials(studentEmail, name, studentTempPassword, collegeName, batch_name, loginUrl);
+          onboardingResults.push({ email: studentEmail, name, status: "SUCCESS" });
+        } catch (studentErr: any) {
+          console.error(`Failed to register student ${studentEmail}:`, studentErr);
+          onboardingResults.push({ email: studentEmail, status: "FAILED", reason: studentErr?.message });
+        }
+      }
+    }
+
+    await logAdminAction((req as any).user.userId, "CREATE_TPO", { email, full_name, college_ids, batch_name, studentCount: onboard_students?.length, onboardingResults }, req);
+
+    res.json({ 
+      success: true, 
+      message: "TPO account created and credentials sent", 
+      onboardingResults 
+    });
   } catch (error: any) {
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ success: false, message: "Email already exists" });
     }
     console.error(error);
     res.status(500).json({ success: false, message: "Error creating TPO account" });
+  }
+});
+
+// STANDALONE STUDENT BATCH ONBOARDING ENDPOINT
+router.post("/onboard-batch", async (req, res) => {
+  try {
+    const { college_id, batch_name, students } = req.body;
+    if (!college_id || !batch_name || !Array.isArray(students)) {
+      return res.status(400).json({ success: false, message: "Missing required fields or invalid students data" });
+    }
+
+    // Fetch the college name for branding
+    const [colleges]: any = await db.query("SELECT college_name FROM college_master WHERE id = ?", [college_id]);
+    if (colleges.length === 0) {
+      return res.status(404).json({ success: false, message: "College not found" });
+    }
+    const collegeName = colleges[0].college_name;
+
+    const results = [];
+    const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`;
+
+    for (const student of students) {
+      const { name, email } = student;
+      if (!email || !name) continue;
+
+      try {
+        // Check if student exists
+        const [existing]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+        if (existing.length > 0) {
+          results.push({ email, status: "SKIPPED", reason: "Email already registered" });
+          continue;
+        }
+
+        const studentPass = crypto.randomBytes(8).toString("hex");
+        const studentHash = await bcrypt.hash(studentPass, 10);
+
+        const [userRes]: any = await db.query(`
+          INSERT INTO users (email, password_hash, role, status, is_verified, xp_balance)
+          VALUES (?, ?, 'STUDENT', 'ACTIVE', 1, 100)
+        `, [email, studentHash]);
+
+        const studentUserId = userRes.insertId;
+
+        // Save profile mapping college & batch
+        await db.query(`
+          INSERT INTO student_profiles (user_id, college_id, full_name, batch, onboarding_completed, completeness_score)
+          VALUES (?, ?, ?, ?, 1, 40)
+        `, [studentUserId, college_id, name, batch_name]);
+
+        // Send Email
+        await sendStudentCredentials(email, name, studentPass, collegeName, batch_name, loginUrl);
+        results.push({ email, name, status: "SUCCESS" });
+      } catch (err: any) {
+        console.error(`Error registering student ${email}:`, err);
+        results.push({ email, name, status: "FAILED", reason: err.message });
+      }
+    }
+
+    await logAdminAction((req as any).user.userId, "ONBOARD_BATCH", { college_id, collegeName, batch_name, total: students.length, results }, req);
+
+    res.json({ 
+      success: true, 
+      message: `Batch '${batch_name}' of ${students.length} students onboarded successfully`, 
+      results 
+    });
+  } catch (error: any) {
+    console.error("Batch onboarding error:", error);
+    res.status(500).json({ success: false, message: "Error onboarding batch: " + error.message });
   }
 });
 

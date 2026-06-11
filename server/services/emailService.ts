@@ -106,3 +106,33 @@ export async function sendTPOCredentials(email: string, name: string, tempPass: 
   `;
   return sendEmail(email, "Your TalentBridge TPO Account Credentials", html);
 }
+
+export async function sendStudentCredentials(email: string, name: string, tempPass: string, collegeName: string, batchName: string, loginUrl: string) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+      <h2 style="color: #4f46e5; text-align: center;">Welcome to TalentBridge!</h2>
+      <p>Hello <strong>${name}</strong>,</p>
+      <p>Your student account has been registered by your college Placement Administrator at <strong>${collegeName}</strong> for the batch <strong>${batchName}</strong>.</p>
+      <p>You can now log in, build your professional resume, take skill assessments, and participate in placement drives!</p>
+      
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
+        <p style="margin: 5px 0;"><strong>Login URL:</strong> <a href="${loginUrl}">${loginUrl}</a></p>
+        <p style="margin: 5px 0;"><strong>College:</strong> ${collegeName}</p>
+        <p style="margin: 5px 0;"><strong>Batch:</strong> ${batchName}</p>
+        <p style="margin: 5px 0;"><strong>Username / Email:</strong> ${email}</p>
+        <p style="margin: 5px 0;"><strong>Temporary Password:</strong> <code style="background: #eee; padding: 2px 5px; border-radius: 4px;">${tempPass}</code></p>
+      </div>
+
+      <p style="color: #dc2626; font-weight: bold;">Note: It is highly recommended to change/reset your password upon login under your Profile preferences.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${loginUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Log in and Get Placed</a>
+      </div>
+
+      <p>If you have any questions, please contact your TPO.</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="font-size: 12px; color: #6b7280; text-align: center;">TalentBridge - Bridging Talent with Opportunity</p>
+    </div>
+  `;
+  return sendEmail(email, `Your TalentBridge Student Credentials - ${collegeName}`, html);
+}

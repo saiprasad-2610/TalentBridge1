@@ -23,7 +23,8 @@ export default function TPOStudents() {
   const [filters, setFilters] = useState({
     dept: '',
     year: '',
-    status: ''
+    status: '',
+    batch: ''
   });
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
@@ -61,6 +62,8 @@ export default function TPOStudents() {
     return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold uppercase">At Risk</span>;
   };
 
+  const batches = Array.from(new Set(students.map(s => s.batch).filter(Boolean))).sort() as string[];
+
   const filteredStudents = students.filter(s => {
     const matchesSearch = s.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -72,8 +75,15 @@ export default function TPOStudents() {
     
     const matchesDept = !filters.dept || edu.department === filters.dept;
     const matchesYear = !filters.year || edu.year === filters.year;
+    const matchesBatch = !filters.batch || s.batch === filters.batch;
     
-    return matchesSearch && matchesDept && matchesYear;
+    const matchesStatus = !filters.status || (
+      filters.status === 'high' ? ((s.talent_score || 0) >= 80) :
+      filters.status === 'medium' ? ((s.talent_score || 0) >= 50 && (s.talent_score || 0) < 80) :
+      filters.status === 'at-risk' ? ((s.talent_score || 0) < 50) : true
+    );
+    
+    return matchesSearch && matchesDept && matchesYear && matchesBatch && matchesStatus;
   });
 
   return (
@@ -84,14 +94,14 @@ export default function TPOStudents() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="Search by name, email or college..."
+            placeholder="Search by name, email, college or batch..."
             className="w-full pl-12 pr-4 py-3 rounded-xl border-none bg-slate-50 focus:ring-2 focus:ring-blue-500 font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative group">
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-blue-500 transition-colors" size={16} />
             <select 
@@ -104,6 +114,23 @@ export default function TPOStudents() {
               <option value="ECE">ECE</option>
               <option value="Mechanical">Mechanical</option>
               <option value="Civil">Civil</option>
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+               <ChevronRight className="rotate-90 text-slate-400" size={14} />
+            </div>
+          </div>
+
+          <div className="relative group">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-blue-500 transition-colors" size={16} />
+            <select 
+              className="w-full pl-10 pr-4 py-3 rounded-xl border-none bg-slate-50 focus:ring-2 focus:ring-blue-500 font-bold text-xs uppercase tracking-widest text-slate-600 appearance-none cursor-pointer hover:bg-slate-100 transition-all"
+              value={filters.batch}
+              onChange={(e) => setFilters({...filters, batch: e.target.value})}
+            >
+              <option value="">All Batches</option>
+              {batches.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                <ChevronRight className="rotate-90 text-slate-400" size={14} />
@@ -135,7 +162,7 @@ export default function TPOStudents() {
               value={filters.status}
               onChange={(e) => setFilters({...filters, status: e.target.value})}
             >
-              <option value="">All Risk Categories</option>
+              <option value="">All Readiness</option>
               <option value="high">High Readiness</option>
               <option value="medium">Medium Readiness</option>
               <option value="at-risk">At Risk</option>
@@ -154,7 +181,7 @@ export default function TPOStudents() {
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
                 <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Student</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">College</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">College & Batch</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Talent Score</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Placement Readiness</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider text-right">Actions</th>
@@ -180,7 +207,16 @@ export default function TPOStudents() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-slate-600">{student.college_name}</p>
+                      <p className="text-sm font-bold text-slate-700">{student.college_name}</p>
+                      {student.batch ? (
+                        <span className="inline-block mt-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase px-2 py-0.5 rounded">
+                          {student.batch}
+                        </span>
+                      ) : (
+                        <span className="inline-block mt-0.5 bg-slate-100 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded">
+                          No Batch Assigned
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -252,6 +288,14 @@ export default function TPOStudents() {
                       })()}
                     </p>
                     <p className="text-xs text-slate-400 font-bold mt-1">Status: Regular / Final Year</p>
+                    {selectedStudent.batch && (
+                      <p className="text-xs mt-2">
+                        <span className="font-bold text-slate-500">Batch:</span>{' '}
+                        <span className="bg-blue-50 border border-blue-100 text-blue-600 px-2 py-0.5 rounded text-[10px] font-black uppercase inline-block">
+                          {selectedStudent.batch}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
 

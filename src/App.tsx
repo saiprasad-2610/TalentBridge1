@@ -65,6 +65,7 @@ const TPONotifications = lazy(() => import("./pages/tpo/TPONotifications.tsx"));
 
 const XPStore = lazy(() => import("./pages/XPStore.tsx").then(module => ({ default: module.XPStore })));
 const XPWallet = lazy(() => import("./pages/student/XPWallet.tsx").then(module => ({ default: module.XPWallet })));
+const ReferAndEarn = lazy(() => import("./pages/student/ReferAndEarn.tsx").then(module => ({ default: module.ReferAndEarn })));
 const InterviewPage = lazy(() => import("./pages/ai/InterviewPage.tsx").then(module => ({ default: module.InterviewPage })));
 const InterviewEnded = lazy(() => import("./pages/ai/InterviewEnded.tsx").then(module => ({ default: module.InterviewEnded })));
 const ResumeBuilder = lazy(() => import("./pages/ai/ResumeBuilder.tsx").then(module => ({ default: module.ResumeBuilder })));
@@ -204,6 +205,7 @@ export default function App() {
               <Route path="/student/mock-history" element={<MockHistoryPage />} />
               <Route path="/xp-store" element={<XPStore />} />
               <Route path="/xp-wallet" element={<XPWallet />} />
+              <Route path="/refer-and-earn" element={<ReferAndEarn />} />
               <Route path="/interview" element={<InterviewPage />} />
               <Route path="/interview-ended" element={<InterviewEnded />} />
               <Route path="/resume-builder" element={<ResumeBuilder />} />

@@ -9,7 +9,10 @@ import {
   Trash2,
   ExternalLink,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  FileSpreadsheet,
+  AlertCircle
 } from 'lucide-react';
 import axios from 'axios';
 import api from '../../services/api';
@@ -21,6 +24,16 @@ export default function TPOManagement() {
   const [loading, setLoading] = useState(true);
   const [showCollegeModal, setShowCollegeModal] = useState(false);
   const [showTPOModal, setShowTPOModal] = useState(false);
+
+  // Standalone Batch Onboarding states
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchForm, setBatchForm] = useState({
+    college_id: '',
+    batch_name: '',
+    studentsText: ''
+  });
+  const [batchParsedStudents, setBatchParsedStudents] = useState<{ name: string; email: string }[]>([]);
+  const [onboardingProgress, setOnboardingProgress] = useState(false);
 
   // Form states
   const [collegeForm, setCollegeForm] = useState({
@@ -39,8 +52,46 @@ export default function TPOManagement() {
     full_name: '',
     contact_number: '',
     designation: '',
-    college_ids: [] as number[]
+    college_ids: [] as number[],
+    batch_name: '',
+    onboard_students: [] as { name: string; email: string }[]
   });
+
+  const [tpoStudentsText, setTpoStudentsText] = useState('');
+  const [tpoParsedStudents, setTpoParsedStudents] = useState<{ name: string; email: string }[]>([]);
+
+  // Parser helper function
+  const parseStudentsFromRawText = (text: string) => {
+    const lines = text.split('\n');
+    const list: { name: string; email: string }[] = [];
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      // Split by comma, tab, semicolon or generic delimiter
+      const parts = line.split(/[,\t;]+/);
+      if (parts.length >= 2) {
+        const emailIndex = parts.findIndex(part => part.includes('@'));
+        if (emailIndex !== -1) {
+          const email = parts[emailIndex].trim();
+          const nameParts = parts.filter((_, idx) => idx !== emailIndex);
+          const name = nameParts.join(' ').replace(/["']/g, '').trim();
+          if (name && email) {
+            list.push({ name, email });
+          }
+        } else {
+          const name = parts[0].replace(/["']/g, '').trim();
+          const email = parts[1].trim();
+          if (name && email.includes('@')) {
+            list.push({ name, email });
+          }
+        }
+      } else if (parts.length === 1 && parts[0].includes('@')) {
+        const email = parts[0].trim();
+        const deducedName = email.split('@')[0].split(/[._+-]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        list.push({ name: deducedName, email });
+      }
+    }
+    return list;
+  };
 
   const [collegeSuggestions, setCollegeSuggestions] = useState<string[]>([]);
   const [searchingCollege, setSearchingCollege] = useState(false);
@@ -205,14 +256,59 @@ export default function TPOManagement() {
   const handleCreateTPO = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.post('/admin/tpos', tpoForm);
+      const payload = {
+        ...tpoForm,
+        onboard_students: tpoParsedStudents
+      };
+      const res = await api.post('/admin/tpos', payload);
       if (res.data.success) {
         toast.success('TPO account created and credentials sent via email');
+        if (tpoParsedStudents.length > 0) {
+          toast.success(`Registered and onboarded ${tpoParsedStudents.length} students to batch '${tpoForm.batch_name}'!`);
+        }
         setShowTPOModal(false);
+        setTpoStudentsText('');
+        setTpoParsedStudents([]);
+        setTpoForm({
+          email: '',
+          full_name: '',
+          contact_number: '',
+          designation: '',
+          college_ids: [],
+          batch_name: '',
+          onboard_students: []
+        });
         fetchData();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Error creating TPO');
+    }
+  };
+
+  const handleOnboardStandaloneBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batchForm.college_id || !batchForm.batch_name || batchParsedStudents.length === 0) {
+      toast.error('Please select a college, name the batch, and provide at least one valid student record.');
+      return;
+    }
+    setOnboardingProgress(true);
+    try {
+      const res = await api.post('/admin/onboard-batch', {
+        college_id: parseInt(batchForm.college_id),
+        batch_name: batchForm.batch_name,
+        students: batchParsedStudents
+      });
+      if (res.data.success) {
+        toast.success(res.data.message || 'Batch students onboarded and credential emails dispatched!');
+        setShowBatchModal(false);
+        setBatchForm({ college_id: '', batch_name: '', studentsText: '' });
+        setBatchParsedStudents([]);
+        fetchData();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error onboarding student batch');
+    } finally {
+      setOnboardingProgress(false);
     }
   };
 
@@ -241,21 +337,28 @@ export default function TPOManagement() {
         <div className="flex gap-4">
           <button 
             onClick={seedSampleData}
-            className="flex items-center gap-2 px-6 py-3 bg-purple-600 rounded-2xl font-bold text-white shadow-lg shadow-purple-600/20 hover:bg-purple-700 transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-purple-600 rounded-2xl font-bold text-white shadow-lg shadow-purple-600/20 hover:bg-purple-700 transition-all text-sm"
           >
             <ArrowRight size={18} />
             Seed All Data
           </button>
           <button 
             onClick={() => setShowCollegeModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all text-sm"
           >
             <Building2 size={18} />
             Add College
           </button>
           <button 
+            onClick={() => setShowBatchModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 rounded-2xl font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all text-sm"
+          >
+            <FileSpreadsheet size={18} />
+            Onboard Student Batch
+          </button>
+          <button 
             onClick={() => setShowTPOModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 rounded-2xl font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 rounded-2xl font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all text-sm"
           >
             <Plus size={18} />
             Create TPO
@@ -510,15 +613,244 @@ export default function TPOManagement() {
                   )}
                 </div>
               </div>
+
+              {/* Optional Batch Student Onboarding Section */}
+              <div className="border-t border-slate-100 pt-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <FileSpreadsheet className="text-emerald-500" size={16} />
+                    Optional Parallel Batch Student Onboarding
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Register all first-year or final-year students for the assigned college(s) immediately under a custom batch. Each student will receive their generated credentials automatically.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase">Batch Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 2026 CS-A" 
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      value={tpoForm.batch_name}
+                      onChange={e => setTpoForm({...tpoForm, batch_name: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-500 uppercase flex items-center gap-1.5">
+                      Upload CSV / Excel Export
+                      <span className="text-[9px] lowercase text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">.csv or .txt</span>
+                    </label>
+                    <div className="relative flex items-center justify-center border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50 p-2 text-center cursor-pointer transition-all">
+                      <input 
+                        type="file" 
+                        accept=".csv,.txt"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const text = event.target?.result as string;
+                            setTpoStudentsText(text);
+                            const parsed = parseStudentsFromRawText(text);
+                            setTpoParsedStudents(parsed);
+                            toast.success(`Loaded ${parsed.length} students from ${file.name}`);
+                          };
+                          reader.readAsText(file);
+                        }}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Upload size={14} className="text-slate-400" />
+                        <span className="text-xs font-bold text-slate-600">Choose File</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 uppercase">
+                    Pasted Student List / Raw CSV Text
+                  </label>
+                  <textarea 
+                    placeholder="Rahul Sharma, rahul@college.edu&#10;Sneha Patil, sneha@college.edu&#10;Amit Shinde, amit@college.edu"
+                    rows={4}
+                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                    value={tpoStudentsText}
+                    onChange={(e) => {
+                      setTpoStudentsText(e.target.value);
+                      const parsed = parseStudentsFromRawText(e.target.value);
+                      setTpoParsedStudents(parsed);
+                    }}
+                  />
+                  <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
+                    Paste student names and emails here from your Excel sheets (Name, Email format, or copy-paste directly).
+                  </p>
+                </div>
+
+                {tpoParsedStudents.length > 0 && (
+                  <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center text-emerald-800 font-bold text-xs uppercase tracking-wider">
+                      <span>Detected Student list ({tpoParsedStudents.length})</span>
+                      <span className="text-emerald-700 font-black">Ready</span>
+                    </div>
+                    <div className="max-h-[120px] overflow-y-auto divide-y divide-emerald-100 border border-emerald-100 rounded-lg bg-white text-xs">
+                      {tpoParsedStudents.map((st, i) => (
+                        <div key={i} className="px-3 py-1.5 flex justify-between font-medium">
+                          <span className="text-slate-700 font-semibold">{st.name}</span>
+                          <span className="text-slate-500 font-mono text-[11px]">{st.email}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
                 <ShieldCheck className="text-blue-600 shrink-0" size={20} />
                 <p className="text-xs text-blue-700 leading-relaxed font-medium">
                   Account will be created with a secure temporary password. Credentials and login instructions will be automatically emailed to the TPO.
                 </p>
               </div>
-              <div className="flex justify-end gap-4">
+              <div className="flex justify-end gap-4 border-t border-slate-100 pt-4">
                 <button type="button" onClick={() => setShowTPOModal(false)} className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-all">Cancel</button>
                 <button type="submit" className="px-8 py-3 bg-blue-600 rounded-xl font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all">Create TPO Account</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Standalone Batch Modal */}
+      {showBatchModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <FileSpreadsheet className="text-emerald-500" />
+                Onboard Student Batch
+              </h2>
+              <button onClick={() => { setShowBatchModal(false); setBatchParsedStudents([]); setBatchForm({ college_id: '', batch_name: '', studentsText: '' }); }} className="text-slate-400 hover:text-slate-600 font-black">✕</button>
+            </div>
+            <form onSubmit={handleOnboardStandaloneBatch} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 uppercase">Target Institutional College</label>
+                  {colleges.length > 0 ? (
+                    <select 
+                      required
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      value={batchForm.college_id}
+                      onChange={e => setBatchForm({...batchForm, college_id: e.target.value})}
+                    >
+                      <option value="">Select College...</option>
+                      {colleges.map(c => <option key={c.id} value={c.id}>{c.college_name}</option>)}
+                    </select>
+                  ) : (
+                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 font-black">
+                      No colleges registered. Please create a college first.
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 uppercase">Batch Name</label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="e.g. Batch of 2026 CS-B" 
+                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-emerald-500 focus:border-transparent-transparent" 
+                    value={batchForm.batch_name} 
+                    onChange={e => setBatchForm({...batchForm, batch_name: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 uppercase flex items-center gap-1.5">
+                    Option A: File Upload
+                    <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">.csv or .txt</span>
+                  </label>
+                  <p className="text-[11px] text-slate-500 leading-tight">Select any Student Roster export of student names and emails.</p>
+                  <div className="relative flex items-center justify-center border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50/50 p-6 text-center cursor-pointer transition-all">
+                    <input 
+                      type="file" 
+                      accept=".csv,.txt"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const text = event.target?.result as string;
+                          setBatchForm(p => ({ ...p, studentsText: text }));
+                          const parsed = parseStudentsFromRawText(text);
+                          setBatchParsedStudents(parsed);
+                          toast.success(`Parsed ${parsed.length} students from file successfully`);
+                        };
+                        reader.readAsText(file);
+                      }}
+                    />
+                    <div className="space-y-1">
+                      <Upload size={24} className="text-slate-400 mx-auto" />
+                      <p className="text-xs font-bold text-slate-600">Choose Student Roster File</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 uppercase">Option B: Copy-Paste Excel Sheet Rows</label>
+                  <p className="text-[11px] text-slate-500 leading-tight">Directly copy-paste name and email columns.</p>
+                  <textarea 
+                    placeholder="Rahul Sharma, rahul@college.edu&#10;Sneha Patil, sneha@college.edu&#10;Amit Shinde, amit@college.edu"
+                    rows={4}
+                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                    value={batchForm.studentsText}
+                    onChange={(e) => {
+                      setBatchForm({...batchForm, studentsText: e.target.value});
+                      const parsed = parseStudentsFromRawText(e.target.value);
+                      setBatchParsedStudents(parsed);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {batchParsedStudents.length > 0 && (
+                <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl space-y-3">
+                  <div className="flex justify-between items-center text-emerald-800 font-black text-xs uppercase tracking-wider">
+                    <span>Detected Roster list ({batchParsedStudents.length})</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded font-black uppercase">Valid Records</span>
+                  </div>
+                  <div className="max-h-[160px] overflow-y-auto divide-y divide-emerald-100 border border-emerald-100 rounded-xl bg-white text-xs">
+                    {batchParsedStudents.map((st, i) => (
+                      <div key={i} className="px-4 py-2 flex justify-between font-semibold">
+                        <span className="text-slate-700">{st.name}</span>
+                        <span className="text-slate-500 font-mono text-[11px]">{st.email}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-blue-50 p-4 border border-blue-100 rounded-2xl flex items-start gap-3">
+                <AlertCircle className="text-blue-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-blue-700 leading-relaxed font-semibold">
+                  Upon submission, each parsed student account is automatically registered, allocated a starter XP balance of 100, and is dispatched a personalized email notification containing their randomly generated account credential password.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-4 pt-4 border-t border-slate-100">
+                <button type="button" onClick={() => { setShowBatchModal(false); setBatchParsedStudents([]); }} className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-all">Cancel</button>
+                <button 
+                  type="submit" 
+                  disabled={onboardingProgress || batchParsedStudents.length === 0}
+                  className="px-8 py-3 bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all"
+                >
+                  {onboardingProgress ? 'Onboarding and Sending Emails...' : `Onboard ${batchParsedStudents.length} Students`}
+                </button>
               </div>
             </form>
           </div>
