@@ -241,6 +241,34 @@ export default function CareerGapAnalyzer() {
           toast.success(`Success! Spent ${data.xpSpent} XP for comparison`);
         }
 
+        // Seamlessly merge and bind real database metrics & profiles returned by the server to state
+        if (data.studentA) {
+          setMyProfile((prev: any) => ({
+            ...prev,
+            ...data.studentA,
+            full_name: data.studentA.name,
+            profile_photo_url: data.studentA.photo,
+            college_name: data.studentA.college,
+            is_placed: data.studentA.placed,
+            placed_company: data.studentA.placed_company,
+            metrics: data.studentA.metrics,
+            skills_json: JSON.stringify(data.studentA.skills)
+          }));
+        }
+        if (data.studentB) {
+          setTargetProfile((prev: any) => ({
+            ...prev,
+            ...data.studentB,
+            full_name: data.studentB.name,
+            profile_photo_url: data.studentB.photo,
+            college_name: data.studentB.college,
+            is_placed: data.studentB.placed,
+            placed_company: data.studentB.placed_company,
+            metrics: data.studentB.metrics,
+            skills_json: JSON.stringify(data.studentB.skills)
+          }));
+        }
+
         // Trigger AI gap generation automatically if requested
         if (comparisonType === "AI_GAP" || comparisonType === "PREMIUM") {
           await triggerAiGap();

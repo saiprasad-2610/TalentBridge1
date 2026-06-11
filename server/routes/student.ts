@@ -265,6 +265,55 @@ router.post("/upload-certificate/:userId", (req, res) => {
   });
 });
 
+async function getStudentMetrics(userId: number) {
+  let talentScore = 60;
+  const [talRows]: any = await db.query("SELECT overall_score FROM talent_scores WHERE user_id = ?", [userId]);
+  if (talRows && talRows.length > 0) {
+    talentScore = talRows[0].overall_score;
+  }
+
+  let codingScore = 55;
+  const [codRows]: any = await db.query("SELECT coding_score FROM coding_analysis WHERE user_id = ?", [userId]);
+  if (codRows && codRows.length > 0) {
+    codingScore = codRows[0].coding_score;
+  }
+
+  let interviewScore = 50;
+  const [perfRows]: any = await db.query("SELECT avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
+  if (perfRows && perfRows.length > 0) {
+    interviewScore = Math.round(perfRows[0].avg_interview_score || 0);
+  }
+  if (interviewScore === 0) {
+    const [histRows]: any = await db.query("SELECT AVG(score) as avg_score FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
+    if (histRows && histRows[0] && histRows[0].avg_score) {
+      interviewScore = Math.round(histRows[0].avg_score);
+    }
+  }
+
+  let quizScore = 45;
+  const [quizRows]: any = await db.query(
+    "SELECT AVG(score) as avg_score FROM quizzes WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)",
+    [userId]
+  );
+  if (quizRows && quizRows[0] && quizRows[0].avg_score) {
+    quizScore = Math.round(quizRows[0].avg_score);
+  }
+
+  let psychometricScore = 50;
+  const [psyRows]: any = await db.query("SELECT score FROM psychometric_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [userId]);
+  if (psyRows && psyRows.length > 0) {
+    psychometricScore = psyRows[0].score || 50;
+  }
+
+  return {
+    talentScore,
+    codingScore,
+    interviewScore,
+    quizScore,
+    psychometricScore
+  };
+}
+
 // Get Profile (Comprehensive)
 router.get("/profile/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -306,6 +355,8 @@ router.get("/profile/:userId", async (req, res) => {
     const [certifications]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ? ORDER BY created_at DESC", [profile.id]);
     const [extracurriculars]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC, id DESC", [userId]);
 
+    const metrics = await getStudentMetrics(Number(userId));
+
     res.json({ 
       success: true, 
       data: { 
@@ -314,7 +365,8 @@ router.get("/profile/:userId", async (req, res) => {
         projects, 
         experience, 
         certifications,
-        extracurriculars
+        extracurriculars,
+        metrics
       } 
     });
   } catch (error) {

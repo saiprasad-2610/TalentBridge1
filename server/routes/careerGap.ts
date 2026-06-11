@@ -166,7 +166,7 @@ router.get("/profile/:tbId", authenticate, async (req: any, res) => {
     }
 
     // Securely pull sub-elements (only non-sensitive public ones)
-    const [projects]: any = await db.query("SELECT id, title, description, technologies_json FROM student_projects WHERE student_id = ?", [targetStudent.id]);
+    const [projects]: any = await db.query("SELECT id, title, description, tech_stack FROM student_projects WHERE student_id = ?", [targetStudent.id]);
     const [certifications]: any = await db.query("SELECT id, name, issuing_organization, issue_date FROM student_certifications WHERE student_id = ?", [targetStudent.id]);
 
     const metrics = await getStudentMetrics(targetUserId);
