@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { CompanySidebar } from './CompanySidebar.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { 
@@ -18,11 +18,18 @@ import { NotificationPanel } from './NotificationPanel.tsx';
 export function CompanyLayout() {
   const { user, profile, loading } = useAuth();
   const [showNotifications, setShowNotifications] = React.useState(false);
+  const location = useLocation();
 
   if (loading) return null;
   
   if (!user || user.role !== 'COMPANY') {
     return <Navigate to="/login" replace />;
+  }
+
+  // Lock out and force redirect to /company/profile if not approved
+  const isApproved = profile?.status === 'APPROVED';
+  if (!isApproved && location.pathname !== '/company/profile') {
+    return <Navigate to="/company/profile" replace />;
   }
 
   return (

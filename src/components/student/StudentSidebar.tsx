@@ -88,6 +88,7 @@ export function StudentSidebar() {
       items: [
         { to: '/resume-builder', icon: UserCircle, label: t('resume_nav') },
         { to: '/interview', icon: Sparkles, label: t('ai_mock') },
+        { to: '/career-gap', icon: Sparkles, label: 'AI Gap Analyzer™' },
         { to: '/student/mock-history', icon: BarChart3, label: t('performance_archives') },
       ]
     },

@@ -31,6 +31,7 @@ import codingRoutes from "./server/routes/coding.ts";
 import chatbotRoutes from "./server/routes/chatbot.ts";
 import intelligenceRoutes from "./server/routes/intelligence.ts";
 import communityRoutes from "./server/routes/community.ts";
+import careerGapRoutes from "./server/routes/careerGap.ts";
 
 async function startServer() {
   const app = express();
@@ -111,6 +112,7 @@ async function startServer() {
   app.use("/api/chatbot", chatbotRoutes);
   app.use("/api/intelligence", intelligenceRoutes);
   app.use("/api/community", communityRoutes);
+  app.use("/api/career-gap", careerGapRoutes);
 
   // WebSocket for AI Mock Interview
   const { setupInterviewSocket } = await import("./server/sockets/interview.ts");

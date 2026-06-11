@@ -341,6 +341,7 @@ export async function initDb() {
           status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
           rejection_reason TEXT,
           completeness_score INT DEFAULT 0,
+          is_submitted INT DEFAULT 0,
           verified_at DATETIME,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -862,6 +863,60 @@ export async function initDb() {
         );
       `);
 
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS student_visibility (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          student_id INT UNIQUE NOT NULL,
+          visibility VARCHAR(50) DEFAULT 'PUBLIC',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS profile_comparisons (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          student_id INT NOT NULL,
+          target_id INT NOT NULL,
+          type VARCHAR(50) DEFAULT 'BASIC',
+          xp_spent INT DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS comparison_history (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          student_id INT NOT NULL,
+          compared_student_id INT NOT NULL,
+          comparison_type VARCHAR(50) NOT NULL,
+          xp_spent INT DEFAULT 0,
+          gap_analysis_json LONGTEXT,
+          roadmap_json LONGTEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS career_gap_reports (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          student_id INT NOT NULL,
+          target_id INT NOT NULL,
+          gap_analysis_json LONGTEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS ai_roadmaps (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          student_id INT NOT NULL,
+          target_id INT NOT NULL,
+          roadmap_json LONGTEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
       // Ensure columns exist for older schemas
       const [columns]: any = await connection.query("SHOW COLUMNS FROM interview_history");
       const columnNames = columns.map((c: any) => c.Field);
@@ -922,7 +977,12 @@ export async function initDb() {
         { name: "onboarding_help_actions", type: "JSON" },
         { name: "last_resume_reset_at", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
         { name: "daily_resume_count", type: "INT DEFAULT 0" },
-        { name: "batch", type: "VARCHAR(100)" }
+        { name: "batch", type: "VARCHAR(100)" },
+        { name: "tb_id", type: "VARCHAR(100)" },
+        { name: "profile_visibility", type: "VARCHAR(50) DEFAULT 'PUBLIC'" },
+        { name: "is_placed", type: "TINYINT DEFAULT 0" },
+        { name: "placed_company", type: "VARCHAR(255) DEFAULT NULL" },
+        { name: "is_top_performer", type: "TINYINT DEFAULT 0" }
       ];
 
       for (const col of requiredStudentCols) {
@@ -965,6 +1025,7 @@ export async function initDb() {
         { name: "github_url", type: "VARCHAR(255)" },
         { name: "rejection_reason", type: "TEXT" },
         { name: "completeness_score", type: "INT DEFAULT 0" },
+        { name: "is_submitted", type: "INT DEFAULT 0" },
         { name: "verified_at", type: "DATETIME" }
       ];
 
@@ -1816,6 +1877,7 @@ async function runSqliteInit() {
       status TEXT DEFAULT 'PENDING',
       rejection_reason TEXT,
       completeness_score INTEGER DEFAULT 0,
+      is_submitted INTEGER DEFAULT 0,
       verified_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -2484,6 +2546,50 @@ async function runSqliteInit() {
       resume_reviews_included INTEGER DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS student_visibility (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER UNIQUE NOT NULL,
+      visibility TEXT DEFAULT 'PUBLIC',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS profile_comparisons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      target_id INTEGER NOT NULL,
+      type TEXT DEFAULT 'BASIC',
+      xp_spent INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS comparison_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      compared_student_id INTEGER NOT NULL,
+      comparison_type TEXT NOT NULL,
+      xp_spent INTEGER DEFAULT 0,
+      gap_analysis_json TEXT,
+      roadmap_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS career_gap_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      target_id INTEGER NOT NULL,
+      gap_analysis_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_roadmaps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      target_id INTEGER NOT NULL,
+      roadmap_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Extra migrations/checks for SQLite
@@ -2507,6 +2613,11 @@ async function runSqliteInit() {
     if (!studentColNames.includes("onboarding_source")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN onboarding_source TEXT");
     if (!studentColNames.includes("onboarding_help_actions")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN onboarding_help_actions TEXT");
     if (!studentColNames.includes("batch")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN batch TEXT");
+    if (!studentColNames.includes("tb_id")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN tb_id TEXT DEFAULT NULL");
+    if (!studentColNames.includes("profile_visibility")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN profile_visibility TEXT DEFAULT 'PUBLIC'");
+    if (!studentColNames.includes("is_placed")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN is_placed INTEGER DEFAULT 0");
+    if (!studentColNames.includes("placed_company")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN placed_company TEXT DEFAULT NULL");
+    if (!studentColNames.includes("is_top_performer")) sqliteDb.exec("ALTER TABLE student_profiles ADD COLUMN is_top_performer INTEGER DEFAULT 0");
     
     const userCols = sqliteDb.prepare("PRAGMA table_info(users)").all();
     const userColNames = userCols.map((c: any) => c.name);
@@ -2528,6 +2639,12 @@ async function runSqliteInit() {
     const eventColNames = eventCols.map((c: any) => c.name);
     if (!eventColNames.includes("image_url")) {
       sqliteDb.exec("ALTER TABLE events ADD COLUMN image_url TEXT DEFAULT NULL");
+    }
+
+    const companyCheckCols = sqliteDb.prepare("PRAGMA table_info(company_profiles)").all();
+    const companyCheckColNames = companyCheckCols.map((c: any) => c.name);
+    if (!companyCheckColNames.includes("is_submitted")) {
+      sqliteDb.exec("ALTER TABLE company_profiles ADD COLUMN is_submitted INTEGER DEFAULT 0");
     }
 
     // Apply High-Coverage Performance Indices for SQLite

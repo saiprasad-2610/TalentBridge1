@@ -59,7 +59,16 @@ router.post("/register", async (req, res) => {
     // Create profile stub
     if (role === "STUDENT") {
       console.log("[AUTH] Creating student profile stub...");
-      await db.query("INSERT INTO student_profiles (user_id) VALUES (?)", [userId]);
+      const tbId = `TB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+      await db.query(
+        "INSERT INTO student_profiles (user_id, tb_id, profile_visibility) VALUES (?, ?, 'PUBLIC')",
+        [userId, tbId]
+      );
+      // Ensure sync insert for student_visibility as well
+      await db.query(
+        "INSERT INTO student_visibility (student_id, visibility) SELECT id, 'PUBLIC' FROM student_profiles WHERE user_id = ?",
+        [userId]
+      );
       await db.query("INSERT INTO student_performance_stats (user_id, xp_points, last_active_at, current_streak) VALUES (?, 0, CURRENT_TIMESTAMP, 1)", [userId]);
       
       const { XPService } = await import("../services/xpService.ts");

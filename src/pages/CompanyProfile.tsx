@@ -188,9 +188,8 @@ export function CompanyProfile() {
     try {
       const { data } = await api.post(`/companies/profile/${user?.id}/submit`);
       if (data.success) {
-        alert("Profile submitted for verification!");
-        updateProfile({ ...profile, status: 'PENDING' });
-        navigate("/dashboard");
+        alert("Profile submitted successfully! Admin will review your details.");
+        updateProfile({ ...profile, status: 'PENDING', is_submitted: 1 });
       }
     } catch (err: any) {
       alert(err.response?.data?.message || "Submission failed");
@@ -244,7 +243,45 @@ export function CompanyProfile() {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 mt-12">
-        <div className="mb-12 flex justify-between relative">
+        {/* Verification Status Banner */}
+        {profile?.status !== 'APPROVED' && (
+          <div className="mb-8 p-6 bg-amber-50/70 border border-amber-200/60 rounded-3xl backdrop-blur-sm shadow-sm flex items-start gap-4">
+            <div className="p-3 bg-amber-500 text-white rounded-2xl shrink-0">
+              <ShieldCheck size={24} className="animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              {profile?.status === 'PENDING' ? (
+                <>
+                  <h3 className="text-sm font-black text-amber-900 uppercase tracking-wider">Verification in Progress</h3>
+                  <p className="text-xs text-amber-700 font-medium leading-relaxed">
+                    Your company profile has been submitted and is currently being reviewed by our administrative board. We are validating your GST details, corporate registry (CIN), and physical workspace details. During this period, other workspace dashboards remain locked.
+                  </p>
+                </>
+              ) : profile?.status === 'REJECTED' ? (
+                <div className="space-y-1.5">
+                  <h3 className="text-sm font-black text-red-800 uppercase tracking-wider">Verification Rejected</h3>
+                  <p className="text-xs text-red-600 font-medium leading-relaxed">
+                    Our administrative team has rejected your verification request. Please review and update your credentials and submit again.
+                  </p>
+                  {profile?.rejection_reason && (
+                    <div className="mt-2 p-3 bg-red-100/50 border border-red-200 rounded-xl">
+                      <p className="text-xs font-mono font-bold text-red-700">Reason: {profile.rejection_reason}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Account Locked • Verification Required</h3>
+                  <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                    To activate your brand's recruiter workspace and build premium pipelines, please complete your profile details to at least <strong className="text-blue-600">80% progress</strong> (representing GST registration, business address, and required verification stamps), and click <strong className="text-slate-900">"Submit for Verification"</strong> in the header controls.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-12 flex justify-between relative bg-white/40 p-4 rounded-2xl backdrop-blur">
            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2 -z-10" />
            {[1, 2, 3, 4, 5].map((s) => (
              <div 

@@ -80,6 +80,7 @@ const PsychometricTest = lazy(() => import("./pages/psychometric/PsychometricTes
 const IntelligenceDashboard = lazy(() => import("./pages/student/IntelligenceDashboard.tsx"));
 const IntelligenceTestView = lazy(() => import("./pages/student/IntelligenceTestView.tsx"));
 const OnboardingPage = lazy(() => import("./pages/student/OnboardingPage.tsx").then(module => ({ default: module.OnboardingPage })));
+const CareerGapAnalyzer = lazy(() => import("./pages/student/CareerGapAnalyzer.tsx"));
 
 // AI Quiz System
 const QuizConfigPage = lazy(() => import("./pages/ai/QuizConfigPage.tsx").then(module => ({ default: module.QuizConfigPage })));
@@ -219,6 +220,7 @@ export default function App() {
               <Route path="/psychometric-test" element={<PsychometricTest />} />
               <Route path="/student/intelligence" element={<IntelligenceDashboard />} />
               <Route path="/student/intelligence/:type" element={<IntelligenceTestView />} />
+              <Route path="/career-gap" element={<CareerGapAnalyzer />} />
               <Route path="/test/:jobId" element={<JobTest />} />
               <Route path="/profile" element={<StudentProfile />} />
               <Route path="/student/application/:appId" element={<JobStageActionPage />} />

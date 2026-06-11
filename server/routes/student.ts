@@ -275,7 +275,8 @@ router.get("/profile/:userId", async (req, res) => {
       // Fallback: Create profile if missing
       const [users]: any = await db.query("SELECT id FROM users WHERE id = ? AND role = 'STUDENT'", [userId]);
       if (users.length > 0) {
-        await db.query("INSERT INTO student_profiles (user_id) VALUES (?)", [userId]);
+        const tbId = `TB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+        await db.query("INSERT INTO student_profiles (user_id, tb_id, profile_visibility) VALUES (?, ?, 'PUBLIC')", [userId, tbId]);
         const [newProfiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
         profiles.push(newProfiles[0]);
       } else {
@@ -283,7 +284,20 @@ router.get("/profile/:userId", async (req, res) => {
       }
     }
     
-    const profile = profiles[0];
+    let profile = profiles[0];
+    if (!profile.tb_id) {
+      const tbId = `TB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+      await db.query("UPDATE student_profiles SET tb_id = ? WHERE id = ?", [tbId, profile.id]);
+      profile.tb_id = tbId;
+    }
+    if (!profile.profile_visibility) {
+      await db.query("UPDATE student_profiles SET profile_visibility = 'PUBLIC' WHERE id = ?", [profile.id]);
+      profile.profile_visibility = 'PUBLIC';
+    }
+    const [visRows]: any = await db.query("SELECT * FROM student_visibility WHERE student_id = ?", [profile.id]);
+    if (visRows.length === 0) {
+      await db.query("INSERT INTO student_visibility (student_id, visibility) VALUES (?, 'PUBLIC')", [profile.id]);
+    }
 
     // Fetch related data
     const [education]: any = await db.query("SELECT * FROM student_education WHERE student_id = ? ORDER BY start_date DESC", [profile.id]);

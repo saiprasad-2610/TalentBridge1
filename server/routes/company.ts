@@ -154,7 +154,7 @@ router.post("/profile/:userId/submit", async (req, res) => {
       return res.status(400).json({ success: false, message: "Profile incompleteness. Must reach 80% with required documents." });
     }
 
-    await db.query("UPDATE company_profiles SET status = 'PENDING', completeness_score = ? WHERE user_id = ?", [score, req.params.userId]);
+    await db.query("UPDATE company_profiles SET status = 'PENDING', is_submitted = 1, completeness_score = ? WHERE user_id = ?", [score, req.params.userId]);
     res.json({ success: true, message: "Profile submitted for verification" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Submission failed" });

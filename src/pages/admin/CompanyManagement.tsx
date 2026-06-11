@@ -237,6 +237,86 @@ export function CompanyManagement() {
                     </div>
                   </div>
 
+                  {/* Detailed Profile & Legal Verification */}
+                  {selectedCompany.detailedItem?.profile && (
+                    <div className="border-t border-slate-100 pt-8 space-y-6">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <ShieldCheck size={16} className="text-indigo-600" />
+                        Legal & Corporate Credentials
+                      </h3>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Registered Business Name</label>
+                          <p className="text-sm font-bold text-slate-900">{selectedCompany.detailedItem.profile.business_name || 'N/A'}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">GST Number</label>
+                          <p className="text-sm font-mono font-bold text-indigo-700 bg-indigo-50/50 px-2 py-0.5 rounded-lg border border-indigo-100 w-fit">{selectedCompany.detailedItem.profile.gst_no || 'N/A'}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">CIN (Corporate ID)</label>
+                          <p className="text-sm font-bold text-slate-900 font-mono">{selectedCompany.detailedItem.profile.cin_no || 'N/A'}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">PAN Number</label>
+                          <p className="text-sm font-bold text-slate-900 font-mono">{selectedCompany.detailedItem.profile.pan_no || 'N/A'}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block">Registered Office Address</label>
+                          <p className="text-xs font-semibold text-slate-700 leading-relaxed">{selectedCompany.detailedItem.profile.address || 'N/A'}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block">Operating/Branch Address</label>
+                          <p className="text-xs font-semibold text-slate-700 leading-relaxed">{selectedCompany.detailedItem.profile.operating_address || 'N/A'}</p>
+                        </div>
+                      </div>
+
+                      {/* Official Documents */}
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase block">Uploaded Verification Documents</label>
+                        {selectedCompany.detailedItem.documents?.length > 0 ? (
+                          <div className="grid grid-cols-1 divide-y divide-slate-100 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
+                            {selectedCompany.detailedItem.documents.map((doc: any) => (
+                              <div key={doc.id} className="p-4 bg-white hover:bg-slate-50/60 transition-all flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                                    <FileText size={18} />
+                                  </div>
+                                  <div>
+                                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">{doc.doc_type}</h5>
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1 mt-0.5">
+                                      <CheckCircle2 size={10} /> Active Attachment
+                                    </p>
+                                  </div>
+                                </div>
+                                {doc.doc_url ? (
+                                  <a 
+                                    href={doc.doc_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5 shadow-sm transition-all shadow-slate-900/10 hover:scale-105 active:scale-95"
+                                  >
+                                    Open File <ExternalLink size={12} />
+                                  </a>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">No URL</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-6 bg-slate-100/50 rounded-2xl border border-slate-200 border-dashed text-center">
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-wide">No legal documents uploaded yet.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {selectedCompany.detailedItem && (
                     <div className="grid grid-cols-2 gap-8 border-t border-slate-100 pt-8">
                        <div className="space-y-4">
