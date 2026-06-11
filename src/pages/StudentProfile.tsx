@@ -10,7 +10,7 @@ import {
   Settings, LogOut, ChevronRight, Pencil,
   Plus, Trash2, CheckCircle, AlertCircle,
   ExternalLink, Github, Building2, Trophy,
-  FileDown, Check, X, Upload, Eye
+  FileDown, Check, X, Upload, Eye, Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -856,7 +856,16 @@ export function StudentProfile() {
                   <Pencil size={18} />
                 </button>
               </h2>
-              <p className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] mb-4">{profile?.headline || "Fresh Talent"}</p>
+              <p className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] mb-3">{profile?.headline || "Fresh Talent"}</p>
+              
+              {profile?.tb_id && (
+                <div className="mb-4">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-100 rounded-full text-xs font-mono font-black tracking-wider shadow-sm">
+                    <Sparkles size={11} className="text-blue-500 animate-pulse" />
+                    TB ID: {profile.tb_id}
+                  </span>
+                </div>
+              )}
               
               <div className="flex flex-col gap-3 text-left bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
                 <div className="flex items-center gap-3 text-slate-600 text-xs font-bold">

@@ -56,7 +56,7 @@ export default function CareerGapAnalyzer() {
   const loadMyProfile = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/students/profile/${user?.id}`);
+      const res = await api.get(`/students/profile/${user?.id}`);
       if (res.data?.success && res.data?.data) {
         setMyProfile(res.data.data);
         setVisibility(res.data.data.profile_visibility || "PUBLIC");
@@ -72,7 +72,7 @@ export default function CareerGapAnalyzer() {
   const loadSuccessGallery = async () => {
     try {
       setGalleryLoading(true);
-      const res = await api.get("/api/career-gap/success-gallery");
+      const res = await api.get("/career-gap/success-gallery");
       if (res.data?.success) {
         setGallery(res.data.gallery || []);
       }
@@ -85,7 +85,7 @@ export default function CareerGapAnalyzer() {
 
   const loadHistory = async () => {
     try {
-      const res = await api.get("/api/career-gap/history");
+      const res = await api.get("/career-gap/history");
       if (res.data?.success) {
         setHistoryLogs(res.data.history || []);
       }
@@ -96,7 +96,7 @@ export default function CareerGapAnalyzer() {
 
   const loadInsights = async () => {
     try {
-      const res = await api.get("/api/career-gap/insights");
+      const res = await api.get("/career-gap/insights");
       if (res.data?.success) {
         setInsights(res.data);
       }
@@ -109,7 +109,7 @@ export default function CareerGapAnalyzer() {
   const handleVisibilityChange = async (newVal: string) => {
     try {
       setVisibility(newVal);
-      const res = await api.put("/api/career-gap/visibility", { visibility: newVal });
+      const res = await api.put("/career-gap/visibility", { visibility: newVal });
       if (res.data?.success) {
         toast.success(`Visibility updated to ${newVal}`);
         if (myProfile) {
@@ -131,7 +131,7 @@ export default function CareerGapAnalyzer() {
     }
     try {
       setSearchLoading(true);
-      const res = await api.get(`/api/career-gap/search?query=${encodeURIComponent(searchQuery)}`);
+      const res = await api.get(`/career-gap/search?query=${encodeURIComponent(searchQuery)}`);
       if (res.data?.success) {
         setSearchResults(res.data.students || []);
         if (res.data.students?.length === 0) {
@@ -150,7 +150,7 @@ export default function CareerGapAnalyzer() {
   const selectTargetStudent = async (targetId: number, tbId: string) => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/career-gap/profile/${tbId}`);
+      const res = await api.get(`/career-gap/profile/${tbId}`);
       if (res.data?.success) {
         setTargetProfile(res.data.profile);
         toast.success(`Selected ${res.data.profile.full_name} for comparison stage!`);
@@ -179,7 +179,7 @@ export default function CareerGapAnalyzer() {
 
     try {
       setLoading(true);
-      const res = await api.post("/api/career-gap/compare", {
+      const res = await api.post("/career-gap/compare", {
         studentAId: myProfile.id,
         studentBId: targetProfile.id,
         type: comparisonType
@@ -216,7 +216,7 @@ export default function CareerGapAnalyzer() {
     if (!myProfile || !targetProfile) return;
     try {
       setGeneratingGap(true);
-      const res = await api.post("/api/career-gap/generate-gap-analysis", {
+      const res = await api.post("/career-gap/generate-gap-analysis", {
         studentAId: myProfile.id,
         studentBId: targetProfile.id
       });
@@ -239,7 +239,7 @@ export default function CareerGapAnalyzer() {
     if (!myProfile || !targetProfile) return;
     try {
       setGeneratingRoadmap(true);
-      const res = await api.post("/api/career-gap/generate-roadmap", {
+      const res = await api.post("/career-gap/generate-roadmap", {
         studentAId: myProfile.id,
         studentBId: targetProfile.id
       });
