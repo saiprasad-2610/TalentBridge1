@@ -548,7 +548,9 @@ export default function CareerGapAnalyzer() {
                           Current Profile
                         </span>
                         <h3 className="font-bold text-white text-lg mt-1">{myProfile?.full_name || "Myself"}</h3>
-                        <p className="text-slate-400 text-xs">{myProfile?.college_name || "LDRP Institute Of Technology"}</p>
+                        <p className="text-slate-400 text-xs">
+                          {myProfile?.college_name || (myProfile?.education && myProfile.education.length > 0 ? myProfile.education[0].institution : "Institution not specified")}
+                        </p>
                       </div>
                     </div>
 
@@ -1111,7 +1113,7 @@ export default function CareerGapAnalyzer() {
                                   </span>
                                 </div>
                                 <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                                  {rec.college_name || "LDRP Institute"}
+                                  {rec.college_name || "Institution not specified"}
                                 </div>
                               </div>
                             </div>
@@ -1181,7 +1183,7 @@ export default function CareerGapAnalyzer() {
                             )}
                             <div>
                               <h3 className="font-bold text-white text-sm">{student.full_name}</h3>
-                              <p className="text-slate-400 text-xs">{student.college_name || "LDRP Institute"}</p>
+                              <p className="text-slate-400 text-xs">{student.college_name || "Institution not specified"}</p>
                             </div>
                           </div>
 
