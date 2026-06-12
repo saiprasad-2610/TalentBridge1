@@ -29,10 +29,10 @@ async function getStudentMetrics(userId: number) {
     codingScore = codRows[0].coding_score;
   }
 
-  let interviewScore = 50;
+  let interviewScore = 0;
   const [perfRows]: any = await db.query("SELECT avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
-  if (perfRows && perfRows.length > 0) {
-    interviewScore = Math.round(perfRows[0].avg_interview_score || 0);
+  if (perfRows && perfRows.length > 0 && perfRows[0].avg_interview_score) {
+    interviewScore = Math.round(perfRows[0].avg_interview_score);
   }
   if (interviewScore === 0) {
     const [histRows]: any = await db.query("SELECT AVG(score) as avg_score FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
@@ -40,14 +40,20 @@ async function getStudentMetrics(userId: number) {
       interviewScore = Math.round(histRows[0].avg_score);
     }
   }
+  if (interviewScore === 0) {
+    interviewScore = 50; // Dynamic default fallback
+  }
 
-  let quizScore = 45;
+  let quizScore = 0;
   const [quizRows]: any = await db.query(
-    "SELECT AVG(score) as avg_score FROM quizzes WHERE user_id = ?",
+    "SELECT AVG(percentage) as avg_score FROM quizzes WHERE user_id = ? AND status = 'COMPLETED'",
     [userId]
   );
   if (quizRows && quizRows[0] && quizRows[0].avg_score) {
     quizScore = Math.round(quizRows[0].avg_score);
+  }
+  if (quizScore === 0) {
+    quizScore = 45; // Dynamic default fallback
   }
 
   let psychometricScore = 50;
@@ -168,8 +174,10 @@ router.get("/profile/:tbId", authenticate, async (req: any, res) => {
     // Securely pull sub-elements (only non-sensitive public ones)
     const [projects]: any = await db.query("SELECT id, title, description, tech_stack FROM student_projects WHERE student_id = ?", [targetStudent.id]);
     const [certifications]: any = await db.query("SELECT id, name, issuing_organization, issue_date FROM student_certifications WHERE student_id = ?", [targetStudent.id]);
+    const [eduList]: any = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [targetStudent.id]);
 
     const metrics = await getStudentMetrics(targetUserId);
+    const collegeName = targetStudent.college_name || (eduList && eduList.length > 0 ? eduList[0].institution : null);
 
     // Hide: Email, Phone/Contact, Address, Resume URLs, sensitive docs
     const securePublicProfile = {
@@ -177,7 +185,7 @@ router.get("/profile/:tbId", authenticate, async (req: any, res) => {
       user_id: targetUserId,
       tb_id: targetStudent.tb_id,
       full_name: targetStudent.full_name,
-      college_name: targetStudent.college_name,
+      college_name: collegeName || "Institution not specified",
       profile_photo_url: targetStudent.profile_photo_url,
       skills: targetStudent.skills_json ? JSON.parse(typeof targetStudent.skills_json === 'string' ? targetStudent.skills_json : JSON.stringify(targetStudent.skills_json)) : [],
       is_placed: targetStudent.is_placed,
@@ -266,6 +274,11 @@ router.post("/compare", authenticate, async (req: any, res) => {
     const [extAs]: any = await db.query("SELECT id, title, description, activity_date FROM extracurricular_activities WHERE user_id = ?", [studentA.user_id]);
     const [extBs]: any = await db.query("SELECT id, title, description, activity_date FROM extracurricular_activities WHERE user_id = ?", [studentB.user_id]);
 
+    const [eduAs]: any = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [studentA.id]);
+    const [eduBs]: any = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [studentB.id]);
+    const collegeA = studentA.college_name || (eduAs && eduAs.length > 0 ? eduAs[0].institution : null) || "Institution not specified";
+    const collegeB = studentB.college_name || (eduBs && eduBs.length > 0 ? eduBs[0].institution : null) || "Institution not specified";
+
     const comparisonData = {
       isFirstFree: isFirstTime,
       xpSpent: xpCost,
@@ -274,7 +287,7 @@ router.post("/compare", authenticate, async (req: any, res) => {
         tb_id: studentA.tb_id,
         name: studentA.full_name,
         photo: studentA.profile_photo_url,
-        college: studentA.college_name,
+        college: collegeA,
         placed: studentA.is_placed,
         placed_company: studentA.placed_company,
         top_performer: studentA.is_top_performer,
@@ -288,7 +301,7 @@ router.post("/compare", authenticate, async (req: any, res) => {
         tb_id: studentB.tb_id,
         name: studentB.full_name,
         photo: studentB.profile_photo_url,
-        college: studentB.college_name,
+        college: collegeB,
         placed: studentB.is_placed,
         placed_company: studentB.placed_company,
         top_performer: studentB.is_top_performer,

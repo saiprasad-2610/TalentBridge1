@@ -549,7 +549,7 @@ export default function CareerGapAnalyzer() {
                         </span>
                         <h3 className="font-bold text-white text-lg mt-1">{myProfile?.full_name || "Myself"}</h3>
                         <p className="text-slate-400 text-xs">
-                          {myProfile?.college_name || (myProfile?.education && myProfile.education.length > 0 ? myProfile.education[0].institution : "Institution not specified")}
+                          {(myProfile?.education && myProfile.education.length > 0) ? myProfile.education[0].institution : (myProfile?.college_name || "Institution not specified")}
                         </p>
                       </div>
                     </div>

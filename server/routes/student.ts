@@ -278,10 +278,10 @@ async function getStudentMetrics(userId: number) {
     codingScore = codRows[0].coding_score;
   }
 
-  let interviewScore = 50;
+  let interviewScore = 0;
   const [perfRows]: any = await db.query("SELECT avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
-  if (perfRows && perfRows.length > 0) {
-    interviewScore = Math.round(perfRows[0].avg_interview_score || 0);
+  if (perfRows && perfRows.length > 0 && perfRows[0].avg_interview_score) {
+    interviewScore = Math.round(perfRows[0].avg_interview_score);
   }
   if (interviewScore === 0) {
     const [histRows]: any = await db.query("SELECT AVG(score) as avg_score FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
@@ -289,14 +289,20 @@ async function getStudentMetrics(userId: number) {
       interviewScore = Math.round(histRows[0].avg_score);
     }
   }
+  if (interviewScore === 0) {
+    interviewScore = 50; // Dynamic default fallback
+  }
 
-  let quizScore = 45;
+  let quizScore = 0;
   const [quizRows]: any = await db.query(
-    "SELECT AVG(score) as avg_score FROM quizzes WHERE user_id = ?",
+    "SELECT AVG(percentage) as avg_score FROM quizzes WHERE user_id = ? AND status = 'COMPLETED'",
     [userId]
   );
   if (quizRows && quizRows[0] && quizRows[0].avg_score) {
     quizScore = Math.round(quizRows[0].avg_score);
+  }
+  if (quizScore === 0) {
+    quizScore = 45; // Dynamic default fallback
   }
 
   let psychometricScore = 50;
@@ -478,7 +484,7 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
         );
       } else {
         await db.query(
-          "UPDATE student_profiles SET education_json = ? WHERE id = ?",
+          "UPDATE student_profiles SET college_id = NULL, education_json = ? WHERE id = ?",
           [eduJson ? JSON.stringify(eduJson) : null, studentId]
         );
       }
