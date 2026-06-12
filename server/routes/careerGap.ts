@@ -51,9 +51,9 @@ async function getStudentMetrics(userId: number) {
   }
 
   let psychometricScore = 50;
-  const [psyRows]: any = await db.query("SELECT score FROM psychometric_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [userId]);
+  const [psyRows]: any = await db.query("SELECT overall_score FROM psychometric_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [userId]);
   if (psyRows && psyRows.length > 0) {
-    psychometricScore = psyRows[0].score || 50;
+    psychometricScore = psyRows[0].overall_score || 50;
   }
 
   return {
