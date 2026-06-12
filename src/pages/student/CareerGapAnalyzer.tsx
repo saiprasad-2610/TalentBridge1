@@ -970,6 +970,24 @@ export default function CareerGapAnalyzer() {
                   <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin mb-2" />
                   <span className="text-slate-400 text-xs">Loading successful placed leaders...</span>
                 </div>
+              ) : gallery.length === 0 ? (
+                <div className="bg-slate-900/60 rounded-3xl p-12 border border-slate-800 text-center max-w-2xl mx-auto space-y-4">
+                  <div className="w-16 h-16 bg-indigo-950 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto border border-indigo-900/50 shadow-lg animate-pulse-slow">
+                    <Award size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white uppercase tracking-tight font-sans">No Placed Profiles Registered Yet</h3>
+                  <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
+                    Be the first to feature on the ledger! If you or any of your friends have secured a package, update your Talent Profile with your Placement Achievement.
+                  </p>
+                  <div className="pt-2">
+                    <button 
+                      onClick={() => window.location.href = "/profile"}
+                      className="bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] transition-all text-white font-semibold text-xs px-5 py-2.5 rounded-xl cursor-pointer shadow-md inline-flex items-center gap-2"
+                    >
+                      Update My Profile
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {gallery.map((cand) => (

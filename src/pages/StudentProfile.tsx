@@ -538,7 +538,10 @@ export function StudentProfile() {
       initialData = {
         preferredJobRole: p.preferred_job_role || "",
         preferredLocation: p.preferred_location || "",
-        availability: p.availability || ""
+        availability: p.availability || "",
+        isPlaced: p.is_placed === 1,
+        placedCompany: p.placed_company || "",
+        isTopPerformer: p.is_top_performer === 1
       };
     } else if (section === 'skills') {
       initialData = { skills: parseJSON(p.skills_json) };
@@ -942,6 +945,22 @@ export function StudentProfile() {
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Availability</p>
                   <p className="text-sm font-black text-slate-800">{profile?.availability || "Immediate"}</p>
                 </div>
+                {profile?.is_placed === 1 && (
+                  <div className="p-5 bg-emerald-50 rounded-3xl border border-emerald-100 col-span-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Campus Placement Status</p>
+                      <h4 className="text-base font-black text-emerald-900 flex items-center gap-2">
+                        <CheckCircle size={18} className="text-emerald-500" />
+                        Placed @ {profile?.placed_company || "N/A"}
+                      </h4>
+                    </div>
+                    {profile?.is_top_performer === 1 && (
+                      <span className="w-max inline-flex items-center gap-1 text-[10px] font-black uppercase py-1 px-3 bg-amber-500/10 text-amber-700 border border-amber-200 rounded-xl">
+                        ⭐ Elite Performer
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </SectionCard>
 
@@ -1295,6 +1314,57 @@ export function StudentProfile() {
               <option value="1 Month">Serving 1 month notice</option>
               <option value="Non-urgent">Active but not urgent</option>
             </select>
+          </div>
+
+          <div className="border-t border-slate-100 pt-6 space-y-4">
+            <h4 className="text-xs font-black text-slate-705 uppercase tracking-widest mb-2">Campus Placement Achievement</h4>
+            
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div>
+                <label className="text-xs font-black text-slate-800 block">Have you secured a campus placement?</label>
+                <span className="text-[10px] text-slate-400 font-bold block">Toggling 'Yes' will showcase you in the Success Gallery first</span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEditData({...editData, isPlaced: !editData.isPlaced})}
+                className={`w-14 h-8 rounded-full p-1 transition-all ${editData.isPlaced ? 'bg-emerald-500' : 'bg-slate-200'} relative`}
+              >
+                <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-all ${editData.isPlaced ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
+            </div>
+
+            {editData.isPlaced && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Placement Company Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Google, Microsoft, TCS, Infosys"
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-150 rounded-2xl font-black text-slate-800 focus:outline-none focus:border-blue-500"
+                    value={editData.placedCompany || ""}
+                    onChange={(e) => setEditData({...editData, placedCompany: e.target.value})}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <label className="text-xs font-black text-slate-800 block">Is this a top tier / elite role?</label>
+                    <span className="text-[10px] text-slate-400 font-bold block">Designates an Elite Rank badge next to your success card</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setEditData({...editData, isTopPerformer: !editData.isTopPerformer})}
+                    className={`w-14 h-8 rounded-full p-1 transition-all ${editData.isTopPerformer ? 'bg-indigo-500' : 'bg-slate-200'} relative`}
+                  >
+                    <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-all ${editData.isTopPerformer ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
       </EditModal>

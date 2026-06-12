@@ -402,11 +402,24 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
       `, [data.fullName, data.headline, dob, data.gender, data.address, data.location, data.contact, data.profilePhotoUrl, studentId]);
     } 
     else if (section === 'preferences') {
+      const isPlaced = data.isPlaced ? 1 : 0;
+      const placedCompany = data.isPlaced ? (data.placedCompany || null) : null;
+      const isTopPerformer = (data.isPlaced && data.isTopPerformer) ? 1 : 0;
+
       await db.query(`
         UPDATE student_profiles 
-        SET preferred_job_role = ?, preferred_location = ?, availability = ?
+        SET preferred_job_role = ?, preferred_location = ?, availability = ?,
+            is_placed = ?, placed_company = ?, is_top_performer = ?
         WHERE id = ?
-      `, [data.preferredJobRole, data.preferredLocation, data.availability, studentId]);
+      `, [
+        data.preferredJobRole, 
+        data.preferredLocation, 
+        data.availability, 
+        isPlaced, 
+        placedCompany, 
+        isTopPerformer, 
+        studentId
+      ]);
     }
     else if (section === 'onboarding') {
       await db.query(`
