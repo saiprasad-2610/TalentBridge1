@@ -319,14 +319,14 @@ router.get("/profile/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
     await updateLoginStreak(Number(userId));
-    const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles]: any = await db.query("SELECT sp.*, cm.college_name FROM student_profiles sp LEFT JOIN college_master cm ON sp.college_id = cm.id WHERE sp.user_id = ?", [userId]);
     if (profiles.length === 0) {
       // Fallback: Create profile if missing
       const [users]: any = await db.query("SELECT id FROM users WHERE id = ? AND role = 'STUDENT'", [userId]);
       if (users.length > 0) {
         const tbId = `TB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
         await db.query("INSERT INTO student_profiles (user_id, tb_id, profile_visibility) VALUES (?, ?, 'PUBLIC')", [userId, tbId]);
-        const [newProfiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
+        const [newProfiles]: any = await db.query("SELECT sp.*, cm.college_name FROM student_profiles sp LEFT JOIN college_master cm ON sp.college_id = cm.id WHERE sp.user_id = ?", [userId]);
         profiles.push(newProfiles[0]);
       } else {
         return res.json({ success: true, data: null });

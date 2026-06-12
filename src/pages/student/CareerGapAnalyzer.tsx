@@ -108,7 +108,7 @@ export default function CareerGapAnalyzer() {
       if (res.data?.success && res.data?.data) {
         const d = res.data.data;
         const flattened = {
-          ...d.profile,
+          ...d,
           projects: d.projects,
           experience: d.experience,
           certifications: d.certifications,
@@ -367,7 +367,7 @@ export default function CareerGapAnalyzer() {
     { subject: "Coding Score", A: 50, B: 80, fullMark: 100 },
     { subject: "Interview Skill", A: 55, B: 75, fullMark: 100 },
     { subject: "Aptitude Quiz", A: 45, B: 85, fullMark: 100 },
-    { subject: "Psychometric", A: 50, B: 80, fullMark: 100 }
+    { subject: "Skill Set Score", A: 50, B: 80, fullMark: 100 }
   ];
 
   const getRadarData = () => {
@@ -375,7 +375,13 @@ export default function CareerGapAnalyzer() {
     
     const parseScore = (v: any) => {
       const num = Number(v);
-      return isNaN(num) || num === 0 ? 50 : num;
+      return isNaN(num) || num === 0 ? 55 : num;
+    };
+
+    const getSkillsCountScore = (profile: any, fallback: number) => {
+      const skillsArray = parseSkillsHelper(profile?.skills_json || profile?.skills);
+      if (skillsArray.length === 0) return fallback;
+      return Math.min(100, Math.max(45, skillsArray.length * 12));
     };
 
     const metricsA = myProfile.metrics || {};
@@ -386,7 +392,7 @@ export default function CareerGapAnalyzer() {
       { subject: "Coding Score", A: parseScore(metricsA.codingScore || 50), B: parseScore(metricsB.codingScore || 80), fullMark: 100 },
       { subject: "Interview Skill", A: parseScore(metricsA.interviewScore || 45), B: parseScore(metricsB.interviewScore || 75), fullMark: 100 },
       { subject: "Aptitude Quiz", A: parseScore(metricsA.quizScore || 60), B: parseScore(metricsB.quizScore || 85), fullMark: 100 },
-      { subject: "Psychometric", A: parseScore(metricsA.psychometricScore || 50), B: parseScore(metricsB.psychometricScore || 80), fullMark: 100 }
+      { subject: "Skill Set Score", A: getSkillsCountScore(myProfile, 50), B: getSkillsCountScore(targetProfile, 80), fullMark: 100 }
     ];
   };
 
