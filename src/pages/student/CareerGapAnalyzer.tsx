@@ -106,8 +106,17 @@ export default function CareerGapAnalyzer() {
       setLoading(true);
       const res = await api.get(`/students/profile/${user?.id}`);
       if (res.data?.success && res.data?.data) {
-        setMyProfile(res.data.data);
-        setVisibility(res.data.data.profile_visibility || "PUBLIC");
+        const d = res.data.data;
+        const flattened = {
+          ...d.profile,
+          projects: d.projects,
+          experience: d.experience,
+          certifications: d.certifications,
+          extracurriculars: d.extracurriculars,
+          metrics: d.metrics
+        };
+        setMyProfile(flattened);
+        setVisibility(flattened.profile_visibility || "PUBLIC");
       }
     } catch (err) {
       console.error(err);

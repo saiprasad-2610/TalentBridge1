@@ -292,7 +292,7 @@ async function getStudentMetrics(userId: number) {
 
   let quizScore = 45;
   const [quizRows]: any = await db.query(
-    "SELECT AVG(score) as avg_score FROM quizzes WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)",
+    "SELECT AVG(score) as avg_score FROM quizzes WHERE user_id = ?",
     [userId]
   );
   if (quizRows && quizRows[0] && quizRows[0].avg_score) {
