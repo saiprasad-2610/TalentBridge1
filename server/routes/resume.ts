@@ -416,11 +416,14 @@ router.get("/status/:userId", async (req, res) => {
     if (projects.length < 1) errors.push("At least one project is required");
     if (skills.length < 3) errors.push("At least 3 skills are required");
 
+    const xpCost = await XPService.getConfigValue('RESUME_ANALYSIS_COST', 50);
+
     res.json({
       dailyCount: count,
       limit: 3,
-      isEligible: errors.length === 0 && count < 3,
-      errors
+      isEligible: errors.length === 0,
+      errors,
+      xpCost
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch status" });
@@ -432,20 +435,20 @@ router.post("/generate", async (req, res) => {
   
   try {
     const { count } = await checkAndResetLimit(userId);
-    if (count >= 3) {
-      return res.status(403).json({ success: false, message: "You have reached today's limit (3 resumes). Try again tomorrow." });
-    }
-
-    // Check if enough XP
     const cost = await XPService.getConfigValue('RESUME_ANALYSIS_COST', 50);
-    const [users]: any = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
-    const xpBalance = users[0]?.xp_balance || 0;
-    if (xpBalance < cost) {
-      return res.status(403).json({ success: false, message: `Insufficient XP. Generating a resume requires ${cost} XP.` });
-    }
+    const mustPayXP = count >= 3;
 
-    // Deduct cost
-    await XPService.deductXP(userId, cost, 'RESUME_GENERATION', "AI Resume Builder Draft Generation");
+    if (mustPayXP) {
+      // Check if enough XP
+      const [users]: any = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
+      const xpBalance = users[0]?.xp_balance || 0;
+      if (xpBalance < cost) {
+        return res.status(403).json({ success: false, message: `Insufficient XP. Generating an extra resume requires ${cost} XP.` });
+      }
+
+      // Deduct cost
+      await XPService.deductXP(userId, cost, 'RESUME_GENERATION', "AI Resume Builder Extra Generation (Limit Exceeded)");
+    }
 
     // Increment daily count
     await db.query("UPDATE student_profiles SET daily_resume_count = daily_resume_count + 1 WHERE user_id = ?", [userId]);

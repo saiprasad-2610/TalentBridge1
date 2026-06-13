@@ -9,7 +9,7 @@ import {
   Layout, CheckCircle2, AlertTriangle, 
   CheckCircle, User, Briefcase, GraduationCap, Code,
   Mail, Phone, MapPin, Brain, RefreshCw, Trophy, Zap, Edit3, Cpu,
-  Trash2, Plus, Save
+  Trash2, Plus, Save, Coins, AlertCircle
 } from "lucide-react";
 import { GoogleGenAI } from "@google/genai";
 import { Link, useNavigate } from "react-router-dom";
@@ -2184,6 +2184,7 @@ export function ResumeBuilder() {
   const [editorTab, setEditorTab] = useState<string>("personal");
   const [newSkillText, setNewSkillText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [xpBalance, setXpBalance] = useState<number>(0);
 
   // ATS Optimization Feature State
   const [targetRole, setTargetRole] = useState("SDE / Full Stack Engineer");
@@ -2238,14 +2239,18 @@ export function ResumeBuilder() {
 
   const fetchData = async () => {
     try {
-      const [statusRes, templatesRes, profileRes] = await Promise.all([
+      const [statusRes, templatesRes, profileRes, balanceRes] = await Promise.all([
         api.get(`/resume/status/${user?.id}`),
         api.get("/resume/templates"),
-        api.get(`/students/profile/${user?.id}`)
+        api.get(`/students/profile/${user?.id}`),
+        api.get("/xp/balance")
       ]);
       
       setStatus(statusRes.data);
       setTemplates(templatesRes.data);
+      if (balanceRes.data?.success) {
+        setXpBalance(balanceRes.data.balance.xp_balance);
+      }
       if (profileRes.data.success) {
         // Parse JSON fields
         const data = profileRes.data.data;
@@ -2474,6 +2479,14 @@ export function ResumeBuilder() {
   };
 
   const handleGenerate = async () => {
+    if (status.dailyCount >= status.limit) {
+      if (xpBalance < (status.xpCost || 50)) {
+        alert("Insufficient XP balance. Please purchase more XP to generate extra resumes.");
+        return;
+      }
+      const confirmSpend = window.confirm(`You have reached your daily limit of ${status.limit} resumes. Spending ${status.xpCost || 50} XP to generate another resume?`);
+      if (!confirmSpend) return;
+    }
     setGenerating(true);
     try {
       // 1. Generate AI Summary on Frontend (As per system instructions)
@@ -2517,9 +2530,15 @@ export function ResumeBuilder() {
       if (data.success) {
         setSummary(aiSummary);
         setCurrentStep(3);
-        // Refresh status to update daily count
-        const statusRes = await api.get(`/resume/status/${user?.id}`);
+        // Refresh status and wallet balance to update daily count
+        const [statusRes, balanceRes] = await Promise.all([
+          api.get(`/resume/status/${user?.id}`),
+          api.get("/xp/balance")
+        ]);
         setStatus(statusRes.data);
+        if (balanceRes.data?.success) {
+          setXpBalance(balanceRes.data.balance.xp_balance);
+        }
       }
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to finalize resume generation");
@@ -2583,14 +2602,28 @@ export function ResumeBuilder() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-white border border-slate-150 p-3 rounded-2xl shadow-sm self-stretch md:self-auto justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-left md:text-right">
-                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Daily Limit</div>
-                 <div className="text-xs sm:text-sm font-black text-slate-800 leading-none">{status.dailyCount}/{status.limit} Generated</div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3 bg-white border border-slate-150 p-3 rounded-2xl shadow-sm justify-between">
+              <div className="flex items-center gap-3">
+                <div className="text-left md:text-right">
+                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Daily Limit</div>
+                   <div className="text-xs sm:text-sm font-black text-slate-800 leading-none">{status.dailyCount}/{status.limit} Generated</div>
+                </div>
+                <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+                   <Sparkles size={18} />
+                </div>
               </div>
-              <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
-                 <Sparkles size={18} />
+            </div>
+
+            <div className="flex items-center gap-3 bg-white border border-slate-150 p-3 rounded-2xl shadow-sm justify-between">
+              <div className="flex items-center gap-3">
+                <div className="text-left md:text-right">
+                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Talent Wallet</div>
+                   <div className="text-xs sm:text-sm font-black text-amber-600 leading-none font-mono">{xpBalance} XP</div>
+                </div>
+                <Link to="/xp-store" className="w-9 h-9 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center justify-center text-amber-500 border border-amber-100 shrink-0 transition-colors" title="Purchase XP points">
+                   <Coins size={18} />
+                </Link>
               </div>
             </div>
           </div>
@@ -2657,6 +2690,33 @@ export function ResumeBuilder() {
                    <p className="text-sm text-slate-500 font-medium tracking-tight">Select a high-parse rate format. All templates are fully optimized for corporate screener parsing.</p>
                 </div>
 
+                {status.dailyCount >= status.limit && (
+                  <div className="max-w-2xl mx-auto p-5 bg-gradient-to-r from-amber-50 to-orange-50/50 border border-amber-200/60 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-left shadow-sm mb-6">
+                    <div className="flex gap-3 items-center">
+                      <div className="w-10 h-10 bg-amber-500/10 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+                        <Coins size={22} className="text-amber-600 animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-amber-900 uppercase tracking-wider mb-0.5">Daily Free Limit Fully Redeemed ({status.dailyCount}/{status.limit})</p>
+                        <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                          Generating an extra resume will utilize <span className="font-extrabold text-amber-700 font-mono">{status.xpCost || 50} XP</span> from your wallet balance.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-3">
+                      <div className="text-right font-sans">
+                        <span className="block text-[9px] uppercase font-bold text-slate-400">Wallet balance</span>
+                        <span className={`text-xs font-black font-mono ${xpBalance >= (status.xpCost || 50) ? 'text-emerald-600' : 'text-red-500'}`}>{xpBalance} XP</span>
+                      </div>
+                      {xpBalance < (status.xpCost || 50) && (
+                        <Link to="/xp-store" className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[10px] uppercase px-4 py-2 rounded-xl shadow-md shadow-amber-500/10 transition-all flex items-center gap-1">
+                          <Plus size={12} /> Buy XP
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
                   {templates.map((t) => (
                     <div 
@@ -2700,14 +2760,24 @@ export function ResumeBuilder() {
                   ))}
                 </div>
 
-                <div className="flex justify-center pt-8">
+                <div className="flex flex-col items-center justify-center gap-2 pt-8">
                    <button 
                      onClick={handleGenerate}
-                     disabled={generating}
+                     disabled={generating || (status.dailyCount >= status.limit && xpBalance < (status.xpCost || 50))}
                      className="px-12 py-5 bg-indigo-600 text-white rounded-[24px] font-black text-lg shadow-2xl shadow-indigo-500/30 hover:scale-105 transition-all flex items-center gap-3 disabled:opacity-50"
                    >
-                     {generating ? "Crafting AI Resume..." : <><Sparkles size={24} /> Generate Professional Resume</>}
+                     {generating 
+                       ? "Crafting AI Resume..." 
+                       : status.dailyCount >= status.limit 
+                         ? <><Sparkles size={24} /> Pay {status.xpCost || 50} XP & Generate</> 
+                         : <><Sparkles size={24} /> Generate Professional Resume</>
+                     }
                    </button>
+                   {status.dailyCount >= status.limit && xpBalance < (status.xpCost || 50) && (
+                     <p className="text-xs text-red-500 font-black uppercase tracking-wider mt-1 flex items-center gap-1">
+                       <AlertCircle size={14} /> Insufficient XP in wallet to purchase additional resumes.
+                     </p>
+                   )}
                 </div>
              </motion.div>
            )}
