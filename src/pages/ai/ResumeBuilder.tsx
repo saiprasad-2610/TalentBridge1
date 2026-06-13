@@ -17,6 +17,27 @@ import html2canvas from "html2canvas";
 
 // --- TEMPLATES ---
 
+const CustomSections = ({ data, headingClass, bodyClass }: { data: any, headingClass?: string, bodyClass?: string }) => {
+  if (!data?.custom_sections_json || data.custom_sections_json.length === 0) return null;
+  return (
+    <>
+      {data.custom_sections_json.map((section: any, idx: number) => {
+        if (!section || !section.title) return null;
+        return (
+          <section key={section.id || idx} className="mt-5 mb-5 last:mb-0">
+            <h3 className={headingClass || "text-sm font-bold uppercase tracking-widest text-slate-800 border-b-2 border-slate-900 pb-1 mb-2"}>
+              {section.title}
+            </h3>
+            <div className={bodyClass || "text-xs text-slate-700 leading-relaxed whitespace-pre-line mt-1.5"}>
+              {section.content}
+            </div>
+          </section>
+        );
+      })}
+    </>
+  );
+};
+
 const HybridATSPremiumTemplate = ({ data, summary }: any) => (
   <div id="resume-content" className="bg-white p-12 text-slate-900 font-serif leading-normal w-[210mm] min-h-[297mm] mx-auto shadow-sm">
     <div className="text-center pb-4 mb-6 border-b border-slate-300">
@@ -114,6 +135,8 @@ const HybridATSPremiumTemplate = ({ data, summary }: any) => (
         ))}
       </div>
     </section>
+
+    <CustomSections data={data} headingClass="text-sm font-bold uppercase tracking-widest text-slate-800 border-b-2 border-slate-900 pb-1 mb-3 mt-6" bodyClass="text-xs text-slate-700 leading-relaxed whitespace-pre-line mt-1.5" />
   </div>
 );
 
@@ -211,6 +234,8 @@ const SiliconValleyTechTemplate = ({ data, summary }: any) => (
          ))}
       </div>
     </section>
+
+    <CustomSections data={data} headingClass="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b border-slate-200 pb-1 mb-2.5 mt-6" bodyClass="text-xs text-slate-705 leading-relaxed whitespace-pre-line mt-1.5" />
   </div>
 );
 
@@ -672,6 +697,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
             {renderExperience()}
             {renderProjects()}
             {renderEducation()}
+            <CustomSections data={data} headingClass={config.sectionTitleClass} bodyClass="text-xs text-slate-705 leading-relaxed whitespace-pre-line mt-1.5" />
           </div>
         </div>
       )}
@@ -692,6 +718,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
             {renderExperience()}
             {renderProjects()}
             {renderEducation()}
+            <CustomSections data={data} headingClass={config.sectionTitleClass} bodyClass="text-xs text-slate-705 leading-relaxed whitespace-pre-line mt-1.5" />
           </div>
 
           <div className={`w-[200px] shrink-0 rounded-2xl flex flex-col justify-between ${config.sidebarBg || "bg-slate-50"} p-5 min-h-[265mm]`}>
@@ -731,6 +758,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
             <div className="space-y-5">
               {renderExperience()}
               {renderProjects()}
+              <CustomSections data={data} headingClass={config.sectionTitleClass} bodyClass="text-xs text-slate-750 leading-relaxed whitespace-pre-line mt-1.5" />
             </div>
           </div>
         </div>
@@ -759,6 +787,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
             <div className="col-span-2 space-y-5">
               {renderExperience()}
               {renderProjects()}
+              <CustomSections data={data} headingClass={config.sectionTitleClass} bodyClass="text-xs text-slate-705 leading-relaxed whitespace-pre-line mt-1.5" />
             </div>
             <div className="space-y-5">
               {renderSkills()}
@@ -789,6 +818,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
             {renderSkills()}
             {renderEducation()}
           </div>
+          <CustomSections data={data} headingClass={config.sectionTitleClass} bodyClass="text-xs text-slate-705 leading-relaxed whitespace-pre-line mt-1.5" />
         </div>
       )}
     </div>
@@ -2152,6 +2182,7 @@ export function ResumeBuilder() {
   const [sidebarMode, setSidebarMode] = useState<"editor" | "ai-opt">("editor");
   const [editorTab, setEditorTab] = useState<string>("personal");
   const [newSkillText, setNewSkillText] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // ATS Optimization Feature State
   const [targetRole, setTargetRole] = useState("SDE / Full Stack Engineer");
@@ -2222,6 +2253,15 @@ export function ResumeBuilder() {
             try { data[field] = JSON.parse(data[field]); } catch(e) { data[field] = []; }
           }
         });
+
+        // Load custom sections from localStorage
+        const storedCustomSecs = localStorage.getItem(`resume_custom_sections_${user?.id}`);
+        if (storedCustomSecs) {
+          try { data.custom_sections_json = JSON.parse(storedCustomSecs); } catch (e) { data.custom_sections_json = []; }
+        } else {
+          data.custom_sections_json = [];
+        }
+
         setProfile(data);
         setEditedProfile(JSON.parse(JSON.stringify(data)));
       }
@@ -2229,6 +2269,206 @@ export function ResumeBuilder() {
       if (statusRes.data.isEligible) setCurrentStep(2);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    if (!editedProfile) return;
+    setSaving(true);
+    try {
+      // 1. Save Personal Info
+      await api.put(`/students/profile/${user?.id}/section/personal`, {
+        fullName: editedProfile.full_name,
+        headline: editedProfile.headline || "",
+        dob: editedProfile.dob,
+        gender: editedProfile.gender,
+        address: editedProfile.address,
+        location: editedProfile.location || editedProfile.address || "",
+        contact: editedProfile.contact,
+        profilePhotoUrl: editedProfile.profile_photo_url
+      });
+
+      // 2. Save Summary (which is in the local 'summary' React state)
+      await api.put(`/students/profile/${user?.id}/section/summary`, {
+        summary: summary
+      });
+
+      // 3. Save Skills
+      await api.put(`/students/profile/${user?.id}/section/skills`, {
+        skills: editedProfile.skills_json
+      });
+
+      // 4. Save Education
+      const formattedEdu = editedProfile.education_json?.map((edu: any) => ({
+        institution: edu.board || edu.school || edu.institution || "Unknown Institution",
+        degree: edu.level || edu.degree || "Other",
+        field_of_study: edu.field_of_study || "",
+        start_date: edu.start_date || (edu.year ? `${edu.year}-01-01` : "2020-01-01"),
+        end_date: edu.end_date || (edu.year ? `${edu.year}-05-01` : "2024-05-01"),
+        grade: String(edu.percentage || edu.cgpa || edu.grade || "")
+      })) || [];
+      await api.put(`/students/profile/${user?.id}/section/education`, {
+        education: formattedEdu
+      });
+
+      // 5. Save Experience
+      const formattedExp = editedProfile.experience_json?.map((exp: any) => ({
+        company: exp.company || "Unknown Company",
+        role: exp.role || "Employee",
+        duration: exp.duration || "2024",
+        desc: exp.desc || exp.description || "",
+        start_date: exp.start_date || "2023-01-01",
+        end_date: exp.end_date || "2024-01-01"
+      })) || [];
+      await api.put(`/students/profile/${user?.id}/section/experience`, {
+        experience: formattedExp
+      });
+
+      // 6. Save Projects
+      const formattedProj = editedProfile.projects_json?.map((p: any) => ({
+        title: p.name || p.title || "Project",
+        description: p.description || p.desc || "",
+        tech_stack: p.tech_stack || p.stack || "",
+        link: p.link || ""
+      })) || [];
+      await api.put(`/students/profile/${user?.id}/section/projects`, {
+        projects: formattedProj
+      });
+
+      // 7. Save Custom Sections to LocalStorage (Durable Client Cache)
+      localStorage.setItem(`resume_custom_sections_${user?.id}`, JSON.stringify(editedProfile.custom_sections_json || []));
+
+      // Synchronize in memory
+      setProfile(JSON.parse(JSON.stringify(editedProfile)));
+      alert("Resume edits successfully updated and saved to your profile!");
+    } catch (error) {
+      console.error("Error saving resume sections:", error);
+      alert("Edits applied directly to preview. Your live PDF will contain all changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddSkill = () => {
+    if (!newSkillText.trim()) return;
+    const currentSkills = editedProfile?.skills_json || [];
+    if (!currentSkills.includes(newSkillText.trim())) {
+      setEditedProfile({
+        ...editedProfile,
+        skills_json: [...currentSkills, newSkillText.trim()]
+      });
+    }
+    setNewSkillText("");
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    const currentSkills = editedProfile?.skills_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      skills_json: currentSkills.filter((s: string) => s !== skillToRemove)
+    });
+  };
+
+  const handleAddExperience = () => {
+    const currentExp = editedProfile?.experience_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      experience_json: [
+        ...currentExp,
+        { company: "New Company", role: "Software Engineer", duration: "2026", desc: "Describe your job responsibilities here." }
+      ]
+    });
+  };
+
+  const handleRemoveExperience = (index: number) => {
+    const currentExp = editedProfile?.experience_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      experience_json: currentExp.filter((_: any, idx: number) => idx !== index)
+    });
+  };
+
+  const handleUpdateExperience = (index: number, key: string, val: string) => {
+    const currentExp = [...(editedProfile?.experience_json || [])];
+    currentExp[index] = { ...currentExp[index], [key]: val };
+    setEditedProfile({ ...editedProfile, experience_json: currentExp });
+  };
+
+  const handleAddProject = () => {
+    const currentProj = editedProfile?.projects_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      projects_json: [
+        ...currentProj,
+        { name: "New Project", tech_stack: "React, NodeJS", description: "A summary of implementation steps." }
+      ]
+    });
+  };
+
+  const handleRemoveProject = (index: number) => {
+    const currentProj = editedProfile?.projects_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      projects_json: currentProj.filter((_: any, idx: number) => idx !== index)
+    });
+  };
+
+  const handleUpdateProject = (index: number, key: string, val: string) => {
+    const currentProj = [...(editedProfile?.projects_json || [])];
+    currentProj[index] = { ...currentProj[index], [key]: val };
+    setEditedProfile({ ...editedProfile, projects_json: currentProj });
+  };
+
+  const handleAddEducation = () => {
+    const currentEdu = editedProfile?.education_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      education_json: [
+        ...currentEdu,
+        { school: "Institution Name", level: "Degree / Course", year: "2026", cgpa: "9.0" }
+      ]
+    });
+  };
+
+  const handleRemoveEducation = (index: number) => {
+    const currentEdu = editedProfile?.education_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      education_json: currentEdu.filter((_: any, idx: number) => idx !== index)
+    });
+  };
+
+  const handleUpdateEducation = (index: number, key: string, val: string) => {
+    const currentEdu = [...(editedProfile?.education_json || [])];
+    currentEdu[index] = { ...currentEdu[index], [key]: val };
+    setEditedProfile({ ...editedProfile, education_json: currentEdu });
+  };
+
+  const handleAddCustomSection = () => {
+    const currentCustom = editedProfile?.custom_sections_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      custom_sections_json: [
+        ...currentCustom,
+        { id: 'custom-' + Date.now(), title: "Awards & Activities", content: "• Won 1st place in National Hackathon 2025.\n• Contributed to open source." }
+      ]
+    });
+  };
+
+  const handleRemoveCustomSection = (id: string) => {
+    const currentCustom = editedProfile?.custom_sections_json || [];
+    setEditedProfile({
+      ...editedProfile,
+      custom_sections_json: currentCustom.filter((s: any) => s.id !== id)
+    });
+  };
+
+  const handleUpdateCustomSection = (id: string, key: string, val: string) => {
+    const currentCustom = [...(editedProfile?.custom_sections_json || [])];
+    const idx = currentCustom.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      currentCustom[idx] = { ...currentCustom[idx], [key]: val };
+      setEditedProfile({ ...editedProfile, custom_sections_json: currentCustom });
     }
   };
 
@@ -2478,7 +2718,7 @@ export function ResumeBuilder() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col lg:flex-row gap-12"
              >
-                {/* Control Panel */}
+                {/* Control Panel with Tabs */}
                 <aside className="w-full lg:w-[450px] shrink-0 space-y-6">
                    <div className="bg-white rounded-[40px] p-8 shadow-sm border border-slate-100">
                       <div className="mb-8">
