@@ -8,7 +8,8 @@ import {
   FileText, Sparkles, Download, 
   Layout, CheckCircle2, AlertTriangle, 
   CheckCircle, User, Briefcase, GraduationCap, Code,
-  Mail, Phone, MapPin, Brain, RefreshCw, Trophy, Zap, Edit3, Cpu
+  Mail, Phone, MapPin, Brain, RefreshCw, Trophy, Zap, Edit3, Cpu,
+  Trash2, Plus, Save
 } from "lucide-react";
 import { GoogleGenAI } from "@google/genai";
 import { Link, useNavigate } from "react-router-dom";
@@ -2720,189 +2721,656 @@ export function ResumeBuilder() {
              >
                 {/* Control Panel with Tabs */}
                 <aside className="w-full lg:w-[450px] shrink-0 space-y-6">
-                   <div className="bg-white rounded-[40px] p-8 shadow-sm border border-slate-100">
-                      <div className="mb-8">
-                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">AI Summary Result</div>
-                         <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100 text-sm italic text-indigo-700 leading-relaxed">
-                            "{summary}"
-                         </div>
-                      </div>
-
-                      <div className="space-y-4">
-                         <button 
-                           onClick={handleDownload}
-                           className="w-full flex items-center justify-center gap-3 py-4 bg-indigo-600 text-white rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all"
-                         >
-                           <Download size={20} /> Download PDF
-                         </button>
-                         <button 
-                           onClick={() => setCurrentStep(2)}
-                           className="w-full flex items-center justify-center gap-3 py-4 bg-slate-900 text-white rounded-[20px] font-black text-sm uppercase tracking-widest shadow-xl shadow-slate-900/20 transition-all"
-                         >
-                           <Layout size={20} /> Change Template
-                         </button>
-                      </div>
-                   </div>
-
-                   <div className="bg-emerald-600 text-white rounded-[40px] p-8">
-                      <div className="flex items-center justify-between mb-4">
-                         <div className="flex items-center gap-3">
-                            <CheckCircle size={24} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">ATS Verified</span>
-                         </div>
-                         <div className="px-3 py-1 bg-white/20 rounded-full text-xs font-black">
-                            Score: {resumeScore}/100
-                         </div>
-                      </div>
-                      <p className="text-lg font-bold tracking-tight">Your resume is ready for submission.</p>
-                      <p className="text-xs text-emerald-200 mt-2">Format: PDF/A4 standard optimized for industry parsers including Workday and Taleo.</p>
+                    {/* Navigation Mode Selector */}
+                    <div className="flex bg-slate-100 p-1.5 rounded-[24px] gap-1 border border-slate-200 mb-6">
+                      <button
+                        type="button"
+                        onClick={() => setSidebarMode("editor")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[18px] text-[11px] font-black uppercase tracking-wider transition-all ${sidebarMode === "editor" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                      >
+                        <Edit3 size={13} /> Resume Editor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSidebarMode("ai-opt")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[18px] text-[11px] font-black uppercase tracking-wider transition-all ${sidebarMode === "ai-opt" ? "bg-indigo-600 text-white shadow-sm font-semibold" : "text-slate-500 hover:text-slate-800"}`}
+                      >
+                        <Sparkles size={13} /> AI ATS Optimizer
+                      </button>
                     </div>
-
-                    {/* Interactive ATS Audit Summary */}
-                    <div className="bg-slate-900 text-white rounded-[40px] p-8 space-y-6">
-                      <div className="flex items-center gap-2">
-                        <Trophy className="text-yellow-400 font-bold" size={20} />
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-300">ATS Auditor Report</h4>
-                      </div>
-
-                      <div className="space-y-3 text-xs">
-                        <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/30">
-                          <div className="flex justify-between items-center text-slate-200 font-bold mb-1">
-                            <span>Layout Parse Rating</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold font-mono">100% SECURE</span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 font-sans">
-                            {['hybrid-ats-premium', 'silicon-valley-tech', 'classic-ats', 'academic-latex'].includes(selectedTemplate) 
-                              ? "Perfect. Pure single-column linear standard format guarantees parse safety across corporate systems."
-                              : "This grid-based system may experience sequence offset on older legacy screeners. Use 'Hybrid ATS Premium' for absolute parse security."}
-                          </p>
+                    {sidebarMode === "editor" ? (
+                      /* RESUME EDITOR MAIN PANEL */
+                      <div className="bg-white rounded-[40px] p-6 sm:p-8 shadow-sm border border-slate-100 space-y-6">
+                        <div className="border-b border-slate-100 pb-3">
+                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">Resume Document Fields</h4>
+                          <p className="text-[10px] text-slate-400 mt-1 font-medium font-sans">Type in any field to update the live preview layout instantly.</p>
                         </div>
 
-                        <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/30">
-                          <div className="flex justify-between items-center text-slate-200 font-bold mb-1">
-                            <span>Aspirant Section Coverage</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold font-mono">VERIFIED</span>
-                          </div>
-                          <div className="space-y-1 mt-1.5 text-[10px] text-slate-400 font-medium font-sans">
-                            <div className="flex items-center gap-1.5 font-sans">
-                              <span className="text-emerald-400 font-bold">✔</span> Social URLs Recognized ({profile?.social_links_json?.linkedin ? 'LinkedIn Configured' : 'Fallback active'})
-                            </div>
-                            <div className="flex items-center gap-1.5 font-sans">
-                              <span className="text-emerald-400 font-bold">✔</span> Standard Section Labels (Experience, Skills, Projects)
-                            </div>
-                          </div>
+                        {/* Editor Section Headers */}
+                        <div className="flex gap-1 overflow-x-auto pb-2 no-scrollbar border-b border-slate-100">
+                          {[
+                            { id: "personal", label: "Details", icon: <User size={12} /> },
+                            { id: "experience", label: "Work", icon: <Briefcase size={12} /> },
+                            { id: "education", label: "Academic", icon: <GraduationCap size={12} /> },
+                            { id: "projects", label: "Projects", icon: <Code size={12} /> },
+                            { id: "skills", label: "Skills", icon: <Cpu size={12} /> },
+                            { id: "custom", label: "Custom", icon: <Edit3 size={12} /> },
+                          ].map((tab) => (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setEditorTab(tab.id)}
+                              className={`flex items-center gap-1 py-1.5 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 ${editorTab === tab.id ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-400 hover:text-slate-600"}`}
+                            >
+                              {tab.icon}
+                              <span>{tab.label}</span>
+                            </button>
+                          ))}
                         </div>
 
-                        <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/30">
-                          <div className="flex justify-between items-center text-slate-200 font-bold mb-1">
-                            <span>Quantifiable Metric Ratio</span>
-                            <span className={`text-[9px] px-2 py-0.5 rounded font-bold font-mono ${profile?.projects_json?.some((p: any) => /\d+%|\d+\s*ms|\d+\s*x/i.test(p.description)) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                              {profile?.projects_json?.some((p: any) => /\d+%|\d+\s*ms|\d+\s*x/i.test(p.description)) ? 'OPTIMUM' : 'ALERT'}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 leading-normal font-sans">
-                            {profile?.projects_json?.some((p: any) => /\d+%|\d+\s*ms|\d+\s*x/i.test(p.description))
-                              ? "Excellent. Numeric achievements are recognized in your descriptions. This highlights direct business/engineering execution impact."
-                              : "Tip: Add quantitative metrics standard for SDE (e.g., 'rendered 40% faster', 'scaled user endpoints by 2x') to increase ATS rating."}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SEO Real-Time Role Optimizer Panel */}
-                    <div className="bg-white rounded-[40px] p-8 shadow-sm border border-slate-100 space-y-6">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Brain className="text-indigo-600" size={18} />
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Target Role SEO Matcher</h4>
-                          </div>
-                          {keywordsGenerating && <RefreshCw size={12} className="animate-spin text-indigo-600" />}
-                        </div>
-                        <p className="text-xs text-slate-450 font-medium">Select your aspiration role to optimize matching resume phrasing.</p>
-                      </div>
-
-                      <div className="relative">
-                        <select 
-                          value={targetRole}
-                          onChange={(e) => {
-                            setTargetRole(e.target.value);
-                            fetchAtsOptimizeRecommendations(e.target.value);
-                          }}
-                          className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all appearance-none"
-                        >
-                          <option value="SDE / Full Stack Engineer">SDE / Full Stack Engineer</option>
-                          <option value="Frontend Development Specialist">Frontend Development Specialist (React)</option>
-                          <option value="Backend & Cloud Infrastructure">Backend & Cloud Infrastructure</option>
-                          <option value="AI / ML & Data Analytics Specialist">AI / ML & Data Analytics Specialist</option>
-                          <option value="Product Manager & QA Engineer">Product Manager & QA Engineer</option>
-                        </select>
-                        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-sans">▼</div>
-                      </div>
-
-                      <div className="space-y-4 pt-2">
-                        {keywordsGenerating ? (
-                          <div className="py-8 text-center space-y-2">
-                            <RefreshCw size={24} className="animate-spin text-indigo-600 mx-auto" />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Querying Gemini ATS Database...</p>
-                          </div>
-                        ) : atsRecommendations ? (
-                          <div className="space-y-5">
-                            {/* Missing terms list */}
-                            <div>
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5 font-sans">
-                                <Zap size={10} className="text-amber-500 font-bold" /> ATS Targeted Phrases
-                              </p>
-                              <div className="flex flex-wrap gap-1.5 font-sans">
-                                {atsRecommendations.missingKeywords?.map((kw: string) => (
-                                  <span key={kw} className="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg border border-indigo-100/50 font-sans">
-                                    {kw}
-                                  </span>
-                                ))}
+                        {/* Tab Contents */}
+                        <div className="min-h-[200px]">
+                          {editorTab === "personal" && (
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 font-sans">Full Name</label>
+                                <input
+                                  type="text"
+                                  value={editedProfile?.full_name || ""}
+                                  onChange={(e) => setEditedProfile({ ...editedProfile, full_name: e.target.value })}
+                                  className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-150 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all font-sans"
+                                  placeholder="Full Name"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 font-sans">Headline</label>
+                                <input
+                                  type="text"
+                                  value={editedProfile?.headline || ""}
+                                  onChange={(e) => setEditedProfile({ ...editedProfile, headline: e.target.value })}
+                                  className="w-full text-xs font-bold text-slate-805 bg-slate-50 border border-slate-150 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all font-sans"
+                                  placeholder="SDE / Full Stack Developer"
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 font-sans">Contact Number</label>
+                                  <input
+                                    type="text"
+                                    value={editedProfile?.contact || ""}
+                                    onChange={(e) => setEditedProfile({ ...editedProfile, contact: e.target.value })}
+                                    className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-150 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all font-sans"
+                                    placeholder="Phone number"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 font-sans font-sans">Address / City</label>
+                                  <input
+                                    type="text"
+                                    value={editedProfile?.address || editedProfile?.location || ""}
+                                    onChange={(e) => setEditedProfile({ ...editedProfile, address: e.target.value, location: e.target.value })}
+                                    className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-150 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all font-sans"
+                                    placeholder="e.g. San Francisco, CA"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 font-sans">Contact Email</label>
+                                <input
+                                  type="text"
+                                  value={editedProfile?.email || ""}
+                                  onChange={(e) => setEditedProfile({ ...editedProfile, email: e.target.value })}
+                                  className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-150 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all font-sans"
+                                  placeholder="Email Address"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 font-sans">Professional Summary</label>
+                                <textarea
+                                  rows={5}
+                                  value={summary}
+                                  onChange={(e) => setSummary(e.target.value)}
+                                  className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-150 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all leading-normal font-sans"
+                                  placeholder="Enter professional summary paragraph to render on resume..."
+                                />
                               </div>
                             </div>
+                          )}
 
-                            {/* Recommended actions verbs */}
-                            <div>
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 font-sans font-sans">
-                                Recommended Core Verbs
-                              </p>
-                              <div className="flex flex-wrap gap-1 font-sans">
-                                {atsRecommendations.recommendedVerbs?.map((vb: string) => (
-                                  <span key={vb} className="text-[9px] font-mono font-bold bg-slate-50 text-slate-650 px-2 py-0.5 rounded border border-slate-100 font-sans">
-                                    {vb}
-                                  </span>
-                                ))}
+                          {editorTab === "experience" && (
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Experience ({editedProfile?.experience_json?.length || 0})</span>
+                                <button
+                                  type="button"
+                                  onClick={handleAddExperience}
+                                  className="text-[10px] font-black text-indigo-650 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-800"
+                                >
+                                  <Plus size={11} /> Add Role
+                                </button>
+                              </div>
+                              
+                              {(editedProfile?.experience_json || []).length === 0 ? (
+                                <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+                                  <p className="text-xs text-slate-400 font-sans">No work experience entries yet.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar-all font-sans">
+                                  {editedProfile.experience_json.map((exp, index) => (
+                                    <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveExperience(index)}
+                                        className="absolute top-4 right-4 text-rose-500 hover:text-rose-700 hover:scale-110 transition-all font-sans font-bold"
+                                        title="Delete experience"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1">Company</label>
+                                          <input
+                                            type="text"
+                                            value={exp.company || ""}
+                                            onChange={(e) => handleUpdateExperience(index, "company", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1 font-sans">Role</label>
+                                          <input
+                                            type="text"
+                                            value={exp.role || ""}
+                                            onChange={(e) => handleUpdateExperience(index, "role", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1">Duration / Years</label>
+                                          <input
+                                            type="text"
+                                            value={exp.duration || ""}
+                                            onChange={(e) => handleUpdateExperience(index, "duration", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                            placeholder="e.g. 2024 - Present"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1">Start Date</label>
+                                          <input
+                                            type="text"
+                                            value={exp.start_date || ""}
+                                            onChange={(e) => handleUpdateExperience(index, "start_date", e.target.value)}
+                                            className="w-full text-xs font-sans text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                            placeholder="YYYY-MM-DD"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[8px] font-black text-slate-405 mb-1">Job Description</label>
+                                        <textarea
+                                          rows={2}
+                                          value={exp.desc || exp.description || ""}
+                                          onChange={(e) => handleUpdateExperience(index, exp.desc !== undefined ? "desc" : "description", e.target.value)}
+                                          className="w-full text-xs text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none leading-normal font-sans"
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {editorTab === "education" && (
+                            <div className="space-y-4 font-sans">
+                              <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Academic Records ({editedProfile?.education_json?.length || 0})</span>
+                                <button
+                                  type="button"
+                                  onClick={handleAddEducation}
+                                  className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-800"
+                                >
+                                  <Plus size={11} /> Add Education
+                                </button>
+                              </div>
+
+                              {(editedProfile?.education_json || []).length === 0 ? (
+                                <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+                                  <p className="text-xs text-slate-400 font-sans">No education entries yet.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar font-sans font-medium">
+                                  {editedProfile.education_json.map((edu, index) => (
+                                    <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveEducation(index)}
+                                        className="absolute top-4 right-4 text-rose-500 hover:text-rose-700 hover:scale-110 transition-all font-sans font-bold"
+                                        title="Delete education"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                      <div>
+                                        <label className="block text-[8px] font-black text-slate-400 mb-1">Institution Name</label>
+                                        <input
+                                          type="text"
+                                          value={edu.board || edu.school || edu.institution || ""}
+                                          onChange={(e) => handleUpdateEducation(index, edu.board ? "board" : edu.school ? "school" : "institution", e.target.value)}
+                                          className="w-full text-xs font-bold text-slate-808 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <div className="col-span-2">
+                                          <label className="block text-[8px] font-black text-slate-405 mb-1">Degree / Level</label>
+                                          <input
+                                            type="text"
+                                            value={edu.level || edu.degree || ""}
+                                            onChange={(e) => handleUpdateEducation(index, edu.level ? "level" : "degree", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1">Grading</label>
+                                          <input
+                                            type="text"
+                                            value={edu.cgpa || edu.percentage || edu.grade || ""}
+                                            onChange={(e) => handleUpdateEducation(index, edu.cgpa ? "cgpa" : edu.percentage ? "percentage" : "grade", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1 font-sans">Year / Period</label>
+                                          <input
+                                            type="text"
+                                            value={edu.year || edu.duration || ""}
+                                            onChange={(e) => handleUpdateEducation(index, edu.year ? "year" : "duration", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1">Field of Study</label>
+                                          <input
+                                            type="text"
+                                            value={edu.field_of_study || ""}
+                                            onChange={(e) => handleUpdateEducation(index, "field_of_study", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {editorTab === "projects" && (
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Project Entries ({editedProfile?.projects_json?.length || 0})</span>
+                                <button
+                                  type="button"
+                                  onClick={handleAddProject}
+                                  className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-800"
+                                >
+                                  <Plus size={11} /> Add Project
+                                </button>
+                              </div>
+
+                              {(editedProfile?.projects_json || []).length === 0 ? (
+                                <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+                                  <p className="text-xs text-slate-400 font-sans">No project entries yet.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar font-sans font-sans">
+                                  {editedProfile.projects_json.map((proj, index) => (
+                                    <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveProject(index)}
+                                        className="absolute top-4 right-4 text-rose-500 hover:text-rose-700 hover:scale-110 transition-all font-sans font-bold"
+                                        title="Delete project"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                      <div>
+                                        <label className="block text-[8px] font-black text-slate-400 mb-1">Project Title</label>
+                                        <input
+                                          type="text"
+                                          value={proj.name || proj.title || ""}
+                                          onChange={(e) => handleUpdateProject(index, proj.name ? "name" : "title", e.target.value)}
+                                          className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1">Tech Stack</label>
+                                          <input
+                                            type="text"
+                                            value={proj.tech_stack || proj.stack || ""}
+                                            onChange={(e) => handleUpdateProject(index, proj.tech_stack ? "tech_stack" : "stack", e.target.value)}
+                                            className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                            placeholder="e.g. React, NodeJS"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[8px] font-black text-slate-400 mb-1 font-sans">Project Link</label>
+                                          <input
+                                            type="text"
+                                            value={proj.link || ""}
+                                            onChange={(e) => handleUpdateProject(index, "link", e.target.value)}
+                                            className="w-full text-xs font-sans text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                            placeholder="https://github.com/..."
+                                          />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[8px] font-black text-slate-400 mb-1">Project Description</label>
+                                        <textarea
+                                          rows={2}
+                                          value={proj.description || proj.desc || ""}
+                                          onChange={(e) => handleUpdateProject(index, proj.description !== undefined ? "description" : "desc", e.target.value)}
+                                          className="w-full text-xs text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none leading-normal font-sans"
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {editorTab === "skills" && (
+                            <div className="space-y-4">
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans font-bold">Skills Portfolio</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={newSkillText}
+                                  onChange={(e) => setNewSkillText(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAddSkill()}
+                                  className="flex-1 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-150 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all font-sans"
+                                  placeholder="Add skill (e.g. React, Python)"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleAddSkill}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 font-sans font-sans"
+                                >
+                                  <Plus size={14} /> Add
+                                </button>
+                              </div>
+
+                              <div className="flex flex-wrap gap-1.5 p-4 bg-slate-50 rounded-3xl border border-slate-100 max-h-[220px] overflow-y-auto no-scrollbar font-sans font-medium">
+                                {(editedProfile?.skills_json || []).length === 0 ? (
+                                  <p className="text-xs text-slate-400 py-3 mx-auto font-sans">No skills added yet.</p>
+                                ) : (
+                                  editedProfile.skills_json.map((skill) => (
+                                    <span
+                                      key={skill}
+                                      className="flex items-center gap-1.5 text-xs font-bold bg-white text-slate-705 pl-3 pr-2 py-1.5 rounded-xl border border-slate-150 shadow-sm font-sans"
+                                    >
+                                      {skill}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveSkill(skill)}
+                                        className="text-rose-500 hover:text-rose-700 font-bold p-0.5"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ))
+                                )}
                               </div>
                             </div>
+                          )}
 
-                            {/* Live sentence rewrites recommendation */}
-                            <div className="space-y-3 font-sans">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-sans font-bold">
-                                High-Score Bullet Rewrites
-                              </p>
-                              <div className="space-y-3 text-[11px] font-sans">
-                                {atsRecommendations.bulletRewrites?.slice(0, 2).map((rewrite: any, i: number) => (
-                                  <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-2xl relative overflow-hidden font-sans">
-                                    <div className="text-[8px] font-extrabold text-slate-400 uppercase mb-1 font-sans">Standard / Passive Statement</div>
-                                    <p className="text-slate-500 line-through mb-2 font-sans">"{rewrite.originalIdea}"</p>
-                                    <div className="text-[8px] font-extrabold text-indigo-600 uppercase mb-1 font-sans font-serif">High-ATS Score Metric rewrite</div>
-                                    <p className="text-indigo-900 font-bold bg-indigo-50/50 p-2 rounded-xl italic font-serif">"{rewrite.rewrittenBullet}"</p>
-                                  </div>
-                                ))}
+                          {editorTab === "custom" && (
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-sans">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans font-sans">Custom Sections ({editedProfile?.custom_sections_json?.length || 0})</span>
+                                <button
+                                  type="button"
+                                  onClick={handleAddCustomSection}
+                                  className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-805 font-sans"
+                                >
+                                  <Plus size={11} /> Add Section
+                                </button>
                               </div>
+
+                              {(editedProfile?.custom_sections_json || []).length === 0 ? (
+                                <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+                                  <p className="text-xs text-slate-400 font-sans">No custom sections added yet.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar font-sans font-medium">
+                                  {editedProfile.custom_sections_json.map((section, index) => (
+                                    <div key={section.id || index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveCustomSection(section.id)}
+                                        className="absolute top-4 right-4 text-rose-500 hover:text-rose-700 hover:scale-110 transition-all font-sans font-bold"
+                                        title="Delete section"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                      <div>
+                                        <label className="block text-[8px] font-black text-slate-400 mb-1">Section Title</label>
+                                        <input
+                                          type="text"
+                                          value={section.title || ""}
+                                          onChange={(e) => handleUpdateCustomSection(section.id, "title", e.target.value)}
+                                          className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none"
+                                          placeholder="e.g. Certifications, Languages"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[8px] font-black text-slate-400 mb-1">Section Content</label>
+                                        <textarea
+                                          rows={3}
+                                          value={section.content || ""}
+                                          onChange={(e) => handleUpdateCustomSection(section.id, "content", e.target.value)}
+                                          className="w-full text-xs text-slate-800 bg-white border border-slate-150 p-2 rounded-xl outline-none leading-normal font-sans"
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => fetchAtsOptimizeRecommendations(targetRole)}
-                            className="w-full flex items-center justify-center gap-2 py-3 border border-indigo-200 text-indigo-600 rounded-2xl font-bold text-xs font-sans"
+                          )}
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="pt-2 border-t border-slate-50 font-sans">
+                          <button 
+                            type="button"
+                            onClick={handleSaveAll}
+                            disabled={saving}
+                            className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-600 text-white rounded-[20px] font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 hover:scale-[1.02] transition-all disabled:opacity-50 font-sans font-bold"
                           >
-                            <Brain size={14} /> Scan Terminology Recommendation
+                            <Save size={14} /> {saving ? "Saving Changes..." : "Save Profile Changes"}
                           </button>
-                        )}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* ACTIVE AI CARD FOR OPTIMIZER MODE */
+                      <>
+                        <div className="bg-white rounded-[40px] p-8 shadow-sm border border-slate-100">
+                           <div className="mb-4">
+                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 font-sans font-bold">AI Summary Result</div>
+                              <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100 text-sm italic text-indigo-700 leading-relaxed font-sans font-medium">
+                                 "${summary}"
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="bg-emerald-600 text-white rounded-[40px] p-8 animate-fadeIn">
+                           <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                 <CheckCircle size={24} />
+                                 <span className="text-[10px] font-black uppercase tracking-widest">ATS Verified</span>
+                              </div>
+                              <div className="px-3 py-1 bg-white/20 rounded-full text-xs font-black">
+                                 Score: ${resumeScore}/100
+                              </div>
+                           </div>
+                           <p className="text-lg font-bold tracking-tight">Your resume is ready for submission.</p>
+                           <p className="text-xs text-emerald-200 mt-2 font-sans font-medium">Format: PDF/A4 standard optimized for industry parsers including Workday and Taleo.</p>
+                        </div>
+
+                        {/* Interactive ATS Audit Summary */}
+                        <div className="bg-slate-900 text-white rounded-[40px] p-8 space-y-6">
+                           <div className="flex items-center gap-2">
+                             <Trophy className="text-yellow-400 font-bold" size={20} />
+                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-300">ATS Auditor Report</h4>
+                           </div>
+
+                           <div className="space-y-3 text-xs">
+                             <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/30">
+                               <div className="flex justify-between items-center text-slate-200 font-bold mb-1">
+                                 <span>Layout Parse Rating</span>
+                                 <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold font-mono">100% SECURE</span>
+                               </div>
+                               <p className="text-[10px] text-slate-400 font-sans">
+                                 {`['hybrid-ats-premium', 'silicon-valley-tech', 'classic-ats', 'academic-latex'].includes(selectedTemplate) 
+                                   ? "Perfect. Pure single-column linear standard format guarantees parse safety across corporate systems."
+                                   : "This grid-based system may experience sequence offset on older legacy screeners. Use 'Hybrid ATS Premium' for absolute parse security."`}
+                               </p>
+                             </div>
+
+                             <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/30">
+                               <div className="flex justify-between items-center text-slate-200 font-bold mb-1">
+                                 <span>Aspirant Section Coverage</span>
+                                 <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold font-mono font-sans font-sans">VERIFIED</span>
+                               </div>
+                               <div className="space-y-1 mt-1.5 text-[10px] text-slate-400 font-medium font-sans font-sans font-mono">
+                                 <div className="flex items-center gap-1.5 font-sans">
+                                   <span className="text-emerald-400 font-boldfont-sans">✔</span> Social URLs Recognized ({`profile?.social_links_json?.linkedin ? 'LinkedIn Configured' : 'Fallback active'`})
+                                 </div>
+                                 <div className="flex items-center gap-1.5 font-sans">
+                                   <span className="text-emerald-400 font-bold font-sans font-mono">✔</span> Standard Section Labels (Experience, Skills, Projects)
+                                 </div>
+                               </div>
+                             </div>
+
+                             <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-705/30">
+                               <div className="flex justify-between items-center text-slate-200 font-bold mb-1">
+                                 <span>Quantifiable Metric Ratio</span>
+                                 <span className={`text-[9px] px-2 py-0.5 rounded font-bold font-mono ${profile?.projects_json?.some((p) => /\\d+%|\\d+\\s*ms|\\d+\\s*x/i.test(p.description)) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                   {`profile?.projects_json?.some((p) => /\\d+%|\\d+\\s*ms|\\d+\\s*x/i.test(p.description)) ? 'OPTIMUM' : 'ALERT'`}
+                                 </span>
+                               </div>
+                               <p className="text-[10px] text-slate-400 leading-normal font-sans">
+                                 {`profile?.projects_json?.some((p) => /\\d+%|\\d+\\s*ms|\\d+\\s*x/i.test(p.description))
+                                   ? "Excellent. Numeric achievements are recognized in your descriptions. This highlights direct business/engineering execution impact."
+                                   : "Tip: Add quantitative metrics standard for SDE (e.g., 'rendered 40% faster', 'scaled user endpoints by 2x') to increase ATS rating."`}
+                               </p>
+                             </div>
+                           </div>
+                        </div>
+
+                        {/* SEO Real-Time Role Optimizer Panel */}
+                        <div className="bg-white rounded-[40px] p-8 shadow-sm border border-slate-100 space-y-6">
+                           <div className="space-y-2">
+                             <div className="flex items-center justify-between">
+                               <div className="flex items-center gap-2">
+                                 <Brain className="text-indigo-600" size={18} />
+                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-sans">Target Role SEO Matcher</h4>
+                               </div>
+                               {keywordsGenerating && <RefreshCw size={12} className="animate-spin text-indigo-600" />}
+                             </div>
+                             <p className="text-xs text-slate-455 font-medium">Select your aspiration role to optimize matching resume phrasing.</p>
+                           </div>
+
+                           <div className="relative font-sans font-medium">
+                             <select 
+                               value={targetRole}
+                               onChange={(e) => {
+                                 setTargetRole(e.target.value);
+                                 fetchAtsOptimizeRecommendations(e.target.value);
+                               }}
+                               className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all appearance-none"
+                             >
+                               <option value="SDE / Full Stack Engineer font-sans text-xs">SDE / Full Stack Engineer</option>
+                               <option value="Frontend Development Specialist font-sans text-xs font-semibold">Frontend Development Specialist (React)</option>
+                               <option value="Backend & Cloud Infrastructure font-sans font-sans">Backend & Cloud Infrastructure</option>
+                               <option value="AI / ML & Data Analytics Specialist font-sans">AI / ML & Data Analytics Specialist</option>
+                               <option value="Product Manager & QA Engineer font-sans font-bold">Product Manager & QA Engineer</option>
+                             </select>
+                             <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-sans font-bold">▼</div>
+                           </div>
+
+                           <div className="space-y-4 pt-2 font-sans font-medium">
+                             {keywordsGenerating ? (
+                               <div className="py-8 text-center space-y-2">
+                                 <RefreshCw size={24} className="animate-spin text-indigo-600 mx-auto" />
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Querying Gemini ATS Database...</p>
+                               </div>
+                             ) : atsRecommendations ? (
+                               <div className="space-y-5">
+                                 {/* Missing terms list */}
+                                 <div>
+                                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                     <Zap size={10} className="text-amber-500 font-bold" /> ATS Targeted Phrases
+                                   </p>
+                                   <div className="flex flex-wrap gap-1.5 font-sans">
+                                     {atsRecommendations.missingKeywords?.map((kw) => (
+                                       <span key={kw} className="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg border border-indigo-100/50 font-sans">
+                                         {kw}
+                                       </span>
+                                     ))}
+                                   </div>
+                                 </div>
+
+                                 {/* Recommended actions verbs */}
+                                 <div>
+                                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 font-sans">
+                                     Recommended Core Verbs
+                                   </p>
+                                   <div className="flex flex-wrap gap-1 font-sans">
+                                     {atsRecommendations.recommendedVerbs?.map((vb) => (
+                                       <span key={vb} className="text-[9px] font-mono font-bold bg-slate-50 text-slate-655 px-2 py-0.5 rounded border border-slate-100 font-sans">
+                                         {vb}
+                                       </span>
+                                     ))}
+                                   </div>
+                                 </div>
+
+                                 {/* Live sentence rewrites recommendation */}
+                                 <div className="space-y-3 font-sans">
+                                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-sans font-bold">
+                                     High-Score Bullet Rewrites
+                                   </p>
+                                   <div className="space-y-3 text-[11px] font-sans">
+                                     {atsRecommendations.bulletRewrites?.slice(0, 2).map((rewrite, i) => (
+                                       <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-2xl relative overflow-hidden font-sans">
+                                         <div className="text-[8px] font-extrabold text-slate-400 uppercase mb-1 font-sans font-semibold">Standard / Passive Statement</div>
+                                         <p className="text-slate-500 line-through mb-2 font-sans">"${rewrite.originalIdea}"</p>
+                                         <div className="text-[8px] font-extrabold text-indigo-600 uppercase mb-1 font-sans font-serif">High-ATS Score Metric rewrite</div>
+                                         <p className="text-indigo-900 font-bold bg-indigo-50/50 p-2 rounded-xl italic font-serif">"${rewrite.rewrittenBullet}"</p>
+                                       </div>
+                                     ))}
+                                   </div>
+                                 </div>
+                               </div>
+                             ) : (
+                               <button
+                                 onClick={() => fetchAtsOptimizeRecommendations(targetRole)}
+                                 className="w-full flex items-center justify-center gap-2 py-3 border border-indigo-200 text-indigo-600 rounded-2xl font-bold text-xs"
+                               >
+                                 <Brain size={14} /> Scan Terminology Recommendation
+                               </button>
+                             )}
+                           </div>
+                        </div>
+                      </>
+                    )}
                 </aside>
 
                 {/* Live Preview Screen */}
