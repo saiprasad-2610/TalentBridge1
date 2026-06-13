@@ -24,6 +24,42 @@ const RESUME_TEMPLATES = [
     description: "Modern sans-serif design optimized for software, product, and tech corporate placements.",
     type: "TECH_PRO" 
   },
+  {
+    id: "marketer-gold-timeline",
+    name: "Modern Gold Timeline",
+    description: "Vibrant timeline layout with golden bullet accents and skills score tracking.",
+    type: "CREATIVE_GOLD"
+  },
+  {
+    id: "designer-black-sidebar",
+    name: "Designer Asymmetric Black Sidebar",
+    description: "Contrasting layout with elegant black sidebars, tailored for design and creative roles.",
+    type: "DESIGNER_PRO"
+  },
+  {
+    id: "medical-care-professional",
+    name: "Medical Standard Professional",
+    description: "Clean medical blue theme with structured section labels for healthcare and nursing.",
+    type: "MEDICAL"
+  },
+  {
+    id: "textured-slate-serif",
+    name: "Textured Slate Serif Scholar",
+    description: "Playfair display serif typography wrapped in cards, inspired by Rachel Akinwale's sleek profile.",
+    type: "EDITORIAL"
+  },
+  {
+    id: "creative-pastel-frame",
+    name: "Juliana Pastel Designer",
+    description: "A beautiful pastel pink and cyan split-frame background for an eye-catching visual resume.",
+    type: "PASTEL_MODERN"
+  },
+  {
+    id: "asymmetrical-writer",
+    name: "Sacha Asymmetrical Writer",
+    description: "Left-dark-blue sidebar with elegant round crop profile picture, matching content writers and analysts.",
+    type: "CREATIVE_DARK"
+  },
   { 
     id: "modern-pro", 
     name: "Modern Professional", 
