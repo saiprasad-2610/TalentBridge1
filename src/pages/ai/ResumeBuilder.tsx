@@ -106,7 +106,7 @@ const HybridATSPremiumTemplate = ({ data, summary }: any) => (
     <section className="mb-6">
       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-800 border-b-2 border-slate-900 pb-1 mb-2">Academic History</h3>
       <div className="space-y-3 font-serif">
-        {data.education_json?.sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
+        {(Array.isArray(data?.education_json) ? [...data.education_json] : []).sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
           <div key={i} className="text-xs">
             <div className="flex justify-between font-bold text-slate-900">
               <span>{edu.level === 'Degree' ? edu.board : edu.school}</span>
@@ -221,7 +221,7 @@ const SiliconValleyTechTemplate = ({ data, summary }: any) => (
     <section className="mb-6">
       <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b border-slate-200 pb-1 mb-2.5">05 / Education</h3>
       <div className="space-y-3">
-         {data.education_json?.sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
+         {(Array.isArray(data?.education_json) ? [...data.education_json] : []).sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
             <div key={i} className="flex justify-between items-baseline text-xs">
                <div>
                   <span className="font-bold text-slate-900">{edu.level === 'Degree' ? 'Bachelor of Technology in CS / IT' : edu.level}</span>
@@ -634,7 +634,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
     <section className="mb-5 last:mb-0">
       <h3 className={config.sectionTitleClass}>Education & Training</h3>
       <div className="space-y-2">
-        {data.education_json?.sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
+        {(Array.isArray(data?.education_json) ? [...data.education_json] : []).sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
           <div key={i} className="flex justify-between items-baseline text-xs">
             <div>
               <span className="font-extrabold text-slate-900 uppercase tracking-tight text-[11px]">{edu.level === 'Degree' ? 'Bachelor of Technology' : edu.level}</span>
@@ -879,7 +879,7 @@ const ClassicATSTemplate = ({ data, summary, photo }: any) => (
     <section className="mb-8">
       <h3 className="text-sm font-black uppercase tracking-widest border-b border-slate-200 mb-3">Education</h3>
       <div className="space-y-3">
-        {data.education_json?.sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
+        {(Array.isArray(data?.education_json) ? [...data.education_json] : []).sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
           <div key={i} className="text-xs">
             <div className="flex justify-between font-black">
               <span>{edu.level === 'Degree' ? edu.board : edu.school}</span>
@@ -939,7 +939,7 @@ const AcademicLatexTemplate = ({ data, summary }: any) => (
     <section className="mb-4">
       <h2 className="text-[14pt] font-bold border-b border-black mb-1 w-full pb-0.5">Education</h2>
       <div className="space-y-1">
-        {data.education_json?.sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
+        {(Array.isArray(data?.education_json) ? [...data.education_json] : []).sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
           <div key={i} className="flex justify-between items-baseline">
             <div>
               <span className="font-bold">{edu.level === 'Degree' ? 'B.Tech - Computer Science and Engineering' : edu.level}</span>
@@ -1338,7 +1338,7 @@ const ModernProTemplate = ({ data, summary, photo }: any) => (
            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Education</h3>
         </div>
         <div className="space-y-6">
-          {data.education_json?.sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
+          {(Array.isArray(data?.education_json) ? [...data.education_json] : []).sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
             <div key={i} className="relative pl-6 before:absolute before:left-0 before:top-2 before:w-2 before:h-2 before:bg-blue-600 before:rounded-full">
               <div className="flex justify-between items-start mb-1">
                 <h4 className="text-[11px] font-black uppercase">{edu.level === 'Degree' ? edu.board : edu.school}</h4>
@@ -1439,7 +1439,7 @@ const CreativeMinTemplate = ({ data, summary, photo }: any) => (
                  <GraduationCap size={16} className="text-indigo-600" /> Background
               </h3>
               <div className="space-y-6">
-                  {data.education_json?.sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
+                  {(Array.isArray(data?.education_json) ? [...data.education_json] : []).sort((a: any, b: any) => (b.year || 0) - (a.year || 0)).map((edu: any, i: number) => (
                     <div key={i} className="flex gap-4">
                        <div className="text-[10px] font-black text-indigo-600 bg-indigo-50 w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border border-indigo-100">
                           {edu.year % 100}
