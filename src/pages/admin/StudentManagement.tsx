@@ -19,6 +19,7 @@ export function StudentManagement() {
   const [search, setSearch] = useState('');
 
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [modalTab, setModalTab] = useState<'profile' | 'activity'>('profile');
 
   useEffect(() => {
     fetchStudents();
@@ -202,10 +203,27 @@ export function StudentManagement() {
                   </div>
                   <button onClick={() => setSelectedStudent(null)} className="text-[10px] font-black text-slate-400 hover:text-slate-900 uppercase bg-white px-3 py-1.5 rounded-lg border border-slate-200">CLOSE</button>
                </div>
+               
+               <div className="flex px-8 border-b border-slate-100/60 bg-slate-50/50">
+                 <button 
+                   onClick={() => setModalTab('profile')}
+                   className={`uppercase text-[10px] font-black px-4 py-3 tracking-widest border-b-2 ${modalTab === 'profile' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                 >
+                   Profile details
+                 </button>
+                 <button 
+                   onClick={() => setModalTab('activity')}
+                   className={`uppercase text-[10px] font-black px-4 py-3 tracking-widest border-b-2 ${modalTab === 'activity' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                 >
+                   Activity Logs
+                 </button>
+               </div>
 
                <div className="p-8 overflow-y-auto space-y-8">
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                     <div className="space-y-1 p-4 bg-slate-50 rounded-2xl">
+                  {modalTab === 'profile' ? (
+                    <>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                         <div className="space-y-1 p-4 bg-slate-50 rounded-2xl">
                         <p className="text-[10px] font-black text-slate-400 uppercase">Talent Score</p>
                         <p className="text-xl font-black text-blue-600">{selectedStudent.profile?.completeness_score || 0}%</p>
                      </div>
@@ -394,6 +412,38 @@ export function StudentManagement() {
                       )}
                     </div>
                   </div>
+                  </>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div>
+                          <p className="text-xs font-black text-slate-500 uppercase">Total Tracked Actions</p>
+                          <p className="text-lg font-black text-slate-900">{selectedStudent.activityLogs?.length || 0}</p>
+                        </div>
+                      </div>
+                      
+                      {selectedStudent.activityLogs?.length > 0 ? (
+                        <div className="space-y-3">
+                          {selectedStudent.activityLogs.map((log: any, idx: number) => (
+                            <div key={idx} className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-bold text-slate-900 font-mono bg-slate-100 px-2 py-1 rounded inline-block">{log.path}</p>
+                                <p className="text-xs text-slate-500 mt-1 uppercase font-bold tracking-wider">{log.action}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-black text-slate-900">{log.duration_seconds}s</p>
+                                <p className="text-[10px] uppercase font-bold text-slate-400 mt-1">{new Date(log.created_at).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="bg-slate-50 p-6 rounded-2xl text-center border border-dashed border-slate-200">
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">No activity tracked yet.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                </div>
             </motion.div>
           </div>

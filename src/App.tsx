@@ -7,6 +7,7 @@ import { SidebarProvider } from "./context/SidebarContext.tsx";
 import { Navbar } from "./components/Navbar.tsx";
 import { Toaster } from "react-hot-toast";
 import { AIFloatingCompanion } from "./components/ai/AIFloatingCompanion.tsx";
+import { ActivityTracker } from "./components/ActivityTracker.tsx";
 import { motion } from "motion/react";
 import { Loader2, Sparkles, Cpu } from "lucide-react";
 
@@ -181,6 +182,7 @@ export default function App() {
         <AccessibilityProvider>
           <Toaster position="top-right" />
       <Router>
+        <ActivityTracker />
         <SidebarProvider>
           <div className="min-h-screen bg-brand-bg relative">
           <Navbar />

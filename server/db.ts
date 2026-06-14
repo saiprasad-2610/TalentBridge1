@@ -743,6 +743,18 @@ export async function initDb() {
 
 
       await connection.query(`
+        CREATE TABLE IF NOT EXISTS student_activity_logs (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          student_id INT NOT NULL,
+          path TEXT NOT NULL,
+          action VARCHAR(100) NOT NULL,
+          duration_seconds INT DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+
+      await connection.query(`
         CREATE TABLE IF NOT EXISTS daily_tasks (
           id INT PRIMARY KEY AUTO_INCREMENT,
           user_id INT NOT NULL,
@@ -2196,6 +2208,16 @@ async function runSqliteInit() {
       last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
       consistency_score INTEGER DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS student_activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      path TEXT NOT NULL,
+      action TEXT NOT NULL,
+      duration_seconds INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS daily_tasks (

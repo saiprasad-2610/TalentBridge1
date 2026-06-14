@@ -441,6 +441,23 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// Get Student Activity Logs
+router.get("/students/:userId/activity-logs", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const [logs]: any = await db.query(`
+      SELECT * FROM student_activity_logs 
+      WHERE student_id = ? 
+      ORDER BY created_at DESC 
+      LIMIT 1000
+    `, [userId]);
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    console.error("Error fetching activity logs:", error);
+    res.status(500).json({ success: false, message: "Error fetching activity logs" });
+  }
+});
+
 // Get Comprehensive Student Details
 router.get("/students/:userId/details", async (req, res) => {
   try {
@@ -475,6 +492,14 @@ router.get("/students/:userId/details", async (req, res) => {
       ORDER BY a.applied_at DESC
     `, [studentId]);
 
+    const [activityLogs]: any = await db.query(`
+      SELECT path, action, duration_seconds, created_at 
+      FROM student_activity_logs 
+      WHERE student_id = ? 
+      ORDER BY created_at DESC 
+      LIMIT 100
+    `, [userId]);
+
     res.json({ 
       success: true, 
       data: {
@@ -485,7 +510,8 @@ router.get("/students/:userId/details", async (req, res) => {
         projects,
         certifications,
         extracurriculars,
-        applications
+        applications,
+        activityLogs
       }
     });
   } catch (error) {

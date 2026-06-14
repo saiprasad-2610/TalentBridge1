@@ -1,5 +1,6 @@
 import express from "express";
 import db from "../db.ts";
+import { authenticate } from "../middleware/auth.ts";
 import { calculateTalentScore, updateDailyTask, updateLoginStreak } from "../services/analyticsService.ts";
 import multer from "multer";
 import path from "path";
@@ -884,6 +885,27 @@ Example format:
     );
 
     res.json({ success: true, suggestions: filteredFallback.length > 0 ? filteredFallback : fallbackList.slice(0, 5) });
+  }
+});
+
+// Activity Logging Endpoint
+router.post("/activity", authenticate, async (req, res) => {
+  try {
+    const userId = (req as any).user.userId;
+    const { path, action, duration } = req.body;
+    
+    // Only track if valid numeric duration (or 0)
+    const durSecs = Math.max(0, parseInt(duration) || 0);
+
+    await db.query(`
+      INSERT INTO student_activity_logs (student_id, path, action, duration_seconds)
+      VALUES (?, ?, ?, ?)
+    `, [userId, path, action || 'page_view', durSecs]);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Activity tracking error:", err);
+    res.status(500).json({ success: false });
   }
 });
 
