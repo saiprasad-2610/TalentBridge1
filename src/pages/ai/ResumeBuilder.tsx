@@ -22,7 +22,7 @@ const CustomSections = ({ data, headingClass, bodyClass }: { data: any, headingC
   if (!data?.custom_sections_json || data.custom_sections_json.length === 0) return null;
   return (
     <>
-      {data.custom_sections_json.map((section: any, idx: number) => {
+      {(Array.isArray(data?.custom_sections_json) ? data.custom_sections_json : []).map((section: any, idx: number) => {
         if (!section || !section.title) return null;
         return (
           <section key={section.id || idx} className="mt-5 mb-5 last:mb-0">
@@ -82,7 +82,7 @@ const HybridATSPremiumTemplate = ({ data, summary }: any) => (
     <section className="mb-6">
       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-800 border-b-2 border-slate-900 pb-1 mb-2">Professional Experience</h3>
       <div className="space-y-4 font-serif">
-        {data.experience_json?.map((exp: any, i: number) => (
+        {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
           <div key={i} className="text-xs">
             <div className="flex justify-between font-bold text-slate-900">
               <span>{exp.company} — {exp.role}</span>
@@ -121,7 +121,7 @@ const HybridATSPremiumTemplate = ({ data, summary }: any) => (
     <section>
       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-800 border-b-2 border-slate-900 pb-1 mb-2">Technical Projects</h3>
       <div className="space-y-4 font-serif">
-        {data.projects_json?.map((p: any, i: number) => (
+        {(Array.isArray(data?.projects_json) ? data.projects_json : []).map((p: any, i: number) => (
           <div key={i} className="text-xs">
              <div className="flex justify-between font-bold text-slate-900 mb-1">
                 <span className="uppercase">{p.name}</span>
@@ -168,7 +168,7 @@ const SiliconValleyTechTemplate = ({ data, summary }: any) => (
     <section className="mb-6">
       <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b border-slate-200 pb-1 mb-2.5">02 / Technical Skills</h3>
       <div className="flex flex-wrap gap-2">
-         {data.skills_json?.map((s: string) => (
+         {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
             <span key={s} className="px-2.5 py-1 bg-slate-100 text-slate-800 rounded font-mono text-[10px] font-bold border border-slate-200/50">
                {s}
             </span>
@@ -182,7 +182,7 @@ const SiliconValleyTechTemplate = ({ data, summary }: any) => (
     <section className="mb-6">
       <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b border-slate-200 pb-1 mb-2.5">03 / Key Projects</h3>
       <div className="space-y-4">
-         {data.projects_json?.map((p: any, i: number) => (
+         {(Array.isArray(data?.projects_json) ? data.projects_json : []).map((p: any, i: number) => (
             <div key={i}>
                <div className="flex justify-between items-baseline">
                   <h4 className="text-sm font-bold text-slate-900">{p.name}</h4>
@@ -201,7 +201,7 @@ const SiliconValleyTechTemplate = ({ data, summary }: any) => (
     <section className="mb-6">
       <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b border-slate-200 pb-1 mb-2.5">04 / Experience</h3>
       <div className="space-y-4">
-         {data.experience_json?.map((exp: any, i: number) => (
+         {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
             <div key={i}>
                <div className="flex justify-between items-baseline font-bold text-slate-900 text-xs">
                   <span>{exp.company} — {exp.role}</span>
@@ -576,7 +576,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
     <section className="mb-5 last:mb-0">
       <h3 className={config.sectionTitleClass}>Skills & Expertise</h3>
       <div className="flex flex-wrap gap-1.5 mt-2">
-        {data.skills_json?.map((skill: any, i: number) => {
+        {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((skill: any, i: number) => {
           const name = typeof skill === 'string' ? skill : (skill.name || skill);
           return (
             <span key={i} className="px-2 py-0.5 bg-slate-50 text-slate-800 text-[10px] font-bold rounded border border-slate-150 uppercase tracking-tight">
@@ -592,7 +592,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
     <section className="mb-5 last:mb-0">
       <h3 className={config.sectionTitleClass}>Key Projects</h3>
       <div className="space-y-3">
-        {data.projects_json?.map((p: any, i: number) => (
+        {(Array.isArray(data?.projects_json) ? data.projects_json : []).map((p: any, i: number) => (
           <div key={i} className="group">
             <div className="flex justify-between items-baseline font-bold text-slate-900 text-xs">
               <h4 className="uppercase tracking-tight">{p.name || p.title}</h4>
@@ -612,7 +612,7 @@ const DynamicTemplate = ({ id, data, summary, photo }: any) => {
     <section className="mb-5 last:mb-0">
       <h3 className={config.sectionTitleClass}>Work Experience</h3>
       <div className="space-y-3">
-        {data.experience_json?.map((exp: any, i: number) => (
+        {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
           <div key={i}>
             <div className="flex justify-between items-baseline font-bold text-slate-900 text-xs">
               <span className="uppercase tracking-tight">{exp.role} @ {exp.company}</span>
@@ -853,7 +853,7 @@ const ClassicATSTemplate = ({ data, summary, photo }: any) => (
     <section className="mb-8">
       <h3 className="text-sm font-black uppercase tracking-widest border-b border-slate-200 mb-3">Core Expertise</h3>
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
-        {data.skills_json?.map((s: string) => (
+        {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
           <span key={s} className="font-bold">• {s}</span>
         ))}
       </div>
@@ -862,7 +862,7 @@ const ClassicATSTemplate = ({ data, summary, photo }: any) => (
     <section className="mb-8">
       <h3 className="text-sm font-black uppercase tracking-widest border-b border-slate-200 mb-3">Work Experience</h3>
       <div className="space-y-4">
-        {data.experience_json?.map((exp: any, i: number) => (
+        {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
           <div key={i} className="text-xs">
             <div className="flex justify-between font-black uppercase">
               <span>{exp.company}</span>
@@ -894,7 +894,7 @@ const ClassicATSTemplate = ({ data, summary, photo }: any) => (
     <section>
       <h3 className="text-sm font-black uppercase tracking-widest border-b border-slate-200 mb-3">Key Projects</h3>
       <div className="space-y-4">
-        {data.projects_json?.map((p: any, i: number) => (
+        {(Array.isArray(data?.projects_json) ? data.projects_json : []).map((p: any, i: number) => (
           <div key={i} className="text-xs">
              <p className="font-black uppercase mb-1">{p.name}</p>
              <p className="text-slate-600">{p.description}</p>
@@ -960,7 +960,7 @@ const AcademicLatexTemplate = ({ data, summary }: any) => (
     <section className="mb-4">
       <h2 className="text-[14pt] font-bold border-b border-black mb-1 w-full pb-0.5">Technical Skills</h2>
       <ul className="list-disc pl-5 text-[10.9pt] space-y-0.5">
-        <li><span className="font-bold">Languages:</span> {data.skills_json?.slice(0, 5).join(', ')}</li>
+        <li><span className="font-bold">Languages:</span> {(Array.isArray(data?.skills_json) ? data.skills_json : []).slice(0, 5).join(', ')}</li>
         <li><span className="font-bold">Frameworks & Libraries:</span> React, Node.js, Express, Tailwind CSS</li>
         <li><span className="font-bold">Databases:</span> MySQL, PostgreSQL, MongoDB</li>
         <li><span className="font-bold">Tools & Cloud:</span> Git, Docker, AWS, Vercel</li>
@@ -971,7 +971,7 @@ const AcademicLatexTemplate = ({ data, summary }: any) => (
     <section className="mb-4">
       <h2 className="text-[14pt] font-bold border-b border-black mb-1 w-full pb-0.5">Projects</h2>
       <div className="space-y-3">
-        {data.projects_json?.slice(0, 3).map((p: any, i: number) => (
+        {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
           <div key={i}>
             <div className="flex justify-between font-bold text-[10.9pt]">
               <span>{p.name}</span>
@@ -1013,7 +1013,7 @@ const ExecutiveGridTemplate = ({ data, summary, photo }: any) => (
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Professional Experience</h3>
           </div>
           <div className="space-y-8">
-            {data.experience_json?.map((exp: any, i: number) => (
+            {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
               <div key={i} className="group">
                 <div className="flex justify-between items-start mb-1">
                   <h4 className="text-sm font-bold text-slate-800">{exp.company}</h4>
@@ -1032,7 +1032,7 @@ const ExecutiveGridTemplate = ({ data, summary, photo }: any) => (
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Key Projects</h3>
           </div>
           <div className="grid grid-cols-2 gap-6">
-             {data.projects_json?.slice(0, 4).map((p: any, i: number) => (
+             {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 4).map((p: any, i: number) => (
                <div key={i} className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
                   <h4 className="text-xs font-black text-slate-800 uppercase mb-2">{p.name}</h4>
                   <p className="text-[10px] text-slate-500 leading-relaxed mb-4 line-clamp-3">{p.description}</p>
@@ -1070,7 +1070,7 @@ const ExecutiveGridTemplate = ({ data, summary, photo }: any) => (
         <section>
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 underline decoration-indigo-600 underline-offset-8">Competencies</h3>
           <div className="space-y-6">
-             {data.skills_json?.slice(0, 8).map((s: string) => (
+             {(Array.isArray(data?.skills_json) ? data.skills_json : []).slice(0, 8).map((s: string) => (
                 <div key={s} className="space-y-2">
                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-300">
                       <span>{s}</span>
@@ -1087,7 +1087,7 @@ const ExecutiveGridTemplate = ({ data, summary, photo }: any) => (
         <section>
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 underline decoration-indigo-600 underline-offset-8">Education</h3>
           <div className="space-y-6">
-             {data.education_json?.map((edu: any, i: number) => (
+             {(Array.isArray(data?.education_json) ? data.education_json : []).map((edu: any, i: number) => (
                 <div key={i}>
                    <p className="text-xs font-black text-white uppercase">{edu.level}</p>
                    <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">{edu.board || edu.school}</p>
@@ -1126,7 +1126,7 @@ const MinimalSwissTemplate = ({ data, summary }: any) => (
           <section>
              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6">Expertise</h3>
              <div className="space-y-2 text-sm font-bold uppercase text-slate-400">
-                {data.skills_json?.map((s: string) => (
+                {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
                    <p key={s} className="text-black">{s}</p>
                 ))}
              </div>
@@ -1135,7 +1135,7 @@ const MinimalSwissTemplate = ({ data, summary }: any) => (
           <section>
              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6">Learning</h3>
              <div className="space-y-6">
-                {data.education_json?.map((edu: any, i: number) => (
+                {(Array.isArray(data?.education_json) ? data.education_json : []).map((edu: any, i: number) => (
                    <div key={i}>
                       <p className="text-[10px] font-black text-slate-300 mb-1">{edu.year}</p>
                       <p className="text-xs font-bold uppercase">{edu.level}</p>
@@ -1149,7 +1149,7 @@ const MinimalSwissTemplate = ({ data, summary }: any) => (
           <section>
              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-8 border-b-4 border-black pb-4">Selected Projects</h3>
              <div className="space-y-12">
-                {data.projects_json?.slice(0, 3).map((p: any, i: number) => (
+                {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
                    <div key={i} className="grid grid-cols-3 gap-6">
                       <div className="text-xs font-black uppercase leading-tight">{p.name}</div>
                       <div className="col-span-2 text-sm font-medium text-slate-600 leading-relaxed tracking-normal">{p.description}</div>
@@ -1161,7 +1161,7 @@ const MinimalSwissTemplate = ({ data, summary }: any) => (
           <section>
              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-8 border-b-4 border-black pb-4">Background</h3>
              <div className="space-y-12">
-                {data.experience_json?.map((exp: any, i: number) => (
+                {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
                    <div key={i} className="grid grid-cols-3 gap-6">
                       <div className="text-xs font-black uppercase leading-tight">{exp.company} <br /><span className="text-slate-300">{exp.duration}</span></div>
                       <div className="col-span-2 text-sm font-medium text-slate-600 leading-relaxed tracking-normal">
@@ -1198,7 +1198,7 @@ const TechnicalEliteTemplate = ({ data, summary, photo }: any) => (
                <section>
                   <h4 className="text-[10px] font-black uppercase tracking-widest mb-6">Stack.config</h4>
                   <div className="space-y-4">
-                     {data.skills_json?.map((s: string) => (
+                     {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
                         <div key={s} className="flex flex-col gap-1">
                            <span className="text-[10px] uppercase font-bold">{s}</span>
                            <div className="flex gap-1">
@@ -1221,7 +1221,7 @@ const TechnicalEliteTemplate = ({ data, summary, photo }: any) => (
                      <div>
                         <p className="text-slate-400 uppercase text-[9px] mb-1">Education</p>
                         <ul className="space-y-2">
-                           {data.education_json?.slice(0, 2).map((edu: any, i: number) => (
+                           {(Array.isArray(data?.education_json) ? data.education_json : []).slice(0, 2).map((edu: any, i: number) => (
                               <li key={i} className="uppercase leading-tight">{edu.board || edu.school} <br /><span className="text-emerald-500">[{edu.year}]</span></li>
                            ))}
                         </ul>
@@ -1242,7 +1242,7 @@ const TechnicalEliteTemplate = ({ data, summary, photo }: any) => (
                <section>
                   <h4 className="text-[10px] font-black uppercase tracking-widest mb-6 px-4 py-1 bg-slate-100 rounded inline-block">Deployments.active</h4>
                   <div className="space-y-8">
-                     {data.projects_json?.slice(0, 3).map((p: any, i: number) => (
+                     {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
                         <div key={i} className="relative pl-6 border-l-2 border-emerald-400">
                            <h5 className="text-[11px] font-black uppercase mb-2">{p.name}</h5>
                            <p className="text-[11px] font-bold text-slate-500 leading-relaxed mb-3">{p.description}</p>
@@ -1303,7 +1303,7 @@ const ModernProTemplate = ({ data, summary, photo }: any) => (
       <section>
         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-4">Skills</h3>
         <div className="flex flex-wrap gap-2">
-          {data.skills_json?.map((s: string) => (
+          {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
             <span key={s} className="px-2 py-1 bg-slate-800 rounded text-[9px] font-bold">{s}</span>
           ))}
         </div>
@@ -1356,7 +1356,7 @@ const ModernProTemplate = ({ data, summary, photo }: any) => (
            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Projects & Experience</h3>
         </div>
         <div className="space-y-6">
-          {data.projects_json?.slice(0, 3).map((p: any, i: number) => (
+          {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
             <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                <h4 className="text-[11px] font-black uppercase mb-2 text-blue-600">{p.name}</h4>
                <p className="text-[10px] text-slate-600 leading-relaxed mb-3">{p.description}</p>
@@ -1410,7 +1410,7 @@ const CreativeMinTemplate = ({ data, summary, photo }: any) => (
                  <Layout size={16} className="text-indigo-600" /> Key Projects
               </h3>
               <div className="space-y-6">
-                 {data.projects_json?.map((p: any, i: number) => (
+                 {(Array.isArray(data?.projects_json) ? data.projects_json : []).map((p: any, i: number) => (
                    <div key={i}>
                       <p className="text-xs font-black text-slate-800 mb-2">{p.name}</p>
                       <p className="text-[10px] text-slate-500 leading-relaxed">{p.description}</p>
@@ -1424,7 +1424,7 @@ const CreativeMinTemplate = ({ data, summary, photo }: any) => (
                  <Code size={16} className="text-indigo-600" /> Expert Skills
               </h3>
               <div className="flex flex-wrap gap-2">
-                 {data.skills_json?.map((s: string) => (
+                 {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
                    <span key={s} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold border border-indigo-100">
                       {s}
                    </span>
@@ -1514,7 +1514,7 @@ const MarketerGoldTimelineTemplate = ({ data, summary, photo }: any) => {
               <span className="w-2.5 h-2.5 bg-amber-500 rounded-full" /> Academic Profile
             </h3>
             <div className="space-y-4">
-              {data?.education_json?.map((edu: any, i: number) => (
+              {(Array.isArray(data?.education_json) ? data.education_json : []).map((edu: any, i: number) => (
                 <div key={i} className="text-[11px] font-sans font-medium">
                   <span className="text-amber-500 font-bold block">{edu.year} • GPA {edu.percentage || edu.cgpa || edu.grade}</span>
                   <p className="font-bold text-slate-950">{edu.level === 'Degree' ? 'Bachelors Degree in CSE' : edu.level}</p>
@@ -1563,7 +1563,7 @@ const MarketerGoldTimelineTemplate = ({ data, summary, photo }: any) => {
               <span className="w-2.5 h-2.5 bg-amber-500 rounded-full" /> Core Competencies
             </h3>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-              {data?.skills_json?.slice(0, 8).map((s: string, idx: number) => (
+              {(Array.isArray(data?.skills_json) ? data.skills_json : []).slice(0, 8).map((s: string, idx: number) => (
                 <div key={idx} className="space-y-1 font-sans">
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide text-slate-700">
                     <span>{s}</span>
@@ -1587,7 +1587,7 @@ const MarketerGoldTimelineTemplate = ({ data, summary, photo }: any) => {
               <span className="w-2.5 h-2.5 bg-amber-500 rounded-full" /> Work Timeline
             </h3>
             <div className="relative border-l border-slate-200 ml-2 pl-6 space-y-6">
-              {data?.experience_json?.map((exp: any, i: number) => (
+              {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
                 <div key={i} className="relative">
                   <span className="absolute -left-[29px] top-1.5 w-4 h-4 bg-white border-2 border-amber-400 rounded-full flex items-center justify-center shadow-sm">
                     <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
@@ -1618,7 +1618,7 @@ const MarketerGoldTimelineTemplate = ({ data, summary, photo }: any) => {
               <span className="w-2.5 h-2.5 bg-amber-500 rounded-full" /> Strategic Projects
             </h3>
             <div className="space-y-4">
-              {data?.projects_json?.slice(0, 3).map((p: any, i: number) => (
+              {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
                 <div key={i} className="p-4 bg-slate-105 rounded-2xl border border-slate-150 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/5 rounded-full blur-xl pointer-events-none" />
                   <div className="flex justify-between items-baseline mb-2">
@@ -1669,7 +1669,7 @@ const DesignerBlackSidebarTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-800 pb-2 mb-4">Education</h3>
             <div className="space-y-4">
-              {data?.education_json?.slice(0, 3).map((edu: any, i: number) => (
+              {(Array.isArray(data?.education_json) ? data.education_json : []).slice(0, 3).map((edu: any, i: number) => (
                 <div key={i} className="text-[10px] text-slate-300 space-y-0.5">
                   <p className="font-extrabold text-white text-[11px]">{edu.level === 'Degree' ? 'Bachelors' : edu.level}</p>
                   <p className="font-bold text-slate-400 leading-tight">{edu.board || edu.school}</p>
@@ -1682,7 +1682,7 @@ const DesignerBlackSidebarTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-800 pb-2 mb-4">Expertise Set</h3>
             <div className="flex flex-wrap gap-1.5">
-              {data?.skills_json?.map((s: string) => (
+              {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
                 <span key={s} className="px-2 py-0.5 bg-slate-800 text-slate-300 border border-slate-700/50 rounded font-mono text-[9px] font-bold">
                   {s}
                 </span>
@@ -1714,7 +1714,7 @@ const DesignerBlackSidebarTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b-2 border-slate-900 pb-2 mb-4">02 / Experience</h3>
             <div className="space-y-6">
-              {data?.experience_json?.map((exp: any, i: number) => (
+              {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
                 <div key={i} className="text-xs">
                   <div className="flex justify-between items-baseline font-bold text-slate-950 mb-1">
                     <span className="uppercase">{exp.company} — {exp.role}</span>
@@ -1732,7 +1732,7 @@ const DesignerBlackSidebarTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b-2 border-slate-900 pb-2 mb-4">03 / Projects</h3>
             <div className="space-y-6">
-              {data?.projects_json?.slice(0, 3).map((p: any, i: number) => (
+              {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
                 <div key={i} className="text-xs">
                   <div className="flex justify-between items-baseline font-bold text-slate-950 mb-1">
                     <span className="uppercase font-black text-slate-800">{p.name}</span>
@@ -1797,7 +1797,7 @@ const MedicalCareProfessionalTemplate = ({ data, summary }: any) => {
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <span className="text-[10px] uppercase font-black text-slate-400 block mb-2">Core Clinical Expertise</span>
               <div className="flex flex-wrap gap-1.5">
-                {data?.skills_json?.slice(0, 5).map((s: string) => (
+                {(Array.isArray(data?.skills_json) ? data.skills_json : []).slice(0, 5).map((s: string) => (
                   <span key={s} className="bg-white border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-0.5 rounded-lg">{s}</span>
                 ))}
               </div>
@@ -1816,7 +1816,7 @@ const MedicalCareProfessionalTemplate = ({ data, summary }: any) => {
         <section>
           <h3 className="text-xs font-black uppercase tracking-widest text-[#0369a1] bg-[#f0f9ff] px-4 py-1.5 rounded-xl inline-block mb-4">Professional History</h3>
           <div className="space-y-4">
-            {data?.experience_json?.map((exp: any, i: number) => (
+            {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
               <div key={i} className="text-xs border-l-2 border-sky-500 pl-4 py-0.5">
                 <div className="flex justify-between font-bold text-slate-905 mb-1">
                   <span>{exp.company} — {exp.role}</span>
@@ -1834,7 +1834,7 @@ const MedicalCareProfessionalTemplate = ({ data, summary }: any) => {
         <section>
           <h3 className="text-xs font-black uppercase tracking-widest text-[#0369a1] bg-[#f0f9ff] px-4 py-1.5 rounded-xl inline-block mb-4">Academic Qualifications</h3>
           <div className="space-y-3">
-            {data?.education_json?.map((edu: any, i: number) => (
+            {(Array.isArray(data?.education_json) ? data.education_json : []).map((edu: any, i: number) => (
               <div key={i} className="flex justify-between items-baseline text-xs bg-slate-50/50 p-3 rounded-xl border border-slate-100">
                 <div>
                   <span className="font-bold text-slate-900">{edu.level === 'Degree' ? 'Bachelor of Science / Professional Degree' : edu.level}</span>
@@ -1887,7 +1887,7 @@ const TexturedSlateSerifTemplate = ({ data, summary }: any) => {
           <div className="bg-white rounded-3xl p-6 border border-slate-205/60 shadow-xs">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-405 font-sans mb-4">Skills</h3>
             <div className="flex flex-wrap gap-1.5 font-sans">
-              {data?.skills_json?.map((s: string) => (
+              {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
                 <span key={s} className="bg-slate-50 text-slate-705 text-[10px] font-bold border border-slate-100 rounded-lg px-2.5 py-1">
                   {s}
                 </span>
@@ -1897,7 +1897,7 @@ const TexturedSlateSerifTemplate = ({ data, summary }: any) => {
 
           <div className="bg-white rounded-3xl p-6 border border-slate-205/60 shadow-xs space-y-4">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-405 font-sans mb-2">Education</h3>
-            {data?.education_json?.slice(0, 3).map((edu: any, i: number) => (
+            {(Array.isArray(data?.education_json) ? data.education_json : []).slice(0, 3).map((edu: any, i: number) => (
               <div key={i} className="text-[11px] font-serif border-b border-slate-50 pb-2 last:border-0 last:pb-0">
                 <span className="text-slate-400 tracking-wider font-mono text-[9px] block">{edu.year}</span>
                 <p className="font-extrabold text-slate-800">{edu.level === 'Degree' ? 'Bachelors' : edu.level}</p>
@@ -1912,7 +1912,7 @@ const TexturedSlateSerifTemplate = ({ data, summary }: any) => {
           <div className="bg-white rounded-3xl p-8 border border-slate-205/60 shadow-xs space-y-6">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-405 font-sans border-b border-slate-100 pb-3">Experiences</h3>
             <div className="space-y-6">
-              {data?.experience_json?.map((exp: any, i: number) => (
+              {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
                 <div key={i} className="text-[11px]">
                   <div className="flex justify-between items-baseline mb-2 text-slate-900 font-extrabold">
                     <span className="uppercase text-xs font-black">{exp.company} — {exp.role}</span>
@@ -1929,7 +1929,7 @@ const TexturedSlateSerifTemplate = ({ data, summary }: any) => {
 
           <div className="bg-white rounded-3xl p-8 border border-slate-205/60 shadow-xs space-y-4 font-serif">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-405 font-sans border-b border-slate-100 pb-3">Selected Projects</h3>
-            {data?.projects_json?.slice(0, 3).map((p: any, i: number) => (
+            {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
               <div key={i} className="text-[11px]">
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-black text-slate-900 uppercase font-sans tracking-tight">{p.name}</span>
@@ -1986,7 +1986,7 @@ const CreativePastelFrameTemplate = ({ data, summary, photo }: any) => {
             <section>
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100 pb-2 mb-4">02 / Skills & Tools</h3>
               <div className="flex flex-wrap gap-1.5">
-                {data?.skills_json?.map((s: string) => (
+                {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
                   <span key={s} className="px-3 py-1 bg-white border border-pink-100 text-slate-700 rounded-full text-[10px] font-extrabold shadow-sm">
                     {s}
                   </span>
@@ -1997,7 +1997,7 @@ const CreativePastelFrameTemplate = ({ data, summary, photo }: any) => {
             <section>
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100 pb-2 mb-4">03 / Education</h3>
               <div className="space-y-4">
-                {data?.education_json?.slice(0, 3).map((edu: any, i: number) => (
+                {(Array.isArray(data?.education_json) ? data.education_json : []).slice(0, 3).map((edu: any, i: number) => (
                   <div key={i} className="text-xs bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
                     <p className="text-[10px] font-mono text-indigo-550 font-black">{edu.year}</p>
                     <h4 className="font-extrabold text-slate-800 mt-1 uppercase">{edu.level === 'Degree' ? 'Bachelors Degree' : edu.level}</h4>
@@ -2014,7 +2014,7 @@ const CreativePastelFrameTemplate = ({ data, summary, photo }: any) => {
             <section>
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100 pb-2 mb-4">04 / Experience</h3>
               <div className="space-y-4">
-                {data?.experience_json?.map((exp: any, i: number) => (
+                {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
                   <div key={i} className="text-xs bg-white/50 p-4 rounded-2xl border border-slate-100 shadow-sm font-sans">
                     <div className="flex justify-between items-baseline mb-1">
                       <h4 className="font-extrabold text-slate-850 uppercase tracking-tight">{exp.company}</h4>
@@ -2033,7 +2033,7 @@ const CreativePastelFrameTemplate = ({ data, summary, photo }: any) => {
             <section>
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100 pb-2 mb-4">05 / Projects</h3>
               <div className="space-y-3">
-                {data?.projects_json?.slice(0, 3).map((p: any, i: number) => (
+                {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
                   <div key={i} className="text-xs font-sans">
                     <h5 className="font-extrabold text-slate-800 uppercase leading-snug">{p.name}</h5>
                     <p className="text-slate-550 leading-relaxed text-[11px] mt-1 font-sans">{p.description}</p>
@@ -2074,7 +2074,7 @@ const AsymmetricalWriterTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-[10px] font-black uppercase tracking-[0.15em] text-cyan-400 border-b border-slate-700 pb-1 mb-3">Academics</h3>
             <div className="space-y-4">
-              {data?.education_json?.slice(0, 2).map((edu: any, i: number) => (
+              {(Array.isArray(data?.education_json) ? data.education_json : []).slice(0, 2).map((edu: any, i: number) => (
                 <div key={i} className="text-[10px] text-slate-300">
                   <span className="font-bold text-white uppercase text-[11px] block">{edu.level === 'Degree' ? 'Bachelors' : edu.level}</span>
                   <span className="font-medium text-slate-400 leading-tight block mt-0.5">{edu.board || edu.school}</span>
@@ -2087,7 +2087,7 @@ const AsymmetricalWriterTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-[10px] font-black uppercase tracking-[0.15em] text-cyan-400 border-b border-slate-700 pb-1 mb-3">Core Skills</h3>
             <div className="flex flex-wrap gap-1 font-sans">
-              {data?.skills_json?.map((s: string) => (
+              {(Array.isArray(data?.skills_json) ? data.skills_json : []).map((s: string) => (
                 <span key={s} className="px-2 py-0.5 bg-slate-800 text-slate-205 border border-slate-700 rounded font-mono text-[9px] font-bold">
                   {s}
                 </span>
@@ -2130,7 +2130,7 @@ const AsymmetricalWriterTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b-2 border-slate-900 pb-2 mb-4">Active Deployments</h3>
             <div className="space-y-6">
-              {data?.experience_json?.map((exp: any, i: number) => (
+              {(Array.isArray(data?.experience_json) ? data.experience_json : []).map((exp: any, i: number) => (
                 <div key={i} className="text-xs font-sans">
                   <div className="flex justify-between items-baseline mb-1">
                     <h4 className="font-extrabold text-slate-850 uppercase tracking-tight">{exp.company}</h4>
@@ -2149,7 +2149,7 @@ const AsymmetricalWriterTemplate = ({ data, summary, photo }: any) => {
           <section>
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-450 border-b-2 border-slate-900 pb-2 mb-4">Key Projects</h3>
             <div className="space-y-5">
-              {data?.projects_json?.slice(0, 3).map((p: any, i: number) => (
+              {(Array.isArray(data?.projects_json) ? data.projects_json : []).slice(0, 3).map((p: any, i: number) => (
                 <div key={i} className="text-xs font-sans">
                   <div className="flex justify-between items-baseline mb-1">
                     <h5 className="font-extrabold text-slate-855 uppercase font-sans">{p.name}</h5>
@@ -2259,6 +2259,9 @@ export function ResumeBuilder() {
           if (typeof data[field] === 'string') {
             try { data[field] = JSON.parse(data[field]); } catch(e) { data[field] = []; }
           }
+          if (!Array.isArray(data[field])) {
+            data[field] = [];
+          }
         });
 
         // Load custom sections from localStorage
@@ -2266,6 +2269,9 @@ export function ResumeBuilder() {
         if (storedCustomSecs) {
           try { data.custom_sections_json = JSON.parse(storedCustomSecs); } catch (e) { data.custom_sections_json = []; }
         } else {
+          data.custom_sections_json = [];
+        }
+        if (!Array.isArray(data.custom_sections_json)) {
           data.custom_sections_json = [];
         }
 
@@ -2306,7 +2312,7 @@ export function ResumeBuilder() {
       });
 
       // 4. Save Education
-      const formattedEdu = editedProfile.education_json?.map((edu: any) => ({
+      const formattedEdu = (Array.isArray(editedProfile?.education_json) ? editedProfile.education_json : []).map((edu: any) => ({
         institution: edu.board || edu.school || edu.institution || "Unknown Institution",
         degree: edu.level || edu.degree || "Other",
         field_of_study: edu.field_of_study || "",
@@ -2319,7 +2325,7 @@ export function ResumeBuilder() {
       });
 
       // 5. Save Experience
-      const formattedExp = editedProfile.experience_json?.map((exp: any) => ({
+      const formattedExp = (Array.isArray(editedProfile?.experience_json) ? editedProfile.experience_json : []).map((exp: any) => ({
         company: exp.company || "Unknown Company",
         role: exp.role || "Employee",
         duration: exp.duration || "2024",
@@ -2332,7 +2338,7 @@ export function ResumeBuilder() {
       });
 
       // 6. Save Projects
-      const formattedProj = editedProfile.projects_json?.map((p: any) => ({
+      const formattedProj = (Array.isArray(editedProfile?.projects_json) ? editedProfile.projects_json : []).map((p: any) => ({
         title: p.name || p.title || "Project",
         description: p.description || p.desc || "",
         tech_stack: p.tech_stack || p.stack || "",
@@ -2927,7 +2933,7 @@ export function ResumeBuilder() {
                                 </div>
                               ) : (
                                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar-all font-sans">
-                                  {editedProfile.experience_json.map((exp, index) => (
+                                  {(Array.isArray(editedProfile?.experience_json) ? editedProfile.experience_json : []).map((exp, index) => (
                                     <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
                                       <button
                                         type="button"
@@ -3014,7 +3020,7 @@ export function ResumeBuilder() {
                                 </div>
                               ) : (
                                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar font-sans font-medium">
-                                  {editedProfile.education_json.map((edu, index) => (
+                                  {(Array.isArray(editedProfile?.education_json) ? editedProfile.education_json : []).map((edu, index) => (
                                     <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
                                       <button
                                         type="button"
@@ -3099,7 +3105,7 @@ export function ResumeBuilder() {
                                 </div>
                               ) : (
                                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar font-sans font-sans">
-                                  {editedProfile.projects_json.map((proj, index) => (
+                                  {(Array.isArray(editedProfile?.projects_json) ? editedProfile.projects_json : []).map((proj, index) => (
                                     <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
                                       <button
                                         type="button"
@@ -3181,7 +3187,7 @@ export function ResumeBuilder() {
                                 {(editedProfile?.skills_json || []).length === 0 ? (
                                   <p className="text-xs text-slate-400 py-3 mx-auto font-sans">No skills added yet.</p>
                                 ) : (
-                                  editedProfile.skills_json.map((skill) => (
+                                  (Array.isArray(editedProfile?.skills_json) ? editedProfile.skills_json : []).map((skill) => (
                                     <span
                                       key={skill}
                                       className="flex items-center gap-1.5 text-xs font-bold bg-white text-slate-705 pl-3 pr-2 py-1.5 rounded-xl border border-slate-150 shadow-sm font-sans"
@@ -3220,7 +3226,7 @@ export function ResumeBuilder() {
                                 </div>
                               ) : (
                                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar font-sans font-medium">
-                                  {editedProfile.custom_sections_json.map((section, index) => (
+                                  {(Array.isArray(editedProfile?.custom_sections_json) ? editedProfile.custom_sections_json : []).map((section, index) => (
                                     <div key={section.id || index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative space-y-3 font-sans">
                                       <button
                                         type="button"
