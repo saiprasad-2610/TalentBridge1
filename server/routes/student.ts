@@ -99,19 +99,34 @@ router.post("/upload-resume/:userId", (req, res) => {
       
       if (p.full_name && p.contact && p.location && p.profile_photo_url) score += 15;
       if (p.preferred_job_role && p.preferred_location) score += 10;
-      if (finalEdu.length > 0) score += 15;
+      let eduCount = finalEdu.length;
+      if (eduCount === 0 && p.education_json) {
+         try { const j = JSON.parse(p.education_json); if(Array.isArray(j)) eduCount = j.length; } catch(e){}
+      }
+      if (eduCount > 0) score += 15;
       
       let skills = [];
       try { skills = JSON.parse(p.skills_json || "[]"); } catch(e) {}
       if (skills.length >= 3) score += 15;
       else if (skills.length > 0) score += 5;
       
-      if (finalProj.length > 0) score += 15;
+      let projCount = finalProj.length;
+      if (projCount === 0 && p.projects_json) {
+         try { const j = JSON.parse(p.projects_json); if(Array.isArray(j)) projCount = j.length; } catch(e){}
+      }
+      if (projCount > 0) score += 15;
+      
       if (p.bio && p.bio.length > 40) score += 10;
       if (p.resume_url) score += 15;
       
       const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
-      if (finalExp.length > 0 || finalCert.length > 0 || finalExtra.length > 0) score += 5;
+      let extraCount = finalExp.length + finalCert.length + finalExtra.length;
+      if (extraCount === 0) {
+         const hasExpJson = p.experience_json && p.experience_json !== "[]" && p.experience_json !== "null";
+         const hasCertJson = p.custom_sections_json && p.custom_sections_json.includes('certifications');
+         if (hasExpJson || hasCertJson) extraCount = 1;
+      }
+      if (extraCount > 0) score += 5;
 
       await db.query("UPDATE student_profiles SET completeness_score = ? WHERE id = ?", [score, studentId]);
 
@@ -190,19 +205,34 @@ router.post("/upload-avatar/:userId", (req, res) => {
       
       if (p.full_name && p.contact && p.location && p.profile_photo_url) score += 15;
       if (p.preferred_job_role && p.preferred_location) score += 10;
-      if (finalEdu.length > 0) score += 15;
+      let eduCount = finalEdu.length;
+      if (eduCount === 0 && p.education_json) {
+         try { const j = JSON.parse(p.education_json); if(Array.isArray(j)) eduCount = j.length; } catch(e){}
+      }
+      if (eduCount > 0) score += 15;
       
       let skills = [];
       try { skills = JSON.parse(p.skills_json || "[]"); } catch(e) {}
       if (skills.length >= 3) score += 15;
       else if (skills.length > 0) score += 5;
       
-      if (finalProj.length > 0) score += 15;
+      let projCount = finalProj.length;
+      if (projCount === 0 && p.projects_json) {
+         try { const j = JSON.parse(p.projects_json); if(Array.isArray(j)) projCount = j.length; } catch(e){}
+      }
+      if (projCount > 0) score += 15;
+      
       if (p.bio && p.bio.length > 40) score += 10;
       if (p.resume_url) score += 15;
       
       const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
-      if (finalExp.length > 0 || finalCert.length > 0 || finalExtra.length > 0) score += 5;
+      let extraCount = finalExp.length + finalCert.length + finalExtra.length;
+      if (extraCount === 0) {
+         const hasExpJson = p.experience_json && p.experience_json !== "[]" && p.experience_json !== "null";
+         const hasCertJson = p.custom_sections_json && p.custom_sections_json.includes('certifications');
+         if (hasExpJson || hasCertJson) extraCount = 1;
+      }
+      if (extraCount > 0) score += 5;
 
       await db.query("UPDATE student_profiles SET completeness_score = ? WHERE id = ?", [score, studentId]);
 
@@ -367,17 +397,34 @@ router.get("/profile/:userId", async (req, res) => {
     let score = 0;
     if (profile.full_name && profile.contact && profile.location && profile.profile_photo_url) score += 15;
     if (profile.preferred_job_role && profile.preferred_location) score += 10;
-    if (education.length > 0) score += 15;
+    
+    let eduCount = education.length;
+    if (eduCount === 0 && profile.education_json) {
+       try { const j = JSON.parse(profile.education_json); if(Array.isArray(j)) eduCount = j.length; } catch(e){}
+    }
+    if (eduCount > 0) score += 15;
     
     let skills = [];
     try { skills = JSON.parse(profile.skills_json || "[]"); } catch(e) {}
     if (skills.length >= 3) score += 15;
     else if (skills.length > 0) score += 5;
     
-    if (projects.length > 0) score += 15;
+    let projCount = projects.length;
+    if (projCount === 0 && profile.projects_json) {
+       try { const j = JSON.parse(profile.projects_json); if(Array.isArray(j)) projCount = j.length; } catch(e){}
+    }
+    if (projCount > 0) score += 15;
+    
     if (profile.bio && profile.bio.length > 40) score += 10;
     if (profile.resume_url) score += 15;
-    if (experience.length > 0 || certifications.length > 0 || extracurriculars.length > 0) score += 5;
+    
+    let extraCount = experience.length + certifications.length + extracurriculars.length;
+    if (extraCount === 0) {
+       const hasExpJson = profile.experience_json && profile.experience_json !== "[]" && profile.experience_json !== "null";
+       const hasCertJson = profile.custom_sections_json && profile.custom_sections_json.includes('certifications');
+       if (hasExpJson || hasCertJson) extraCount = 1;
+    }
+    if (extraCount > 0) score += 5;
 
     // Update if different
     if (profile.completeness_score !== score) {
@@ -602,7 +649,11 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     if (p.preferred_job_role && p.preferred_location) score += 10;
     
     // 3. Education (15%) - Must have at least one degree
-    if (finalEdu.length > 0) score += 15;
+    let eduCount = finalEdu.length;
+    if (eduCount === 0 && p.education_json) {
+       try { const j = JSON.parse(p.education_json); if(Array.isArray(j)) eduCount = j.length; } catch(e){}
+    }
+    if (eduCount > 0) score += 15;
     
     // 4. Skills (15%) - Min 3 skills
     let skills = [];
@@ -611,7 +662,11 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     else if (skills.length > 0) score += 5;
     
     // 5. Projects (15%) - At least one
-    if (finalProj.length > 0) score += 15;
+    let projCount = finalProj.length;
+    if (projCount === 0 && p.projects_json) {
+       try { const j = JSON.parse(p.projects_json); if(Array.isArray(j)) projCount = j.length; } catch(e){}
+    }
+    if (projCount > 0) score += 15;
     
     // 6. Summary/Bio (10%)
     if (p.bio && p.bio.length > 40) score += 10;
@@ -620,7 +675,13 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     if (p.resume_url) score += 15;
     
     // 8. Experience or Extracurricular or Certification (5% total)
-    if (finalExp.length > 0 || finalCert.length > 0 || finalExtra.length > 0) score += 5;
+    let extraCount = finalExp.length + finalCert.length + finalExtra.length;
+    if (extraCount === 0) {
+       const hasExpJson = p.experience_json && p.experience_json !== "[]" && p.experience_json !== "null";
+       const hasCertJson = p.custom_sections_json && p.custom_sections_json.includes('certifications');
+       if (hasExpJson || hasCertJson) extraCount = 1;
+    }
+    if (extraCount > 0) score += 5;
 
     await db.query("UPDATE student_profiles SET completeness_score = ? WHERE id = ?", [score, studentId]);
     
