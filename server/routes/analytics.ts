@@ -163,7 +163,8 @@ router.get("/employer/:companyUserId", async (req, res) => {
         a.current_stage_id,
         a.applied_at,
         j.title as job_title,
-        sps.avg_interview_score
+        sps.avg_interview_score,
+        (SELECT score FROM test_submissions WHERE application_id = a.id ORDER BY created_at DESC LIMIT 1) as latest_test_score
       FROM job_applications a
       JOIN student_profiles sp ON a.student_id = sp.id
       JOIN jobs j ON a.job_id = j.id

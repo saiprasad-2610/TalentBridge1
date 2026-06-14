@@ -241,6 +241,68 @@ router.post("/bulk-action", async (req, res) => {
   }
 });
 
+// Schedule Bulk Test for Selected Candidates
+router.post("/schedule-test-bulk", async (req, res) => {
+  const { applicationIds, scheduledAt, durationMinutes, cutoffScore } = req.body;
+  try {
+    if (!applicationIds || !Array.isArray(applicationIds) || applicationIds.length === 0) {
+      return res.status(400).json({ success: false, message: "Invalid application list" });
+    }
+
+    // Since we need a stageId to attach the test to, we find the first application's current stage and job
+    const [appsInfo]: any = await db.query(`
+       SELECT job_id, current_stage_id FROM job_applications WHERE id = ?
+    `, [applicationIds[0]]);
+    
+    if (appsInfo.length === 0) {
+       return res.status(404).json({ success: false, message: "Application not found" });
+    }
+
+    const { job_id: jobId, current_stage_id: stageId } = appsInfo[0];
+
+    // Clear existing schedule for this stage to override
+    await db.query("DELETE FROM test_schedules WHERE job_id = ? AND stage_id = ?", [jobId, stageId]);
+    
+    // Create new global test schedule for this stage
+    const [result]: any = await db.query(`
+      INSERT INTO test_schedules (job_id, stage_id, scheduled_at, duration_minutes, cutoff_score)
+      VALUES (?, ?, ?, ?, ?)
+    `, [jobId, stageId, scheduledAt, durationMinutes, cutoffScore]);
+    
+    const placeholders = applicationIds.map(() => '?').join(',');
+
+    // Notify only selected users
+    const [applicants]: any = await db.query(`
+      SELECT SP.user_id, J.title 
+      FROM job_applications JA
+      JOIN student_profiles SP ON JA.student_id = SP.id
+      JOIN jobs J ON JA.job_id = J.id
+      WHERE JA.id IN (${placeholders})
+    `, [...applicationIds]);
+
+    for (const applicant of applicants) {
+      await db.query("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)", [
+        applicant.user_id, 
+        "Test Scheduled", 
+        `Action Required: Official technical assessment for ${applicant.title} scheduled on ${scheduledAt.replace('T', ' ')}.`, 
+        "WARNING"
+      ]);
+    }
+    
+    // Auto-Move selected applicants to TESTING stage if they aren't there yet
+    for (const appId of applicationIds) {
+      await db.query("INSERT INTO application_history (application_id, stage_id, action, notes) VALUES (?, ?, ?, ?)", [
+        appId, stageId, 'INFO', \`Bulk Test Scheduled: \${durationMinutes} mins at \${scheduledAt.replace('T', ' ')}\`
+      ]);
+    }
+
+    res.json({ success: true, message: "Tests scheduled successfully for all selected applicants." });
+  } catch (error) {
+    console.error("Bulk schedule error:", error);
+    res.status(500).json({ success: false, message: "Failed to schedule test" });
+  }
+});
+
 // Schedule Automated Test
 router.post("/schedule-test", async (req, res) => {
   const { jobId, stageId, scheduledAt, durationMinutes, cutoffScore } = req.body;

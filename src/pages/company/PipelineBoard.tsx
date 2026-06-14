@@ -101,6 +101,11 @@ export function PipelineBoard() {
   const handleBulkAction = async (action: string) => {
     if (selectedCandidates.length === 0) return;
     
+    if (action === 'SCHEDULE_TEST') {
+       setShowScheduleModal(true);
+       return;
+    }
+
     toast.success(`Applying ${action} to ${selectedCandidates.length} candidates...`);
     
     if (action.startsWith('MOVE_')) {
@@ -146,6 +151,35 @@ export function PipelineBoard() {
 
 
   const [draggedAppId, setDraggedAppId] = useState<number | null>(null);
+
+  // Scheduling
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleConfig, setScheduleConfig] = useState({ date: '', time: '', duration: 45, cutoff: 80 });
+
+  const executeTestSchedule = async () => {
+    try {
+      const scheduledAt = `${scheduleConfig.date}T${scheduleConfig.time}:00`;
+      
+      const res = await api.post('/jobs/schedule-test-bulk', {
+        applicationIds: selectedCandidates,
+        scheduledAt,
+        durationMinutes: scheduleConfig.duration,
+        cutoffScore: scheduleConfig.cutoff
+      });
+      
+      if (res.data.success) {
+        toast.success(res.data.message || 'Test scheduled successfully for selected candidates!');
+        setShowScheduleModal(false);
+        setSelectedCandidates([]);
+        fetchData(); // Refresh pipeline immediately
+      } else {
+        toast.error(res.data.message || 'Failed to schedule tests.');
+      }
+    } catch (e) {
+      toast.error('An error occurred while scheduling test. Please make sure applications exist for the job stage.');
+      console.error(e);
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, appId: number) => {
     e.dataTransfer.setData('appId', appId.toString());
@@ -222,6 +256,67 @@ export function PipelineBoard() {
               onClose={() => setPreviewCandidate(null)}
               onAction={(action: string) => updateCandidateStage(previewCandidate.application_id, action)}
            />
+         )}
+         {showScheduleModal && (
+            <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+            >
+               <motion.div 
+                  initial={{ scale: 0.95, y: 20 }}
+                  animate={{ scale: 1, y: 0 }}
+                  className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl relative"
+               >
+                  <button onClick={() => setShowScheduleModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                     <XCircle size={20} />
+                  </button>
+                  <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+                     <CalendarPlus size={28} />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Schedule Assessment</h3>
+                  <p className="text-sm font-semibold text-slate-500 mb-8 leading-relaxed">
+                     Set the date, time, and rules for the technical assessment for <strong className="text-slate-800">{selectedCandidates.length} candidate(s)</strong>.
+                  </p>
+
+                  <div className="space-y-5">
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Date</label>
+                           <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500/20" value={scheduleConfig.date} onChange={e => setScheduleConfig({...scheduleConfig, date: e.target.value})} />
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Time</label>
+                           <input type="time" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500/20" value={scheduleConfig.time} onChange={e => setScheduleConfig({...scheduleConfig, time: e.target.value})} />
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-5">
+                        <div>
+                           <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2 flex items-center gap-1.5"><Clock size={12}/> Duration</label>
+                           <div className="flex items-center gap-2">
+                              <input type="number" min="15" step="15" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500/20" value={scheduleConfig.duration} onChange={e => setScheduleConfig({...scheduleConfig, duration: Number(e.target.value)})} />
+                              <span className="text-xs font-bold text-slate-400">min</span>
+                           </div>
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2 flex items-center gap-1.5"><Target size={12}/> Cutoff %</label>
+                           <div className="flex items-center gap-2">
+                              <input type="number" min="40" max="100" step="5" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500/20" value={scheduleConfig.cutoff} onChange={e => setScheduleConfig({...scheduleConfig, cutoff: Number(e.target.value)})} />
+                              <span className="text-xs font-bold text-slate-400">%</span>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="mt-8 flex gap-3">
+                     <button onClick={() => setShowScheduleModal(false)} className="flex-1 py-3.5 rounded-xl font-black uppercase text-xs tracking-widest text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
+                     <button onClick={executeTestSchedule} className="flex-[2] py-3.5 bg-purple-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-purple-600/20 hover:bg-purple-700 transition-all flex items-center justify-center gap-2">
+                        <CalendarPlus size={16} /> Schedule & Notify
+                     </button>
+                  </div>
+               </motion.div>
+            </motion.div>
          )}
        </AnimatePresence>
     </div>
@@ -364,6 +459,9 @@ function BulkActionBar({ count, onClear, onAction }: any) {
                <XCircle size={14} /> Reject
             </button>
             <div className="w-px h-6 bg-slate-700 mx-2" />
+            <button onClick={() => onAction('SCHEDULE_TEST')} className="px-3 py-2 hover:bg-purple-500/20 text-purple-400 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors">
+               <CalendarPlus size={14} /> Schedule Test
+            </button>
             <button onClick={onClear} className="text-xs font-bold text-slate-400 hover:text-white uppercase tracking-widest px-2 transition-colors">Clear</button>
          </div>
       </motion.div>
@@ -465,6 +563,13 @@ function CandidateCard({ candidate, onDragStart, selected, onToggleSelect, onCli
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Match Score</span>
           <span className={`text-[11px] font-black px-2 py-0.5 rounded-md border ${matchScore >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : matchScore >= 60 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>{matchScore}%</span>
        </div>
+
+       {candidate.latest_test_score !== null && candidate.latest_test_score !== undefined && (
+          <div className="flex items-center justify-between mb-3 -mt-2">
+             <span className="text-[9px] font-black uppercase tracking-widest text-purple-500">Test Score</span>
+             <span className="text-[11px] font-black px-2 py-0.5 rounded-md border bg-purple-50 text-purple-700 border-purple-200 shadow-sm">{Math.round(candidate.latest_test_score)}%</span>
+          </div>
+       )}
 
        <div className="flex flex-wrap gap-1.5 mb-3">
           {recBadge}
