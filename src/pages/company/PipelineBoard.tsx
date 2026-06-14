@@ -118,7 +118,7 @@ export function PipelineBoard() {
   const currentApplicants = useMemo(() => {
     let list = allApplicants;
     if (selectedJobId !== 'ALL') {
-       list = list.filter(a => a.job_id.toString() === selectedJobId);
+       list = list.filter(a => a.job_id?.toString() === selectedJobId);
     }
     if (searchQuery) {
        list = list.filter(a => a.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || a.job_title?.toLowerCase().includes(searchQuery.toLowerCase()));
