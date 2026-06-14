@@ -3,12 +3,14 @@ import { motion } from 'motion/react';
 import { Coins, CheckCircle2, Zap, Trophy, Crown, Loader2, Sparkles } from 'lucide-react';
 import { xpService } from '../services/xpService';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext.tsx';
 
 export const XPStore: React.FC = () => {
   const [loading, setLoading] = useState<string | number | null>(null);
   const [balance, setBalance] = useState(0);
   const [packages, setPackages] = useState<any[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     fetchBalance();
@@ -84,8 +86,9 @@ export const XPStore: React.FC = () => {
           }
         },
         prefill: {
-          name: '',
-          email: '',
+          name: profile?.full_name || profile?.company_name || '',
+          email: user?.email || '',
+          contact: profile?.contact || profile?.phone || '',
         },
         theme: {
           color: '#2563EB',
