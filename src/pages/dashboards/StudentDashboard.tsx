@@ -325,7 +325,9 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
     // 3. Education Info (15%)
     let hasEdu = false;
     try {
-      if (p.education_json) {
+      if (Array.isArray(p.education) && p.education.length > 0) {
+        hasEdu = true;
+      } else if (p.education_json) {
         const parsed = typeof p.education_json === 'string' ? JSON.parse(p.education_json) : p.education_json;
         hasEdu = Array.isArray(parsed) && parsed.length > 0;
       }
@@ -344,7 +346,9 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
     // 5. Relevant Projects (15%)
     let hasProj = false;
     try {
-      if (p.projects_json) {
+      if (Array.isArray(p.projects) && p.projects.length > 0) {
+        hasProj = true;
+      } else if (p.projects_json) {
         const parsed = typeof p.projects_json === 'string' ? JSON.parse(p.projects_json) : p.projects_json;
         hasProj = Array.isArray(parsed) && parsed.length > 0;
       }

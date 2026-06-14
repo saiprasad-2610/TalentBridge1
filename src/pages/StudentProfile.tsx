@@ -551,17 +551,21 @@ export function StudentProfile() {
       const eduList = p.education || [];
       initialData = { education: eduList };
       
-      const school = eduList.find((e: any) => e.degree === "High School") || {};
-      const inter = eduList.find((e: any) => e.degree === "Intermediate (12th)") || {};
-      const diploma = eduList.find((e: any) => e.degree === "Diploma") || {};
-      const degree = eduList.find((e: any) => e.degree === "Undergraduate Degree" || e.degree === "Degree" || (e.degree && !["High School", "Intermediate (12th)", "Diploma"].includes(e.degree))) || {};
+      const isHighSchool = (d: string) => ["High School", "10th", "SSC", "Metric", "Matriculation"].includes(d);
+      const isInter = (d: string) => ["Intermediate (12th)", "12th", "HSC", "Intermediate"].includes(d);
+      const isDiploma = (d: string) => ["Diploma"].includes(d);
+
+      const school = eduList.find((e: any) => isHighSchool(e.degree)) || {};
+      const inter = eduList.find((e: any) => isInter(e.degree)) || {};
+      const diploma = eduList.find((e: any) => isDiploma(e.degree)) || {};
+      const degree = eduList.find((e: any) => e.degree && !isHighSchool(e.degree) && !isInter(e.degree) && !isDiploma(e.degree)) || {};
 
       setSchoolInst(school.institution || "");
       setSchoolStart(school.start_date ? school.start_date.split('T')[0] : "");
       setSchoolEnd(school.end_date ? school.end_date.split('T')[0] : "");
       setSchoolGrade(school.grade || "");
 
-      const hasInt = eduList.some((e: any) => e.degree === "Intermediate (12th)");
+      const hasInt = eduList.some((e: any) => isInter(e.degree));
       setHasInter(hasInt);
       setInterInst(inter.institution || "");
       setInterStream(inter.field_of_study || "");
@@ -569,7 +573,7 @@ export function StudentProfile() {
       setInterEnd(inter.end_date ? inter.end_date.split('T')[0] : "");
       setInterGrade(inter.grade || "");
 
-      const hasDipl = eduList.some((e: any) => e.degree === "Diploma");
+      const hasDipl = eduList.some((e: any) => isDiploma(e.degree));
       setHasDiploma(hasDipl);
       setDiplInst(diploma.institution || "");
       setDiplBranch(diploma.field_of_study || "");
@@ -577,7 +581,7 @@ export function StudentProfile() {
       setDiplEnd(diploma.end_date ? diploma.end_date.split('T')[0] : "");
       setDiplGrade(diploma.grade || "");
 
-      const hasDeg = eduList.some((e: any) => e.degree === "Undergraduate Degree" || e.degree === "Degree" || (e.degree && !["High School", "Intermediate (12th)", "Diploma"].includes(e.degree)));
+      const hasDeg = eduList.some((e: any) => e.degree && !isHighSchool(e.degree) && !isInter(e.degree) && !isDiploma(e.degree));
       setHasDegree(hasDeg);
       setDegreeInst(degree.institution || "");
       setDegreeName(degree.degree || "B.Tech");
@@ -1013,7 +1017,9 @@ export function StudentProfile() {
                     </div>
                     <div className="flex-1">
                       <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">{edu.institution}</h4>
-                      <p className="text-slate-500 font-bold text-sm mb-2">{edu.degree} in {edu.field_of_study}</p>
+                      <p className="text-slate-500 font-bold text-sm mb-2">
+                        {edu.degree} {edu.field_of_study ? `in ${edu.field_of_study}` : ''}
+                      </p>
                       <div className="flex items-center gap-4 text-xs font-black text-slate-400 uppercase tracking-widest">
                         <span className="flex items-center gap-1"><Calendar size={12}/> {edu.start_date?.split('-')[0] || "N/A"} - {edu.end_date?.split('-')[0] || "Present"}</span>
                         {edu.grade && <span className="bg-slate-100 px-2 py-1 rounded text-slate-600">Grade: {edu.grade}</span>}
