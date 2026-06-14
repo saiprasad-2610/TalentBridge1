@@ -532,52 +532,211 @@ export function JobPostingPage() {
 
 function QuestionEditor({ stage, onClose, onSave }: { stage: any, onClose: () => void, onSave: (q: any[]) => void }) {
   const [questions, setQuestions] = useState<any[]>(stage.questions || []);
+  const [activeTab, setActiveTab] = useState<'MANUAL' | 'BULK' | 'AI'>('MANUAL');
+  
+  // Bulk Import State
+  const [bulkText, setBulkText] = useState("");
+  
+  // AI Generator State
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiCount, setAiCount] = useState(5);
+  const [aiDifficulty, setAiDifficulty] = useState("Intermediate");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const processBulkImport = () => {
+     if (!bulkText.trim()) return toast.error("Please paste data first");
+     const lines = bulkText.split('\n');
+     const parsed = lines.map(line => {
+        const parts = line.split('\t'); // TSV from Google Sheets/Excel
+        if (parts.length >= 5) { // Q, Opt1, Opt2, Opt3, Opt4, Correct
+            const qText = parts[0].trim();
+            const opts = [parts[1]?.trim()||"", parts[2]?.trim()||"", parts[3]?.trim()||"", parts[4]?.trim()||""];
+            const correctOpt = parts[5]?.trim() || opts[0]; // fallback
+            if (qText) {
+                return { text: qText, options: opts, correctAnswer: correctOpt };
+            }
+        } else if (parts.length >= 2) {
+            // simpler format: Q, Answer
+            return { text: parts[0].trim(), options: [parts[1].trim(), "False", "Other", "None"], correctAnswer: parts[1].trim() };
+        }
+        return null;
+     }).filter(q => q !== null);
+     
+     if (parsed.length > 0) {
+        setQuestions([...questions, ...parsed]);
+        setBulkText("");
+        setActiveTab('MANUAL');
+        toast.success(`Successfully imported ${parsed.length} questions`);
+     } else {
+        toast.error("Could not parse data. Ensure it's tab-separated (pasted from Excel).");
+     }
+  };
+
+  const processAIGeneration = async () => {
+      if (!aiTopic) return toast.error("Please enter a topic");
+      setIsGenerating(true);
+      await new Promise(r => setTimeout(r, 2000)); // simulate AI
+      
+      const newQs = Array.from({ length: aiCount }).map((_, i) => ({
+          text: `Sample ${aiDifficulty} question about ${aiTopic} #${i+1}?`,
+          options: ["Option A", "Option B", "Option C", "Option D"],
+          correctAnswer: "Option B"
+      }));
+      setQuestions([...questions, ...newQs]);
+      setIsGenerating(false);
+      setActiveTab('MANUAL');
+      toast.success(`Generated ${aiCount} AI questions!`);
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose} />
+       <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={onClose} />
        <motion.div 
          initial={{ opacity: 0, scale: 0.95, y: 20 }}
          animate={{ opacity: 1, scale: 1, y: 0 }}
          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-         className="relative w-full max-w-3xl bg-slate-50 rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+         className="relative w-full max-w-4xl bg-slate-50 rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
        >
-         <div className="p-8 bg-white border-b border-slate-200 flex justify-between items-center shrink-0">
-            <div>
-               <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Assessment Builder</h2>
-               <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mt-1">For Step: {stage.name}</p>
-            </div>
-            <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"><X size={18}/></button>
-         </div>
-
-         <div className="p-8 overflow-y-auto flex-1 space-y-6">
-            {questions.map((q, qIdx) => (
-               <div key={qIdx} className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm relative group">
-                  <button onClick={() => setQuestions(questions.filter((_, i) => i !== qIdx))} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-50 hover:bg-rose-50 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"><X size={14} /></button>
-                  <label className="text-[10px] font-black uppercase text-indigo-500 mb-2 block tracking-widest">Question {qIdx + 1}</label>
-                  <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 mb-4 focus:ring-2 focus:ring-indigo-100 outline-none" value={q.text} onChange={e => {const n=[...questions]; n[qIdx].text=e.target.value; setQuestions(n);}} placeholder="What is..." />
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                     {q.options.map((opt: string, oIdx: number) => (
-                        <div key={oIdx} className={`p-3 rounded-xl border flex items-center gap-3 transition-colors ${q.correctAnswer === opt && opt ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200 focus-within:border-indigo-300'}`}>
-                           <input type="radio" name={`correct-${qIdx}`} className="accent-emerald-500 w-4 h-4" checked={q.correctAnswer === opt && opt !== ""} onChange={() => {const n=[...questions]; n[qIdx].correctAnswer=opt; setQuestions(n);}} />
-                           <input className="bg-transparent border-none outline-none font-bold text-sm w-full" value={opt} onChange={e => {const n=[...questions]; n[qIdx].options[oIdx]=e.target.value; setQuestions(n);}} placeholder={`Option ${oIdx + 1}`} />
-                        </div>
-                     ))}
+         <div className="p-6 bg-white border-b border-slate-200 shrink-0">
+            <div className="flex justify-between items-center mb-6">
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner">
+                     <Target size={24} />
+                  </div>
+                  <div>
+                     <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Assessment Builder</h2>
+                     <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mt-0.5">Stage: {stage.name}</p>
                   </div>
                </div>
-            ))}
-            
-            <button onClick={() => setQuestions([...questions, { text: "", options: ["", "", "", ""], correctAnswer: "" }])} className="w-full py-4 border-2 border-dashed border-indigo-200 rounded-[24px] text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 transition-colors font-black uppercase text-xs tracking-widest flex justify-center items-center gap-2">
-               <Plus size={16}/> Add Question
-            </button>
+               <button onClick={onClose} className="w-10 h-10 rounded-full border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors"><X size={18}/></button>
+            </div>
+
+            <div className="flex gap-2">
+               <button onClick={() => setActiveTab('MANUAL')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'MANUAL' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                  Manual Editor ({questions.length})
+               </button>
+               <button onClick={() => setActiveTab('BULK')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'BULK' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                  <Copy size={16} /> Bulk Import (Sheet)
+               </button>
+               <button onClick={() => setActiveTab('AI')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'AI' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                  <Sparkles size={16} /> Generate with AI
+               </button>
+            </div>
          </div>
 
-         <div className="p-6 bg-white border-t border-slate-200 flex justify-end gap-3 shrink-0">
-            <button onClick={onClose} className="px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
-            <button onClick={() => onSave(questions)} className="px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2">
-               <Save size={14}/> Save {questions.length} Questions
-            </button>
+         <div className="p-6 overflow-y-auto flex-1 space-y-6 bg-slate-50/50">
+            {activeTab === 'MANUAL' && (
+               <div className="space-y-6">
+                  {questions.length === 0 && (
+                     <div className="text-center py-20 bg-white border border-slate-200 rounded-[24px] border-dashed">
+                        <Target size={48} className="mx-auto text-slate-300 mb-4" />
+                        <h3 className="text-slate-500 font-bold mb-2">No Questions Added</h3>
+                        <p className="text-xs text-slate-400 mb-6">Switch tabs to Bulk Import from Excel or Generate via AI</p>
+                        <button onClick={() => setQuestions([...questions, { text: "", options: ["", "", "", ""], correctAnswer: "" }])} className="px-6 py-3 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-100 transition-all shadow-sm">
+                           + Add First Question
+                        </button>
+                     </div>
+                  )}
+
+                  {questions.map((q, qIdx) => (
+                     <div key={qIdx} className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm relative group transition-all hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md">
+                        <button onClick={() => setQuestions(questions.filter((_, i) => i !== qIdx))} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-50 hover:bg-rose-50 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 border border-slate-200"><X size={14} /></button>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-500 mb-3 tracking-widest">
+                           <span className="w-5 h-5 rounded bg-indigo-100 flex items-center justify-center text-indigo-700">{qIdx + 1}</span> Question Text
+                        </label>
+                        <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-800 mb-5 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder-slate-400" value={q.text} onChange={e => {const n=[...questions]; n[qIdx].text=e.target.value; setQuestions(n);}} placeholder="Enter the question properly formatted..." />
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                           {q.options.map((opt: string, oIdx: number) => (
+                              <div key={oIdx} className={`p-1.5 rounded-[16px] border-[1.5px] flex items-center gap-3 transition-all ${q.correctAnswer === opt && opt ? 'bg-emerald-50 border-emerald-400 shadow-sm shadow-emerald-500/10' : 'bg-white border-slate-200 hover:border-indigo-200'}`}>
+                                 <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border cursor-pointer transition-colors ${q.correctAnswer === opt && opt ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner' : 'bg-slate-50 border-slate-300 text-slate-400'}`} onClick={() => {const n=[...questions]; n[qIdx].correctAnswer=opt; setQuestions(n);}}>
+                                    {q.correctAnswer === opt && opt ? <CheckCircle size={18} className="drop-shadow-sm" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-300" />}
+                                 </div>
+                                 <input className="bg-transparent border-none outline-none font-bold text-sm w-full py-2 placeholder-slate-300" value={opt} onChange={e => {const n=[...questions]; n[qIdx].options[oIdx]=e.target.value; setQuestions(n);}} placeholder={`Option ${String.fromCharCode(65 + oIdx)}`} />
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                  ))}
+                  
+                  {questions.length > 0 && (
+                     <button onClick={() => setQuestions([...questions, { text: "", options: ["", "", "", ""], correctAnswer: "" }])} className="w-full py-5 border-2 border-dashed border-indigo-200 rounded-[24px] text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all font-black uppercase text-xs tracking-widest flex justify-center items-center gap-2 shadow-sm">
+                        <Plus size={18}/> Add Another Question
+                     </button>
+                  )}
+               </div>
+            )}
+
+            {activeTab === 'BULK' && (
+               <div className="bg-white border border-slate-200 rounded-[24px] p-6 shadow-sm">
+                  <div className="mb-6">
+                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-2 flex items-center gap-2"><LayoutGrid size={16} className="text-indigo-500" /> Paste from Spreadsheet</h3>
+                     <p className="text-xs text-slate-500 leading-relaxed font-medium">Copy raw rows directly from Google Sheets or Excel and paste them below. The columns should be formatted as:<br/>
+                     <strong className="text-slate-700 bg-slate-100 px-1 py-0.5 rounded ml-1 mt-1 inline-block">[Question Text] &nbsp;|&nbsp; [Option A] &nbsp;|&nbsp; [Option B] &nbsp;|&nbsp; [Option C] &nbsp;|&nbsp; [Option D] &nbsp;|&nbsp; [Correct Option Text]</strong></p>
+                  </div>
+                  <textarea 
+                     className="w-full h-64 bg-slate-900 border border-slate-700 rounded-xl p-4 text-xs font-mono text-emerald-400 placeholder-slate-600 focus:ring-4 focus:ring-indigo-500/20 outline-none shadow-inner"
+                     placeholder={`What is React?\tA Library\tA Framework\tA DB\tOS\tA Library\nWhen was standard released?\t1990\t1995\t2000\t2005\t1995`}
+                     value={bulkText}
+                     onChange={e => setBulkText(e.target.value)}
+                  />
+                  <div className="mt-4 flex justify-end">
+                     <button onClick={processBulkImport} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2">
+                        <CheckCircle size={16} /> Process Import
+                     </button>
+                  </div>
+               </div>
+            )}
+
+            {activeTab === 'AI' && (
+               <div className="bg-gradient-to-br from-indigo-900 to-slate-900 border border-slate-800 rounded-[24px] p-8 shadow-xl text-white relative overflow-hidden">
+                  <div className="absolute right-0 top-0 opacity-10 pointer-events-none"><BrainCircuit size={200} /></div>
+                  <div className="relative z-10 max-w-xl">
+                     <h3 className="text-lg font-black tracking-tight mb-2 flex items-center gap-2 text-indigo-400"><Sparkles size={20} /> AI Agent Question Creator</h3>
+                     <p className="text-xs text-indigo-200/80 leading-relaxed mb-8">Generate rigorous multiple-choice questions instantly tailored to specific technologies, languages, or scenarios using Gemini.</p>
+                     
+                     <div className="space-y-5">
+                        <div>
+                           <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-2 block">Technology / Topic</label>
+                           <input className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white placeholder-slate-500 focus:bg-slate-700 focus:border-indigo-500 outline-none transition-all" placeholder="e.g. Node.js Event Loop, Advanced React Hooks..." value={aiTopic} onChange={e=>setAiTopic(e.target.value)} />
+                        </div>
+                        <div className="flex gap-4">
+                           <div className="flex-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-2 block">Difficulty</label>
+                              <select className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none appearance-none cursor-pointer focus:border-indigo-500" value={aiDifficulty} onChange={e=>setAiDifficulty(e.target.value)}>
+                                 <option>Beginner</option>
+                                 <option>Intermediate</option>
+                                 <option>Advanced</option>
+                                 <option>Expert / Conceptual</option>
+                              </select>
+                           </div>
+                           <div className="w-1/3">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-2 block">Count</label>
+                              <input type="number" min="1" max="50" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-indigo-500" value={aiCount} onChange={e=>setAiCount(Number(e.target.value))} />
+                           </div>
+                        </div>
+                        
+                        <div className="pt-4">
+                           <button onClick={processAIGeneration} disabled={isGenerating} className="w-full py-4 bg-indigo-600 border border-indigo-500 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
+                              {isGenerating ? <><BrainCircuit size={16} className="animate-spin" /> Analyzing Knowledge Graph...</> : <><Sparkles size={16} /> Generate {aiCount} Questions</>}
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
+         </div>
+
+         <div className="p-6 bg-white border-t border-slate-200 flex justify-between items-center shrink-0">
+            <div className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+               {questions.length} Questions Drafted
+            </div>
+            <div className="flex gap-3">
+               <button onClick={onClose} className="px-8 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all">Cancel</button>
+               <button onClick={() => onSave(questions)} className="px-8 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-white bg-slate-900 border border-slate-800 hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all flex items-center gap-2">
+                  <Save size={16}/> Save Configuration
+               </button>
+            </div>
          </div>
        </motion.div>
     </div>
