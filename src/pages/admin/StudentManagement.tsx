@@ -298,7 +298,7 @@ export function StudentManagement() {
                             <h3 className="text-xs font-black text-slate-900 uppercase">Education</h3>
                             {selectedStudent.education.map((edu: any) => (
                               <div key={edu.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <p className="text-sm font-bold text-slate-900">{edu.degree} in {edu.field_of_study}</p>
+                                <p className="text-sm font-bold text-slate-900">{edu.degree} {edu.field_of_study ? `in ${edu.field_of_study}` : ''}</p>
                                 <p className="text-xs text-slate-600">{edu.institution}</p>
                               </div>
                             ))}

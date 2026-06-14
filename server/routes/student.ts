@@ -108,9 +108,10 @@ router.post("/upload-resume/:userId", (req, res) => {
       
       if (finalProj.length > 0) score += 15;
       if (p.bio && p.bio.length > 50) score += 10;
-      if (p.resume_url) score += 10;
-      if (finalExp.length > 0) score += 5;
-      if (finalCert.length > 0) score += 5;
+      if (p.resume_url) score += 15;
+      
+      const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
+      if (finalExp.length > 0 || finalCert.length > 0 || finalExtra.length > 0) score += 5;
 
       await db.query("UPDATE student_profiles SET completeness_score = ? WHERE id = ?", [score, studentId]);
 
@@ -198,9 +199,10 @@ router.post("/upload-avatar/:userId", (req, res) => {
       
       if (finalProj.length > 0) score += 15;
       if (p.bio && p.bio.length > 50) score += 10;
-      if (p.resume_url) score += 10;
-      if (finalExp.length > 0) score += 5;
-      if (finalCert.length > 0) score += 5;
+      if (p.resume_url) score += 15;
+      
+      const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
+      if (finalExp.length > 0 || finalCert.length > 0 || finalExtra.length > 0) score += 5;
 
       await db.query("UPDATE student_profiles SET completeness_score = ? WHERE id = ?", [score, studentId]);
 
@@ -571,11 +573,11 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     let score = 0;
     const p = finalProfile[0];
     
-    // 1. Personal Info (10%) - Name, Phone, Location, Photo
-    if (p.full_name && p.contact && p.location && p.profile_photo_url) score += 10;
+    // 1. Personal Info (15%) - Name, Phone, Location, Photo
+    if (p.full_name && p.contact && p.location && p.profile_photo_url) score += 15;
     
-    // 2. Career Preferences (5%) - Role, Location
-    if (p.preferred_job_role && p.preferred_location) score += 5;
+    // 2. Career Preferences (10%) - Role, Location
+    if (p.preferred_job_role && p.preferred_location) score += 10;
     
     // 3. Education (15%) - Must have at least one degree
     if (finalEdu.length > 0) score += 15;
@@ -595,10 +597,8 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     // 7. Resume Upload (15%)
     if (p.resume_url) score += 15;
     
-    // 8. Experience or Extracurricular or Certification (15% total - 5% each)
-    if (finalExp.length > 0) score += 5;
-    if (finalCert.length > 0) score += 5;
-    if (finalExtra.length > 0) score += 5;
+    // 8. Experience or Extracurricular or Certification (5% total)
+    if (finalExp.length > 0 || finalCert.length > 0 || finalExtra.length > 0) score += 5;
 
     await db.query("UPDATE student_profiles SET completeness_score = ? WHERE id = ?", [score, studentId]);
     

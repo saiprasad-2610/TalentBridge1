@@ -360,6 +360,17 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
     // 7. Resume Document (15%)
     const hasResume = !!p.resume_url;
 
+    // 8. Additional Context (5%)
+    let hasExtra = false;
+    if ((p.experience && p.experience.length > 0) || (p.certifications && p.certifications.length > 0) || (p.extracurriculars && p.extracurriculars.length > 0)) {
+       hasExtra = true;
+    } else {
+       // fallback to json arrays if populated from old structure
+       const hasExpJson = p.experience_json && p.experience_json !== "[]" && p.experience_json !== "null";
+       const hasCertJson = p.custom_sections_json && p.custom_sections_json.includes('certifications');
+       if (hasExpJson || hasCertJson) hasExtra = true;
+    }
+
     return [
       { id: "personal", name: t('personal_details') || "Personal Details", weight: 15, isComplete: personalComplete },
       { id: "education", name: t('education_info') || "Education Info", weight: 15, isComplete: hasEdu },
@@ -368,6 +379,7 @@ export function ProfileCompactCard({ profile }: { profile: any }) {
       { id: "resume", name: t('resume_doc') || "Resume PDF", weight: 15, isComplete: hasResume },
       { id: "preferences", name: t('career_prefs') || "Career Prefs", weight: 10, isComplete: prefsComplete },
       { id: "bio", name: t('professional_bio') || "Professional Bio", weight: 10, isComplete: hasBio },
+      { id: "extra", name: t('experience_cert') || "Experience / Certs", weight: 5, isComplete: hasExtra },
     ];
   };
 
