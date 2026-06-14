@@ -107,7 +107,7 @@ router.post("/upload-resume/:userId", (req, res) => {
       else if (skills.length > 0) score += 5;
       
       if (finalProj.length > 0) score += 15;
-      if (p.bio && p.bio.length > 50) score += 10;
+      if (p.bio && p.bio.length > 40) score += 10;
       if (p.resume_url) score += 15;
       
       const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
@@ -198,7 +198,7 @@ router.post("/upload-avatar/:userId", (req, res) => {
       else if (skills.length > 0) score += 5;
       
       if (finalProj.length > 0) score += 15;
-      if (p.bio && p.bio.length > 50) score += 10;
+      if (p.bio && p.bio.length > 40) score += 10;
       if (p.resume_url) score += 15;
       
       const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
@@ -363,6 +363,28 @@ router.get("/profile/:userId", async (req, res) => {
     const [experience]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ? ORDER BY start_date DESC", [profile.id]);
     const [certifications]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ? ORDER BY created_at DESC", [profile.id]);
     const [extracurriculars]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC, id DESC", [userId]);
+
+    let score = 0;
+    if (profile.full_name && profile.contact && profile.location && profile.profile_photo_url) score += 15;
+    if (profile.preferred_job_role && profile.preferred_location) score += 10;
+    if (education.length > 0) score += 15;
+    
+    let skills = [];
+    try { skills = JSON.parse(profile.skills_json || "[]"); } catch(e) {}
+    if (skills.length >= 3) score += 15;
+    else if (skills.length > 0) score += 5;
+    
+    if (projects.length > 0) score += 15;
+    if (profile.bio && profile.bio.length > 40) score += 10;
+    if (profile.resume_url) score += 15;
+    if (experience.length > 0 || certifications.length > 0 || extracurriculars.length > 0) score += 5;
+
+    // Update if different
+    if (profile.completeness_score !== score) {
+       await db.query("UPDATE student_profiles SET completeness_score = ? WHERE id = ?", [score, profile.id]);
+       profile.completeness_score = score;
+       await calculateTalentScore(Number(userId));
+    }
 
     const metrics = await getStudentMetrics(Number(userId));
 
@@ -592,7 +614,7 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     if (finalProj.length > 0) score += 15;
     
     // 6. Summary/Bio (10%)
-    if (p.bio && p.bio.length > 50) score += 10;
+    if (p.bio && p.bio.length > 40) score += 10;
     
     // 7. Resume Upload (15%)
     if (p.resume_url) score += 15;
