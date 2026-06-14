@@ -2185,6 +2185,7 @@ export function ResumeBuilder() {
   const [newSkillText, setNewSkillText] = useState("");
   const [saving, setSaving] = useState(false);
   const [xpBalance, setXpBalance] = useState<number>(0);
+  const [previewZoom, setPreviewZoom] = useState<number>(0.72); // Optimal scale to fit side-by-side deskview
 
   // ATS Optimization Feature State
   const [targetRole, setTargetRole] = useState("SDE / Full Stack Engineer");
@@ -3444,31 +3445,84 @@ export function ResumeBuilder() {
                 </aside>
 
                 {/* Live Preview Screen */}
-                <div className="flex-1 space-y-6">
-                   <div className="flex items-center justify-between px-4">
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Live Document Preview</h3>
-                      <p className="text-[10px] font-bold text-slate-400">PAGINATED VIEW (A4)</p>
+                <div className="flex-1 min-w-0 space-y-6">
+                   <div className="flex items-center justify-between px-4 bg-white/70 border border-slate-100 py-3 rounded-[24px] shadow-sm">
+                      <div className="flex items-center gap-2">
+                         <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Live Document Preview</h3>
+                         <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2.5 py-0.5 rounded-full font-black uppercase border border-indigo-100">A4 Standard</span>
+                      </div>
+                      
+                      {/* Interactive Zoom Control */}
+                      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                        <button 
+                          type="button"
+                          onClick={() => setPreviewZoom(Math.max(0.4, Number((previewZoom - 0.05).toFixed(2))))} 
+                          className="w-7 h-7 bg-white hover:bg-slate-50 text-slate-600 rounded-lg font-black transition-all flex items-center justify-center border border-slate-150 text-sm active:scale-95 cursor-pointer"
+                          title="Zoom Out"
+                        >
+                          -
+                        </button>
+                        <span className="text-[10px] font-mono font-black text-indigo-700 w-12 text-center select-none">
+                          {Math.round(previewZoom * 100)}%
+                        </span>
+                        <button 
+                          type="button"
+                          onClick={() => setPreviewZoom(Math.min(1.2, Number((previewZoom + 0.05).toFixed(2))))} 
+                          className="w-7 h-7 bg-white hover:bg-slate-50 text-slate-600 rounded-lg font-black transition-all flex items-center justify-center border border-slate-150 text-sm active:scale-95 cursor-pointer"
+                          title="Zoom In"
+                        >
+                          +
+                        </button>
+                        <div className="w-px h-4 bg-slate-200 mx-1" />
+                        <button
+                          type="button"
+                          onClick={() => setPreviewZoom(0.72)}
+                          className="text-[9px] font-black uppercase text-indigo-600 hover:bg-white rounded-lg px-2.5 py-1 transition-all pointer-events-auto"
+                        >
+                          Fit
+                        </button>
+                      </div>
                    </div>
                    
-                   <div className="scale-[0.8] md:scale-100 origin-top overflow-x-auto pb-20 no-scrollbar">
-                       {selectedTemplate === 'hybrid-ats-premium' && <HybridATSPremiumTemplate data={editedProfile || profile} summary={summary} />}
-                       {selectedTemplate === 'silicon-valley-tech' && <SiliconValleyTechTemplate data={editedProfile || profile} summary={summary} />}
-                      {selectedTemplate === 'academic-latex' && <AcademicLatexTemplate data={editedProfile || profile} summary={summary} />}
-                      {selectedTemplate === 'classic-ats' && <ClassicATSTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'modern-pro' && <ModernProTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'executive-grid' && <ExecutiveGridTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'minimal-swiss' && <MinimalSwissTemplate data={editedProfile || profile} summary={summary} />}
-                      {selectedTemplate === 'technical-elite' && <TechnicalEliteTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'creative-min' && <CreativeMinTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'marketer-gold-timeline' && <MarketerGoldTimelineTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'designer-black-sidebar' && <DesignerBlackSidebarTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'medical-care-professional' && <MedicalCareProfessionalTemplate data={editedProfile || profile} summary={summary} />}
-                      {selectedTemplate === 'textured-slate-serif' && <TexturedSlateSerifTemplate data={editedProfile || profile} summary={summary} />}
-                      {selectedTemplate === 'creative-pastel-frame' && <CreativePastelFrameTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {selectedTemplate === 'asymmetrical-writer' && <AsymmetricalWriterTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
-                      {!['academic-latex', 'marketer-gold-timeline', 'hybrid-ats-premium', 'silicon-valley-tech', 'modern-pro', 'designer-black-sidebar', 'executive-grid', 'medical-care-professional', 'minimal-swiss', 'textured-slate-serif', 'technical-elite', 'creative-pastel-frame', 'creative-min', 'asymmetrical-writer', 'classic-ats'].includes(selectedTemplate) && (
-                        <DynamicTemplate id={selectedTemplate} data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />
-                      )}
+                   <div className="w-full bg-slate-100/65 border border-slate-200/60 rounded-[36px] flex justify-center p-4 sm:p-6 shadow-inner overflow-hidden min-h-[500px]">
+                      <div 
+                        style={{ 
+                          width: `${794 * previewZoom}px`, 
+                          height: `${1123 * previewZoom}px`,
+                          transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
+                        }} 
+                        className="relative shrink-0 overflow-hidden"
+                      >
+                         <div 
+                           style={{ 
+                             transform: `scale(${previewZoom})`, 
+                             transformOrigin: "top left", 
+                             width: "210mm", 
+                             height: "297mm",
+                             transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
+                           }}
+                           className="absolute top-0 left-0 bg-white shadow-xl hover:shadow-2xl border border-slate-200/50 rounded-2xl overflow-hidden shrink-0"
+                         >
+                             {selectedTemplate === 'hybrid-ats-premium' && <HybridATSPremiumTemplate data={editedProfile || profile} summary={summary} />}
+                             {selectedTemplate === 'silicon-valley-tech' && <SiliconValleyTechTemplate data={editedProfile || profile} summary={summary} />}
+                            {selectedTemplate === 'academic-latex' && <AcademicLatexTemplate data={editedProfile || profile} summary={summary} />}
+                            {selectedTemplate === 'classic-ats' && <ClassicATSTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'modern-pro' && <ModernProTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'executive-grid' && <ExecutiveGridTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'minimal-swiss' && <MinimalSwissTemplate data={editedProfile || profile} summary={summary} />}
+                            {selectedTemplate === 'technical-elite' && <TechnicalEliteTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'creative-min' && <CreativeMinTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'marketer-gold-timeline' && <MarketerGoldTimelineTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'designer-black-sidebar' && <DesignerBlackSidebarTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'medical-care-professional' && <MedicalCareProfessionalTemplate data={editedProfile || profile} summary={summary} />}
+                            {selectedTemplate === 'textured-slate-serif' && <TexturedSlateSerifTemplate data={editedProfile || profile} summary={summary} />}
+                            {selectedTemplate === 'creative-pastel-frame' && <CreativePastelFrameTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {selectedTemplate === 'asymmetrical-writer' && <AsymmetricalWriterTemplate data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />}
+                            {!['academic-latex', 'marketer-gold-timeline', 'hybrid-ats-premium', 'silicon-valley-tech', 'modern-pro', 'designer-black-sidebar', 'executive-grid', 'medical-care-professional', 'minimal-swiss', 'textured-slate-serif', 'technical-elite', 'creative-pastel-frame', 'creative-min', 'asymmetrical-writer', 'classic-ats'].includes(selectedTemplate) && (
+                              <DynamicTemplate id={selectedTemplate} data={editedProfile || profile} summary={summary} photo={(editedProfile || profile)?.profile_photo_url} />
+                            )}
+                         </div>
+                      </div>
                    </div>
                 </div>
              </motion.div>
