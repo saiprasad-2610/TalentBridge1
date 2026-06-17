@@ -1,0 +1,1 @@
+export default function CareerGapAnalyzer() { return <div className='p-6'>Career Gap Report</div>; }

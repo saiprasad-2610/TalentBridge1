@@ -1,0 +1,1 @@
+export function CompanyDashboard() { return <div className='p-6'><h2 className='text-3xl font-sans font-medium text-gray-900'>Company Dashboard</h2><p className='mt-2 text-gray-600'>Welcome to your recruiter center.</p></div>; }

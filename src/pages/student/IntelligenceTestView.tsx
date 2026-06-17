@@ -1,0 +1,1 @@
+export default function IntelligenceTestView() { return <div className='p-6'>Intelligence Test</div>; }

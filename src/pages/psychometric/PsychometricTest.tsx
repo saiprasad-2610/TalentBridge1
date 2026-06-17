@@ -1,0 +1,1 @@
+export function PsychometricTest() { return <div className='p-6'>Psychometric Test</div>; }

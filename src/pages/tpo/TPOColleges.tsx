@@ -1,0 +1,1 @@
+export default function TPOColleges() { return <div className='p-6'>TPO Colleges</div>; }

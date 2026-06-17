@@ -1,0 +1,1 @@
+export function ApplicantsPage() { return <div className='p-6'>Applicants List</div>; }

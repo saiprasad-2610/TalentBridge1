@@ -1,0 +1,1 @@
+export function CodingAnalyticsDashboard() { return <div className='p-6'>Coding Stats</div>; }

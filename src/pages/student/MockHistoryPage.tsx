@@ -1,0 +1,1 @@
+export function MockHistoryPage() { return <div className='p-6'>Mock History</div>; }

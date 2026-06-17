@@ -1,0 +1,1 @@
+export function ReferAndEarn() { return <div className='p-6'>Refer & Earn</div>; }

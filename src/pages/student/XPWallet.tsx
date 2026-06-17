@@ -1,0 +1,1 @@
+export function XPWallet() { return <div className='p-6'>XP Wallet</div>; }

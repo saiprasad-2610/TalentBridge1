@@ -1,0 +1,1 @@
+export default function TPOVerification() { return <div className='p-6'>TPO Verification</div>; }

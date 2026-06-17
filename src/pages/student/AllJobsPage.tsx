@@ -1,0 +1,1 @@
+export function AllJobsPage() { return <div className='p-6'>All Jobs</div>; }

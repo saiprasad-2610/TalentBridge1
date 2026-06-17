@@ -1,0 +1,1 @@
+export function JobTrackingDashboard() { return <div className='p-6'>Track Jobs</div>; }

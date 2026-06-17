@@ -1,0 +1,1 @@
+export default function TPOAnalytics() { return <div className='p-6'>TPO Analytics</div>; }

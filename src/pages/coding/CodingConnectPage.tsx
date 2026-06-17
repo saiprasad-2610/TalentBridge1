@@ -1,0 +1,1 @@
+export function CodingConnectPage() { return <div className='p-6'>Coding Dashboard</div>; }

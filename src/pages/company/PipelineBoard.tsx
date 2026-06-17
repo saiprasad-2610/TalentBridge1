@@ -1,0 +1,1 @@
+export function PipelineBoard() { return <div className='p-6'>Recruitment Pipeline</div>; }

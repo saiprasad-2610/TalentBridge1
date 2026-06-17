@@ -1,0 +1,1 @@
+export default function IntelligenceDashboard() { return <div className='p-6'>Intelligence Dashboard</div>; }

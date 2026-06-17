@@ -1,0 +1,1 @@
+export function CompanySettingsPage() { return <div className='p-6'>Recruiter Settings</div>; }

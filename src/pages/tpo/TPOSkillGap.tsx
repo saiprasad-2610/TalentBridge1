@@ -1,0 +1,1 @@
+export default function TPOSkillGap() { return <div className='p-6'>TPO Skill Gap</div>; }

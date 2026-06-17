@@ -1,0 +1,1 @@
+export function AnalyticsDashboard() { return <div className='p-6'>Analytics</div>; }
