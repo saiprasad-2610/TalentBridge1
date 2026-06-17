@@ -411,7 +411,7 @@ router.get("/status/:userId", async (req, res) => {
     const skills = typeof p.skills_json === 'string' ? JSON.parse(p.skills_json) : (p.skills_json || []);
 
     const errors = [];
-    if (p.completeness_score < 70) errors.push("Profile completion must be at least 70%");
+    // if (p.completeness_score < 70) errors.push("Profile completion must be at least 70%");
     if (!p.profile_photo_url) errors.push("Profile photo is mandatory");
     if (projects.length < 1) errors.push("At least one project is required");
     if (skills.length < 3) errors.push("At least 3 skills are required");

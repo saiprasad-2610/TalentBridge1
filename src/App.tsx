@@ -1,11 +1,12 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import React, { Suspense, lazy } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext.tsx";
 import { LanguageProvider } from "./context/LanguageContext.tsx";
 import { AccessibilityProvider } from "./context/AccessibilityContext.tsx";
 import { SidebarProvider } from "./context/SidebarContext.tsx";
 import { Navbar } from "./components/Navbar.tsx";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
+import api from "./services/api.ts";
 import { AIFloatingCompanion } from "./components/ai/AIFloatingCompanion.tsx";
 import { ActivityTracker } from "./components/ActivityTracker.tsx";
 import { motion } from "motion/react";
@@ -26,6 +27,7 @@ const ForcePasswordChange = lazy(() => import("./pages/ForcePasswordChange.tsx")
 
 // Lazy-loaded dashboard & specialized experience components (Frontend Optimization)
 const StudentDashboard = lazy(() => import("./pages/dashboards/StudentDashboard.tsx").then(module => ({ default: module.StudentDashboard })));
+const StudentInterviews = lazy(() => import("./pages/student/StudentInterviews.tsx").then(module => ({ default: module.StudentInterviews })));
 const CompanyLayout = lazy(() => import("./components/company/CompanyLayout.tsx").then(module => ({ default: module.CompanyLayout })));
 const CompanyDashboard = lazy(() => import("./pages/dashboards/CompanyDashboard.tsx").then(module => ({ default: module.CompanyDashboard })));
 const ActiveJobsPage = lazy(() => import("./pages/company/ActiveJobsPage.tsx").then(module => ({ default: module.ActiveJobsPage })));
@@ -162,13 +164,46 @@ function GlobalSpinner() {
 }
 
 function PrivateRoute({ children, role }: { children: any, role?: string }) {
-  const { user, loading } = useAuth();
+  const { user, loading, profile, updateProfile } = useAuth();
+  const location = useLocation();
+  const [autofilling, setAutofilling] = React.useState(false);
 
-  if (loading) {
+  React.useEffect(() => {
+    const checkAndAutofill = async () => {
+      const isInterviewRoute = location.pathname === "/interview" || location.pathname.startsWith("/interview/room/");
+      const metaEnv = (import.meta as any).env || {};
+      const isDev = metaEnv.MODE !== "production";
+      const isDummyEnabled = metaEnv.VITE_ENABLE_TEST_STUDENT_DUMMY_PROFILE === "true";
+
+      if (user && user.role === "STUDENT" && isInterviewRoute && isDev && isDummyEnabled) {
+        const isIncomplete = !profile || profile.onboarding_completed === 0 || (profile.completeness_score || 0) < 70;
+        if (isIncomplete) {
+          setAutofilling(true);
+          try {
+            const { data } = await api.post("/students/dev/autofill-dummy-profile");
+            if (data.success) {
+              updateProfile(data.data);
+              toast.success("Temporary test profile filled for interview testing.");
+            }
+          } catch (err) {
+            console.error("Failed to autofill test student profile:", err);
+          } finally {
+            setAutofilling(false);
+          }
+        }
+      }
+    };
+    checkAndAutofill();
+  }, [user, profile, location.pathname, updateProfile]);
+
+  if (loading || autofilling) {
     return <GlobalSpinner />;
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
+  }
+
   if (role) {
     if (role === "ADMIN" && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")) return children;
     if (user.role !== role) return <Navigate to="/" replace />;
@@ -207,6 +242,7 @@ export default function App() {
               </PrivateRoute>
             }>
               <Route path="/student" element={<StudentDashboard />} />
+              <Route path="/student/interviews" element={<StudentInterviews />} />
               <Route path="/student/mock-history" element={<MockHistoryPage />} />
               <Route path="/xp-store" element={<XPStore />} />
               <Route path="/xp-wallet" element={<XPWallet />} />

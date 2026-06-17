@@ -42,6 +42,7 @@ export const apiLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 export const strictAuthLimiter = rateLimit({
@@ -53,6 +54,7 @@ export const strictAuthLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 export const aiServiceLimiter = rateLimit({
@@ -64,6 +66,7 @@ export const aiServiceLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 /**

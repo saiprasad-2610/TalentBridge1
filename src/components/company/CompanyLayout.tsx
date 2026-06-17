@@ -76,7 +76,7 @@ export function CompanyLayout() {
 
              <AnimatePresence>
                 {showNotifications && (
-                  <NotificationPanel onClose={() => setShowNotifications(false)} />
+                  <NotificationPanel userId={user?.id} onClose={() => setShowNotifications(false)} />
                 )}
              </AnimatePresence>
 

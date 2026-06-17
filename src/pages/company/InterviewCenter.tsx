@@ -98,12 +98,16 @@ export function InterviewCenter() {
     setLoadingModalData(true);
     try {
       // 1. Fetch available student candidates
-      const resStud = await api.get("/users"); // Let's check general user system / backup profiles
       let listStudents = [];
-      if (resStud.data && Array.isArray(resStud.data)) {
-        listStudents = resStud.data.filter((u: any) => u.role === "STUDENT");
-      } else {
-        // Safe mock lookup or retrieve profiles
+      try {
+        const resStud = await api.get("/interviews/students");
+        if (resStud.data && resStud.data.success && Array.isArray(resStud.data.data)) {
+          listStudents = resStud.data.data;
+        }
+      } catch (err) {
+        console.warn("Could not load real students, using fallback catalog:", err);
+      }
+      if (listStudents.length === 0) {
         listStudents = [
           { id: 1, full_name: "Rahul Sharma", email: "rahul@talentbridge.com" },
           { id: 2, full_name: "Anjali Verma", email: "anjali@talentbridge.com" },
@@ -113,14 +117,22 @@ export function InterviewCenter() {
       setStudentsList(listStudents);
 
       // 2. Fetch company jobs
-      const resJobs = await api.get("/company/profile"); // Or fallback
       let listJobs = [];
-      // We can also let recruiters type manually if none found
-      listJobs = [
-        { id: 1, title: "Full Stack Engineer" },
-        { id: 2, title: "Data Analyst Associate" },
-        { id: 3, title: "Product Manager Trainee" }
-      ];
+      try {
+        const resJobs = await api.get("/interviews/jobs");
+        if (resJobs.data && resJobs.data.success && Array.isArray(resJobs.data.data)) {
+          listJobs = resJobs.data.data;
+        }
+      } catch (err) {
+        console.warn("Could not load real company jobs, using fallback catalog:", err);
+      }
+      if (listJobs.length === 0) {
+        listJobs = [
+          { id: 1, title: "Full Stack Engineer" },
+          { id: 2, title: "Data Analyst Associate" },
+          { id: 3, title: "Product Manager Trainee" }
+        ];
+      }
       setJobsList(listJobs);
 
       // Pre-fill fields with first items
@@ -195,9 +207,10 @@ export function InterviewCenter() {
       } else {
         toast.error(data.message || "Failed to schedule session.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Scheduler submit error:", err);
-      toast.error("Error communicating with schedule server.");
+      const errMsg = err.response?.data?.message || "Error communicating with schedule server.";
+      toast.error(errMsg);
     }
   };
 
@@ -438,7 +451,16 @@ export function InterviewCenter() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                {meet.status === "LIVE" || meet.status === "SCHEDULED" || meet.status === "RESCHEDULED" ? (
+                {meet.status === "LIVE" ? (
+                  <>
+                    <button
+                      onClick={() => navigate(`/interview/room/${meet.id}`)}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer animate-pulse"
+                    >
+                      <Video size={14} /> Enter Live Room Now
+                    </button>
+                  </>
+                ) : meet.status === "SCHEDULED" || meet.status === "RESCHEDULED" ? (
                   <>
                     <button
                       onClick={() => handleCancelInterview(meet.id)}
@@ -452,7 +474,7 @@ export function InterviewCenter() {
                       onClick={() => handleActivateInterview(meet.id)}
                       className="flex-1 bg-indigo-650 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
                     >
-                      <Play size={14} className="fill-white" /> Activate Lobby
+                      <Play size={14} className="fill-white" /> Start & Join Room
                     </button>
                   </>
                 ) : (

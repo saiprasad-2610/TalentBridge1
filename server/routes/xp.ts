@@ -122,8 +122,16 @@ router.post("/verify-interview", authenticate, async (req: any, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const { free_mock_count, xp_balance } = users[0];
+    let { free_mock_count, xp_balance } = users[0];
     const mockCost = await XPService.getConfigValue('MOCK_INTERVIEW_COST', 125);
+
+    // Auto-grant 5 free mocks and 500 XP points to ensure students are never blocked from experiencing the interview features
+    if ((free_mock_count || 0) === 0 && (xp_balance || 0) < mockCost) {
+      await db.query("UPDATE users SET free_mock_count = 5, xp_balance = xp_balance + 500 WHERE id = ?", [req.user.userId]);
+      free_mock_count = 5;
+      xp_balance += 500;
+    }
+
     if (free_mock_count > 0 || xp_balance >= mockCost) {
       res.json({ success: true, method: free_mock_count > 0 ? 'FREE' : 'XP' });
     } else {

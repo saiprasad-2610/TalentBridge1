@@ -24,6 +24,17 @@ async function logAdminAction(adminId: number, action: string, details: any, req
   }
 }
 
+function getAppUrl(req: express.Request) {
+  let url = process.env.APP_URL;
+  if (!url || url === "MY_APP_URL" || url.includes("MY_APP_URL")) {
+    const host = req.get("host") || "localhost:3000";
+    const xForwardedProto = req.headers["x-forwarded-proto"];
+    const protocol = req.secure || xForwardedProto === "https" ? "https" : "http";
+    url = `${protocol}://${host}`;
+  }
+  return url;
+}
+
 // --- COLLEGE MANAGEMENT ---
 
 router.post("/colleges", async (req, res) => {
@@ -123,7 +134,7 @@ router.post("/tpos", async (req, res) => {
     }
 
     // 4. Send Email
-    const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`;
+    const loginUrl = `${getAppUrl(req)}/login`;
     await sendTPOCredentials(email, full_name, tempPassword, loginUrl);
 
     // 5. Bulk Onboard Students if provided
@@ -204,7 +215,7 @@ router.post("/onboard-batch", async (req, res) => {
     const collegeName = colleges[0].college_name;
 
     const results = [];
-    const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`;
+    const loginUrl = `${getAppUrl(req)}/login`;
 
     for (const student of students) {
       const { name, email } = student;

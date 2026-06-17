@@ -488,6 +488,7 @@ export function StudentProfile() {
   const [degreeStart, setDegreeStart] = useState("");
   const [degreeEnd, setDegreeEnd] = useState("");
   const [degreeGrade, setDegreeGrade] = useState("");
+  const [interviews, setInterviews] = useState<any[]>([]);
 
   const fetchProfile = async () => {
     try {
@@ -505,8 +506,22 @@ export function StudentProfile() {
     }
   };
 
+  const fetchInterviews = async () => {
+    try {
+      const { data } = await api.get("/interviews/student");
+      if (data.success) {
+        setInterviews(data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to load student interviews in profile view:", err);
+    }
+  };
+
   useEffect(() => {
-    if (user) fetchProfile();
+    if (user) {
+      fetchProfile();
+      fetchInterviews();
+    }
   }, [user]);
 
   const parseJSON = (data: any, fallback: any = []) => {
@@ -813,6 +828,57 @@ export function StudentProfile() {
             </div>
             <div className="shrink-0 bg-white border border-red-100 px-4 py-2 rounded-xl font-bold text-xs text-red-700 font-mono shadow-sm">
               Required: 70% • Current: {score}%
+            </div>
+          </div>
+        )}
+
+        {interviews && interviews.length > 0 && (
+          <div className="mb-8 p-6 bg-blue-50/70 border border-blue-200/60 rounded-3xl shadow-sm">
+            <div className="flex gap-3 items-center mb-4">
+              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                <Calendar size={16} />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-sm sm:text-base uppercase tracking-wider">Your Scheduled Video Interviews</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {interviews.map((interview: any) => {
+                const startTime = new Date(interview.scheduled_start);
+                const isLive = interview.status === "LIVE";
+                return (
+                  <div key={interview.id} className="bg-white border border-slate-150 p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-[10px] font-black font-mono px-2 py-0.5 rounded-md uppercase tracking-wider bg-slate-100 text-slate-600">
+                          {interview.status}
+                        </span>
+                        {isLive && (
+                          <span className="flex items-center gap-1.5 text-red-600 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                            <span className="w-2 h-2 rounded-full bg-red-600" /> LIVE NOW
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm uppercase tracking-tight text-left">{interview.job_title}</h4>
+                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1 text-left">{interview.company_name}</p>
+                      <div className="text-[11px] text-slate-400 font-medium mt-3 flex items-center gap-1.5">
+                        <Calendar size={12} />
+                        {startTime.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} at {startTime.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => navigate(`/interview/room/${interview.id}`)}
+                        className={`w-full py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          isLive 
+                            ? "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20" 
+                            : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                        }`}
+                      >
+                        {isLive ? "Enter Live Room Now" : "Pre-Join & Test Hardware"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

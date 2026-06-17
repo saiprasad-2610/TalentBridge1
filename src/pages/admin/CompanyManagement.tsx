@@ -24,6 +24,8 @@ export function CompanyManagement() {
   const [viewMode, setViewMode] = useState<'REVIEW' | 'VIEW'>('VIEW');
   const [reason, setReason] = useState('');
 
+  const allReviewsEnabled = selectedCompany && selectedCompany.company_status !== 'APPROVED';
+
   useEffect(() => {
     fetchCompanies();
   }, []);
@@ -199,7 +201,7 @@ export function CompanyManagement() {
                </div>
 
                <div className="p-8 overflow-y-auto space-y-8">
-                  {viewMode === 'REVIEW' && (
+                  {(allReviewsEnabled || viewMode === 'REVIEW') && (
                     <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex gap-4">
                        <AlertTriangle className="text-orange-500 shrink-0" size={24} />
                        <p className="text-xs font-medium text-orange-800">
@@ -359,7 +361,7 @@ export function CompanyManagement() {
                     </div>
                   )}
 
-                  {viewMode === 'REVIEW' && (
+                  {(allReviewsEnabled || viewMode === 'REVIEW') && (
                     <div className="space-y-4 pt-4 border-t border-slate-100">
                        <label className="text-xs font-black text-slate-900 uppercase mb-3 block italic tracking-tighter">Review Result Note</label>
                        <textarea 

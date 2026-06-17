@@ -519,12 +519,7 @@ router.post("/apply", async (req, res) => {
       });
     }
 
-    if ((profile.completeness_score || 0) < 70) {
-      return res.status(403).json({ 
-        success: false, 
-        message: `Profile incomplete (${profile.completeness_score || 0}%). You need at least 70% completeness to enable "Apply Now".` 
-      });
-    }
+    // Allow applying regardless of completeness score as requested to enable interview and job features
 
     if (!profile.resume_url) {
       return res.status(403).json({ 

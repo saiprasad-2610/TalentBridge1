@@ -37,6 +37,9 @@ import interviewRoutes from "./server/routes/interview.ts";
 async function startServer() {
   const app = express();
   
+  // Necessary for rate limiters working behind reverse/Cloud Run proxy
+  app.set("trust proxy", 1);
+  
   // Security Headers
   if (process.env.NODE_ENV === "production") {
     app.use(helmet(secureHeadersConfig()));

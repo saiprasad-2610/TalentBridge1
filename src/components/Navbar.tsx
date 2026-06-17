@@ -58,7 +58,7 @@ export function Navbar() {
     if (!user?.id) return;
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 45000);
+    }, 8000);
     return () => clearInterval(interval);
   }, [user?.id]);
 

@@ -60,6 +60,12 @@ export function VideoInterviewRoom() {
 
   // Refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const setLocalVideo = (el: HTMLVideoElement | null) => {
+    (localVideoRef as any).current = el;
+    if (el && localStream) {
+      el.srcObject = localStream;
+    }
+  };
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -132,12 +138,23 @@ export function VideoInterviewRoom() {
     if (appState === "PREJOIN" && consentGranted) {
       handleStartHardwarePreview();
     }
+  }, [consentGranted, selectedVideoDevice]);
+
+  // Safely auto-assign localStream whenever appState or stream updates
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [appState, localStream]);
+
+  // Complete hardware tracks destruction ONLY on absolute page unmount
+  useEffect(() => {
     return () => {
       if (localStream) {
         localStream.getTracks().forEach(t => t.stop());
       }
     };
-  }, [appState, selectedVideoDevice]);
+  }, [localStream]);
 
   // 3. Proctoring Lockdown Logic (Restricted to STUDENT role)
   useEffect(() => {
@@ -575,7 +592,7 @@ export function VideoInterviewRoom() {
 
             <div className="aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-md relative">
               <video
-                ref={localVideoRef}
+                ref={setLocalVideo}
                 autoPlay
                 playsInline
                 muted
@@ -631,7 +648,7 @@ export function VideoInterviewRoom() {
               {/* LOCAL FEED */}
               <div className="bg-slate-900 aspect-video sm:aspect-square rounded-2.5xl overflow-hidden relative shadow-md border-2 border-slate-800 flex items-center justify-center text-white">
                 <video
-                  ref={localVideoRef}
+                  ref={setLocalVideo}
                   autoPlay
                   playsInline
                   className="w-full h-full object-cover brightness-105 scale-x-[-1]"

@@ -16,7 +16,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  Gift
+  Gift,
+  Video
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useSidebar } from '../../context/SidebarContext.tsx';
@@ -81,6 +82,7 @@ export function StudentSidebar() {
         { to: '/student', icon: LayoutDashboard, label: t('dashboard'), end: true },
         { to: '/jobs', icon: Briefcase, label: t('browse_jobs') },
         { to: '/applied-jobs', icon: FileText, label: t('my_applications') },
+        { to: '/student/interviews', icon: Video, label: 'Video Interviews' },
       ]
     },
     {

@@ -1,6 +1,6 @@
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.tsx";
 import { useAccessibility } from "../context/AccessibilityContext.tsx";
@@ -12,13 +12,25 @@ import toast from "react-hot-toast";
 export function Login() {
   const { login, user, loading, profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setPageContext } = useAccessibility();
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
       if (user.role === "STUDENT") {
-        if (!profile || profile.onboarding_completed === 0 || (profile.completeness_score || 0) < 70) {
+        const from = location.state?.from;
+        const isInterviewFrom = from && (from === "/interview" || from.startsWith("/interview/room/"));
+        const metaEnv = (import.meta as any).env || {};
+        const isDev = metaEnv.MODE !== "production";
+        const isDummyEnabled = metaEnv.VITE_ENABLE_TEST_STUDENT_DUMMY_PROFILE === "true";
+
+        if (isInterviewFrom && isDev && isDummyEnabled) {
+          navigate(from, { replace: true });
+          return;
+        }
+
+        if (!profile || profile.onboarding_completed === 0) {
           navigate("/profile");
         } else {
           navigate("/student");
@@ -27,7 +39,7 @@ export function Login() {
       else if (user.role === "COMPANY") navigate("/company");
       else if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") navigate("/admin");
     }
-  }, [user, loading, profile, navigate]);
+  }, [user, loading, profile, navigate, location.state]);
 
   const formik = useFormik({
     initialValues: { email: "", password: "" },
@@ -51,10 +63,18 @@ export function Login() {
           const role = data.data.user.role;
           if (role === "STUDENT") {
             const p = data.data.profile;
-            if (!p || p.onboarding_completed === 0 || (p.completeness_score || 0) < 70) {
+            const from = location.state?.from;
+            const isInterviewFrom = from && (from === "/interview" || from.startsWith("/interview/room/"));
+
+            if (isInterviewFrom) {
+              navigate(from, { replace: true });
+              return;
+            }
+
+            if (!p || p.onboarding_completed === 0) {
               navigate("/profile");
             } else {
-              navigate("/student");
+              navigate(from || "/student");
             }
           }
           else if (role === "COMPANY") navigate("/company");

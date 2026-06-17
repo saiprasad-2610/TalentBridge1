@@ -15,6 +15,20 @@ function formatDate(dateStr: string) {
 }
 
 /**
+ * Dynamically resolves base app URL, handling local development and proxy hosts correctly
+ */
+function getAppUrl(req: express.Request) {
+  let url = process.env.APP_URL;
+  if (!url || url === "MY_APP_URL" || url.includes("MY_APP_URL")) {
+    const host = req.get("host") || "localhost:3000";
+    const xForwardedProto = req.headers["x-forwarded-proto"];
+    const protocol = req.secure || xForwardedProto === "https" ? "https" : "http";
+    url = `${protocol}://${host}`;
+  }
+  return url;
+}
+
+/**
  * Helper to validate interview ownership and privilege access
  */
 async function validateInterviewOwnership(interviewId: any, loggedUserId: number, role: string) {
@@ -82,7 +96,7 @@ router.post("/schedule", authenticate, authorize(["COMPANY"]), async (req, res) 
 
     // 2. Fetch student details to get full name and email
     const [students]: any = await db.query(
-      "SELECT s.id, s.full_name, u.email FROM student_profiles s JOIN users u ON s.user_id = u.id WHERE s.id = ?",
+      "SELECT s.id, s.user_id, s.full_name, u.email FROM student_profiles s JOIN users u ON s.user_id = u.id WHERE s.id = ?",
       [studentId]
     );
     if (!students || students.length === 0) {
@@ -130,7 +144,7 @@ router.post("/schedule", authenticate, authorize(["COMPANY"]), async (req, res) 
     // 5. Initialize participants (the Student and the Recruiter)
     await db.query(
       "INSERT INTO interview_participants (interview_id, user_id, name, email, role, join_status) VALUES (?, ?, ?, ?, 'STUDENT', 'PENDING')",
-      [insertedId, student.id, student.full_name, student.email]
+      [insertedId, student.user_id, student.full_name, student.email]
     );
 
     // Fetch recruiter user details
@@ -146,11 +160,20 @@ router.post("/schedule", authenticate, authorize(["COMPANY"]), async (req, res) 
     const notifyStudentMessage = `You have been scheduled for an interview: ${title} with ${company.company_name} on ${new Date(scheduledStart).toLocaleString()}.`;
     await db.query(
       "INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, 'INTERVIEW', 0, CURRENT_TIMESTAMP)",
-      [student.id, "Interview Scheduled", notifyStudentMessage]
+      [student.user_id, "Interview Scheduled", notifyStudentMessage]
+    );
+
+    const notifyRecruiterMessage = `You successfully scheduled an interview: ${title} with ${student.full_name} for ${new Date(scheduledStart).toLocaleString()}.`;
+    await db.query(
+      "INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, 'INTERVIEW', 0, CURRENT_TIMESTAMP)",
+      [recruiterId, "Interview Scheduled", notifyRecruiterMessage]
     );
 
     // 7. Send Emails (Nodemailer fallback)
-    const emailHtmlBody = `
+    const baseUrl = getAppUrl(req);
+    const roomUrl = `${baseUrl}/interview/room/${insertedId}`;
+
+    const studentEmailHtmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
         <div style="text-align: center; margin-bottom: 25px;">
           <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: bold;">TalentBridge</h1>
@@ -191,7 +214,7 @@ router.post("/schedule", authenticate, authorize(["COMPANY"]), async (req, res) 
           </ul>
 
           <div style="text-align: center; margin: 35px 0;">
-            <a href="${process.env.APP_URL || 'http://localhost:3000'}/jobs" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">Go to Student Portal</a>
+            <a href="${roomUrl}" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">Join Video Interview Room</a>
           </div>
 
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;">
@@ -200,7 +223,59 @@ router.post("/schedule", authenticate, authorize(["COMPANY"]), async (req, res) 
       </div>
     `;
 
-    await sendEmail(student.email, `TalentBridge: Interview invitation with ${company.company_name} - ${title}`, emailHtmlBody);
+    await sendEmail(student.email, `TalentBridge: Interview invitation with ${company.company_name} - ${title}`, studentEmailHtmlBody);
+
+    const recruiterEmailHtmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: bold;">TalentBridge</h1>
+          <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">BRIDGING TALENT WITH OPPORTUNITY</p>
+        </div>
+        <div style="border-top: 4px solid #4f46e5; padding-top: 25px;">
+          <h2 style="color: #1e293b; margin-top: 0; font-size: 20px;">Interview Schedule Confirmed!</h2>
+          <p style="color: #334155; line-height: 1.6; font-size: 15px;">Dear <strong>${company.company_name} team</strong>,</p>
+          <p style="color: #334155; line-height: 1.6; font-size: 15px;">You have successfully scheduled a video interview for candidate <strong>${student.full_name}</strong> for the position of <strong>${jobTitle}</strong>.</p>
+          
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #4f46e5;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #334155;">
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; width: 120px;">Position:</td>
+                <td style="padding: 6px 0;">${jobTitle}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold;">Candidate:</td>
+                <td style="padding: 6px 0;">${student.full_name} (${student.email})</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold;">Date & Time:</td>
+                <td style="padding: 6px 0;">${new Date(scheduledStart).toLocaleString()} (${timezone || "UTC"})</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold;">Duration:</td>
+                <td style="padding: 6px 0;">${durationMinutes || 30} minutes</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold;">Type:</td>
+                <td style="padding: 6px 0;">${interviewType}</td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="color: #334155; line-height: 1.6; font-size: 15px;">You can join this proctored call directly using the link below:</p>
+
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${roomUrl}" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">Join Video Interview Room</a>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;">
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">TalentBridge Recruiter Systems</p>
+        </div>
+      </div>
+    `;
+
+    if (recruiterEmail && recruiterEmail !== student.email) {
+      await sendEmail(recruiterEmail, `TalentBridge Recruiter: Interview Scheduled for ${student.full_name} - ${title}`, recruiterEmailHtmlBody);
+    }
 
     return res.status(201).json({
       success: true,
@@ -245,6 +320,79 @@ router.get("/company", authenticate, authorize(["COMPANY"]), async (req, res) =>
   } catch (err) {
     console.error("Error claiming company interviews:", err);
     return res.status(500).json({ success: false, message: "Failure claiming sessions." });
+  }
+});
+
+/**
+ * GET /api/interviews/students
+ * Retrieves list of available students to schedule for interviews.
+ */
+router.get("/students", authenticate, authorize(["COMPANY"]), async (req, res) => {
+  try {
+    // Check if the requested testing dummy student exists
+    const [existingUsers]: any = await db.query("SELECT id FROM users WHERE email = 'svkatageri19@gmail.com'");
+    let studentUserId;
+    if (!existingUsers || existingUsers.length === 0) {
+      const bcrypt = await import("bcryptjs");
+      const hash = await bcrypt.default.hash("Student123!", 10);
+      const randCode = "SV" + Math.floor(100000 + Math.random() * 900000);
+      const userResult: any = await db.query(
+        "INSERT INTO users (email, password_hash, role, status, is_verified, referral_code) VALUES ('svkatageri19@gmail.com', ?, 'STUDENT', 'ACTIVE', 1, ?)",
+        [hash, randCode]
+      );
+      studentUserId = userResult.insertId || userResult[0]?.insertId || userResult.id || 1;
+    } else {
+      studentUserId = existingUsers[0].id;
+    }
+
+    // Check if student profile exists for this dummy user
+    const [existingProfiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [studentUserId]);
+    if (!existingProfiles || existingProfiles.length === 0) {
+      await db.query(
+        `INSERT INTO student_profiles (user_id, full_name, completeness_score, onboarding_completed, profile_visibility) 
+         VALUES (?, 'Demo Student (svkatageri19)', 100, 1, 'PUBLIC')`,
+        [studentUserId]
+      );
+    }
+
+    const [students]: any = await db.query(
+      `SELECT s.id, s.full_name, u.email 
+       FROM student_profiles s 
+       JOIN users u ON s.user_id = u.id 
+       WHERE u.role = 'STUDENT'
+       ORDER BY s.full_name ASC`
+    );
+    return res.json({ success: true, data: students });
+  } catch (err: any) {
+    console.error("Error fetching students for interview scheduler:", err);
+    return res.status(500).json({ success: false, message: "Error claiming student candidates." });
+  }
+});
+
+/**
+ * GET /api/interviews/jobs
+ * Retrieves jobs posted by the logged-in recruiter's company.
+ */
+router.get("/jobs", authenticate, authorize(["COMPANY"]), async (req, res) => {
+  const recruiterId = (req as any).user?.userId;
+  try {
+    const [companies]: any = await db.query(
+      "SELECT id FROM company_profiles WHERE user_id = ?",
+      [recruiterId]
+    );
+    if (!companies || companies.length === 0) {
+      return res.status(403).json({ success: false, message: "No company profile found for recruiter." });
+    }
+    const companyId = companies[0].id;
+
+    const [jobs]: any = await db.query(
+      "SELECT id, title FROM jobs WHERE company_id = ? ORDER BY id DESC",
+      [companyId]
+    );
+    return res.json({ success: true, data: jobs });
+  } catch (err: any) {
+    console.error("Error fetching jobs for interview scheduler:", err);
+    return res.status(500).json({ success: false, message: "Error claiming company jobs." });
   }
 });
 
@@ -363,6 +511,9 @@ router.put("/:id/reschedule", authenticate, authorize(["COMPANY"]), async (req, 
     const studentEmail = students && students[0] ? students[0].email : "";
 
     if (studentEmail) {
+      const baseUrl = getAppUrl(req);
+      const roomUrl = `${baseUrl}/interview/room/${interviewId}`;
+
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
           <h2 style="color: #4f46e5; text-align: center; margin-top: 0;">Interview Rescheduled Notice</h2>
@@ -389,7 +540,7 @@ router.put("/:id/reschedule", authenticate, authorize(["COMPANY"]), async (req, 
           <p>Please login to your TalentBridge portal and enter your screening room at the rescheduled time.</p>
 
           <div style="text-align: center; margin: 35px 0;">
-            <a href="${process.env.APP_URL || 'http://localhost:3000'}/jobs" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">Go to Student Portal</a>
+            <a href="${roomUrl}" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">Join Video Interview Room</a>
           </div>
 
           <hr style="border: none; border-top: 1px solid #e2e8f0;">
