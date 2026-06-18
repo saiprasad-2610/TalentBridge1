@@ -2,7 +2,10 @@ import express from "express";
 import multer from "multer";
 import fs from "fs";
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
+const currentUrl = typeof import.meta !== "undefined" && import.meta.url 
+  ? import.meta.url 
+  : (typeof __filename !== "undefined" ? __filename : process.cwd());
+const require = createRequire(currentUrl);
 const pdf = require("pdf-parse");
 import { GoogleGenAI } from "@google/genai";
 import db from "../db.ts";

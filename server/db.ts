@@ -1542,6 +1542,144 @@ export async function initDb() {
     console.log("👤 Default Super Admin created: admin@talentbridge.com / admin123");
   }
 
+  // Seed Default Test Company
+  const companyEmail = "company@talentbridge.com";
+  const [companies]: any = await performQuery("SELECT * FROM users WHERE email = ?", [companyEmail]);
+  if (companies.length === 0) {
+    const bcrypt = await import("bcryptjs");
+    const hash = await bcrypt.default.hash("Company123!", 10);
+    const referralCode = "COYREF";
+    await performQuery(
+      "INSERT INTO users (email, password_hash, role, is_verified, referral_code) VALUES (?, ?, 'COMPANY', 1, ?)",
+      [companyEmail, hash, referralCode]
+    );
+    const [newComp]: any = await performQuery("SELECT id FROM users WHERE email = ?", [companyEmail]);
+    const newCompanyUserId = newComp[0]?.id;
+    if (newCompanyUserId) {
+      await performQuery(
+        "INSERT INTO company_profiles (user_id, company_name, company_email, status, is_submitted, completeness_score) VALUES (?, 'TalentBridge Partner Company', ?, 'APPROVED', 1, 100)",
+        [newCompanyUserId, companyEmail]
+      );
+    }
+    console.log("👤 Default Test Company created: company@talentbridge.com / Company123!");
+  }
+
+  // Seed Default Test Student
+  const studentEmailSeed = "student@talentbridge.com";
+  const [students]: any = await performQuery("SELECT * FROM users WHERE email = ?", [studentEmailSeed]);
+  if (students.length === 0) {
+    const bcrypt = await import("bcryptjs");
+    const hash = await bcrypt.default.hash("Student123!", 10);
+    const referralCode = "STDREF";
+    await performQuery(
+      "INSERT INTO users (email, password_hash, role, is_verified, referral_code) VALUES (?, ?, 'STUDENT', 1, ?)",
+      [studentEmailSeed, hash, referralCode]
+    );
+    const [newStud]: any = await performQuery("SELECT id FROM users WHERE email = ?", [studentEmailSeed]);
+    const newStudentUserId = newStud[0]?.id;
+    if (newStudentUserId) {
+      const tbId = "TB-2026-99999";
+      await performQuery(
+        "INSERT INTO student_profiles (user_id, full_name, tb_id, profile_visibility) VALUES (?, 'Test Student', ?, 'PUBLIC')",
+        [newStudentUserId, tbId]
+      );
+      await performQuery(
+        "INSERT INTO student_visibility (student_id, visibility) SELECT id, 'PUBLIC' FROM student_profiles WHERE user_id = ?",
+        [newStudentUserId]
+      );
+      await performQuery(
+        "INSERT INTO student_performance_stats (user_id, xp_points, last_active_at, current_streak) VALUES (?, 500, CURRENT_TIMESTAMP, 1)",
+        [newStudentUserId]
+      );
+    }
+    console.log("👤 Default Test Student created: student@talentbridge.com / Student123!");
+  }
+
+  // Seed Designated Candidate Test Students
+  const designatedEmails = ["svkatageri19@gmail.com", "svkatageri18@gmail.com"];
+  for (const designatedEmail of designatedEmails) {
+    const [degStudents]: any = await performQuery("SELECT * FROM users WHERE email = ?", [designatedEmail]);
+    if (degStudents.length === 0) {
+      const bcrypt = await import("bcryptjs");
+      const hash = await bcrypt.default.hash("Student123!", 10);
+      const suffix = designatedEmail.includes("18") ? "18" : "19";
+      const referralCode = `COYREF${suffix}`;
+      await performQuery(
+        "INSERT INTO users (email, password_hash, role, is_verified, referral_code) VALUES (?, ?, 'STUDENT', 1, ?)",
+        [designatedEmail, hash, referralCode]
+      );
+      const [newStud]: any = await performQuery("SELECT id FROM users WHERE email = ?", [designatedEmail]);
+      const newStudentUserId = newStud[0]?.id;
+      if (newStudentUserId) {
+        const tbId = `TB-2026-1919${suffix}`;
+        await performQuery(
+          "INSERT INTO student_profiles (user_id, full_name, tb_id, profile_visibility) VALUES (?, ?, ?, 'PUBLIC')",
+          [newStudentUserId, `Demo Student (svkatageri${suffix})`, tbId]
+        );
+        await performQuery(
+          "INSERT INTO student_visibility (student_id, visibility) SELECT id, 'PUBLIC' FROM student_profiles WHERE user_id = ?",
+          [newStudentUserId]
+        );
+        await performQuery(
+          "INSERT INTO student_performance_stats (user_id, xp_points, last_active_at, current_streak) VALUES (?, 500, CURRENT_TIMESTAMP, 1)",
+          [newStudentUserId]
+        );
+      }
+      console.log(`👤 Designated Candidate Test Student created: ${designatedEmail} / Student123!`);
+    }
+  }
+
+  // Seed default job and interview room 6 or 7
+  try {
+    const [allComps]: any = await performQuery("SELECT id FROM company_profiles LIMIT 1");
+    const compProfileId = allComps[0]?.id;
+
+    if (compProfileId) {
+      const [existingJobs]: any = await performQuery("SELECT * FROM jobs WHERE id = 1");
+      if (existingJobs.length === 0) {
+        await performQuery(
+          "INSERT INTO jobs (id, company_id, title, description, skills_json, location, job_type, experience_level, status) VALUES (1, ?, 'Software Engineer', 'Talent Bridge Core Platform Engineer', '[\"React\", \"Node\", \"TypeScript\"]', 'Remote', 'Full-time', 'Entry level', 'OPEN')",
+          [compProfileId]
+        );
+      }
+
+      for (const designatedEmail of designatedEmails) {
+        const [svUser]: any = await performQuery("SELECT id FROM users WHERE email = ?", [designatedEmail]);
+        const studentUserId = svUser[0]?.id;
+        if (studentUserId) {
+          const [svProfile]: any = await performQuery("SELECT id FROM student_profiles WHERE user_id = ?", [studentUserId]);
+          const svProfileId = svProfile[0]?.id;
+
+          if (svProfileId) {
+            const intId = designatedEmail.includes("18") ? 8 : 6;
+            const [existingInterviews]: any = await performQuery("SELECT * FROM interviews WHERE id = ?", [intId]);
+            if (existingInterviews.length === 0) {
+              const startTime = new Date();
+              const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour from now
+              const startTimeFmt = startTime.toISOString().slice(0, 19).replace('T', ' ');
+              const endTimeFmt = endTime.toISOString().slice(0, 19).replace('T', ' ');
+              const titleFmt = designatedEmail.includes("18") ? 'Technical Interview - Room 7' : 'Technical Interview - Room 6';
+              await performQuery(
+                "INSERT INTO interviews (id, company_id, job_id, application_id, student_id, scheduled_by, title, interview_type, scheduled_start, scheduled_end, timezone, duration_minutes, status) VALUES (?, ?, 1, 1, ?, 2, ?, 'VIDEO_CALL', ?, ?, 'UTC', 60, 'SCHEDULED')",
+                [intId, compProfileId, svProfileId, titleFmt, startTimeFmt, endTimeFmt]
+              );
+              
+              // Seed notification too!
+              const msg = `You have been scheduled for an interview: ${titleFmt} with Demo Enterprise.`;
+              await performQuery(
+                "INSERT INTO notifications (user_id, title, message, type, is_read) VALUES (?, 'Interview Scheduled', ?, 'INTERVIEW', 0)",
+                [studentUserId, msg]
+              );
+              console.log(`👤 Default Interview Room ${intId} successfully seeded for ${designatedEmail}!`);
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to seed default interview room 6/7:", error);
+  }
+
   // Seed Default System Configs
   try {
     await performQuery("DELETE FROM system_configs WHERE config_key = 'QUIZ_GENERATION_COST'");
@@ -1778,7 +1916,7 @@ export async function initDb() {
     `);
 
     await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_questions (
+      CREATE TABLE IF NOT EXISTS interview_room_questions (
         id ${pkType},
         interview_id INT NOT NULL,
         asked_by_user_id INT DEFAULT NULL,

@@ -86,7 +86,7 @@ export async function processSessionEvaluation(data: { studentId: number; transc
   const rawResult = await geminiBreaker.fire({
     apiCall: async () => {
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash",
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });

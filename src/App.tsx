@@ -266,13 +266,8 @@ export default function App() {
               <Route path="/jobs" element={<AllJobsPage />} />
               <Route path="/applied-jobs" element={<AppliedJobsPage />} />
               <Route path="/community" element={<Community />} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
             </Route>
-
-            <Route path="/onboarding" element={
-              <PrivateRoute role="STUDENT">
-                <OnboardingPage />
-              </PrivateRoute>
-            } />
 
             <Route path="/interview/room/:id" element={
               <PrivateRoute>

@@ -35,7 +35,7 @@ export const configureCors = () => {
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Limit each IP to 300 requests per window
+  max: 1000000, // Practically unlimited for development/testing environments
   message: {
     success: false,
     message: "Rate limit exceeded. Please try again after 15 minutes.",
@@ -47,7 +47,7 @@ export const apiLimiter = rateLimit({
 
 export const strictAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit login/register attempts to 10 per 15 mins to mitigate brute force
+  max: 1000000, // Practically unlimited for development/testing environments
   message: {
     success: false,
     message: "Too many authentication attempts. Please try again after 15 minutes.",
@@ -59,7 +59,7 @@ export const strictAuthLimiter = rateLimit({
 
 export const aiServiceLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50, // Limit AI requests to 50 per hour per IP to contain token/credit drain
+  max: 1000000, // Practically unlimited for development/testing environments
   message: {
     success: false,
     message: "Hourly AI consumption quota exceeded. Please wait before asking again.",

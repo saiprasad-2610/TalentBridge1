@@ -459,7 +459,13 @@ export function StudentProfile() {
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
-  const [consentOpen, setConsentOpen] = useState(localStorage.getItem("consent_profile") !== "true");
+  const [consentOpen, setConsentOpen] = useState(() => {
+    try {
+      return localStorage.getItem("consent_profile") !== "true";
+    } catch (e) {
+      return true;
+    }
+  });
 
   // Educational step states (High School is always compulsory, others toggle-able and compulsory if enabled)
   const [schoolInst, setSchoolInst] = useState("");
@@ -1113,12 +1119,12 @@ export function StudentProfile() {
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">{exp.role}</h4>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{exp.isCurrent ? 'Current' : 'Completed'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{(exp.isCurrent || (exp as any).is_current) ? 'Current' : 'Completed'}</span>
                       </div>
                       <p className="text-slate-500 font-bold text-sm mb-2">{exp.company} • {exp.location}</p>
                       <p className="text-xs text-slate-600 leading-relaxed mb-4">{exp.description}</p>
                       <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <Calendar size={12}/> {exp.start_date || "Start"} - {exp.isCurrent ? "Present" : (exp.end_date || "End")}
+                        <Calendar size={12}/> {exp.start_date || "Start"} - {(exp.isCurrent || (exp as any).is_current) ? "Present" : (exp.end_date || "End")}
                       </div>
                     </div>
                   </div>
@@ -1140,9 +1146,13 @@ export function StudentProfile() {
                     <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-2">{proj.title}</h4>
                     <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4 line-clamp-3">{proj.description}</p>
                     <div className="flex flex-wrap gap-2 mb-6">
-                      {proj.techStack?.split(',').map((tech: string) => (
-                        <span key={tech} className="px-2 py-1 bg-white text-[9px] font-black text-slate-400 uppercase tracking-widest rounded border border-slate-200">{tech.trim()}</span>
-                      ))}
+                      {((proj.techStack || (proj as any).tech_stack || "") as string)
+                        .split(",")
+                        .filter(Boolean)
+                        .map((tech: string) => (
+                          <span key={tech} className="px-2 py-1 bg-white text-[9px] font-black text-slate-400 uppercase tracking-widest rounded border border-slate-200">{tech.trim()}</span>
+                        ))
+                      }
                     </div>
                     <div className="flex gap-4">
                       {proj.githubLink && (
@@ -1177,10 +1187,10 @@ export function StudentProfile() {
                     </div>
                     <div className="flex-1">
                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{cert.name}</h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cert.issuingOrganization}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cert.issuingOrganization || (cert as any).issuing_organization}</p>
                     </div>
-                    {cert.credentialUrl && (
-                      <a href={cert.credentialUrl} target="_blank" className="p-2 hover:bg-white rounded-lg text-blue-600 transition-all">
+                    {(cert.credentialUrl || (cert as any).credential_url) && (
+                      <a href={cert.credentialUrl || (cert as any).credential_url} target="_blank" className="p-2 hover:bg-white rounded-lg text-blue-600 transition-all">
                         <ExternalLink size={16} />
                       </a>
                     )}
@@ -2308,7 +2318,11 @@ export function StudentProfile() {
         consentMessage="To register on the main placement server, you consent to the sharing of your professional experiences, profiles, diagnostic intelligence quotients, and resume attachments with verified HR recruiters and enterprise partners. Placement-ready scoring dashboards will be made searchable for matching job listings."
         compulsoryWarning="Declining this consent will prevent you from utilizing our recruitment services. Shared profile visibility is compulsory to enlist for ongoing active campus placements."
         onAgree={() => {
-          localStorage.setItem("consent_profile", "true");
+          try {
+            localStorage.setItem("consent_profile", "true");
+          } catch (e) {
+            console.warn("localStorage write blocked:", e);
+          }
           setConsentOpen(false);
         }}
         onDisagreeClose={() => {

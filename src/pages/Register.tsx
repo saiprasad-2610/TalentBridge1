@@ -68,7 +68,7 @@ export function Register() {
       });
     }
     return () => setPageContext?.(null);
-  }, [setPageContext, navigate, formik.submitForm, formik.setFieldValue]);
+  }, [setPageContext, navigate]);
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 flex items-center justify-center p-4 sm:p-8 font-sans">

@@ -1,12 +1,33 @@
 import { Server, Socket } from "socket.io";
 import { GoogleGenAI } from "@google/genai";
 import db from "../db.ts";
+import { verifyToken } from "../services/authService.ts";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 export function setupInterviewSocket(io: Server) {
+  // 1. Strict Socket JWT Authentication Middleware
+  io.use((socket: Socket, next) => {
+    let token = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
+    if (token && token.startsWith("Bearer ")) {
+      token = token.slice(7);
+    }
+    if (!token) {
+      console.warn(`[Socket Auth Warning] Handshake missing credential token for ${socket.id}`);
+      return next(new Error("Authentication error: Connection credentials token is missing."));
+    }
+    const decoded = verifyToken(token) as any;
+    if (!decoded) {
+      console.warn(`[Socket Auth Warning] Expired or invalid credential token for ${socket.id}`);
+      return next(new Error("Authentication error: Expired or invalid verification token."));
+    }
+    socket.data = socket.data || {};
+    socket.data.user = decoded; // Contains { userId, role, email }
+    next();
+  });
+
   io.on("connection", (socket: Socket) => {
-    console.log("New interview session started:", socket.id);
+    console.log("New validated interview session established:", socket.id);
 
     let chatSession: any = null;
     let studentId: number | null = null;
@@ -40,7 +61,8 @@ export function setupInterviewSocket(io: Server) {
     };
 
     socket.on("start_interview", async (data) => {
-      const { userId, resume } = data;
+      // Derive authenticated student ID from Token, fallback to payload
+      const userId = socket.data?.user?.userId || data.userId;
       const { XPService } = await import("../services/xpService.ts");
       
       try {
@@ -50,10 +72,10 @@ export function setupInterviewSocket(io: Server) {
       }
 
       studentId = userId;
-      resumeText = resume || "No resume provided.";
+      resumeText = data.resume || "No resume provided.";
 
       const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash",
         config: {
           systemInstruction: `You are Aoede, a charismatic and sharp senior technical interviewer.
           
@@ -94,10 +116,19 @@ export function setupInterviewSocket(io: Server) {
       }
     });
 
-    // --- ADDITIVE WEBRTC SIGNALING SYSTEM ---
-    socket.on("join_video_room", async (data: { interviewId: number; name: string; role: string; userId: number }) => {
-      const { interviewId, name, role, userId } = data;
-      console.log(`[WebRTC] User ${name} (${role}) joining room: interview_${interviewId}`);
+    // --- SECURE AUTHENTICATED WEBRTC ROOM SYSTEM ---
+    const handleJoinWebRTCRoom = async (interviewId: number, name: string) => {
+      // Identity derived entirely from JWT to enforce Zero-Trust Architecture
+      const userFromToken = socket.data?.user;
+      if (!userFromToken) {
+        socket.emit("error", "Unauthorized: Valid token credentials required.");
+        return;
+      }
+
+      const userId = userFromToken.userId;
+      const role = userFromToken.role;
+
+      console.log(`[WebRTC Server] Authenticated user ${userId} (${role}) joining room: interview_${interviewId}`);
       
       try {
         const [rows]: any = await db.query(
@@ -110,29 +141,35 @@ export function setupInterviewSocket(io: Server) {
         );
 
         if (!rows || rows.length === 0) {
-          socket.emit("error", "Interview room not found.");
+          socket.emit("error", "Designated interview session does not exist.");
           return;
         }
 
         const interview = rows[0];
         let isAuthorized = false;
 
+        // Perform RBAC validation
         if (role === "STUDENT" && interview.student_user_id === userId) {
           isAuthorized = true;
         } else if (role === "COMPANY" && interview.company_user_id === userId) {
           isAuthorized = true;
-        } else if (role === "ADMIN" || role === "SUPER_ADMIN") {
+        } else if (["ADMIN", "SUPER_ADMIN", "TPO"].includes(role)) {
           isAuthorized = true;
         }
 
         if (!isAuthorized) {
-          console.warn(`[WebRTC Socket] Unauthorized entry attempt by user ${name} (${role}) to room: ${interviewId}`);
-          socket.emit("error", "Unauthorized access to this interview room.");
+          console.warn(`[WebRTC Unauthorized Entry] Blocked user ${userId} (${role}) fetching room ${interviewId}`);
+          socket.emit("error", "Unauthorized access. You are not assigned to this interview.");
+          return;
+        }
+
+        if (interview.status === "CANCELLED") {
+          socket.emit("error", "This scheduled interview has been cancelled.");
           return;
         }
       } catch (err) {
-        console.error("Socket authorization database query error:", err);
-        socket.emit("error", "Authorization lookup failed.");
+        console.error("[WebRTC Server] Database authorization lookup error:", err);
+        socket.emit("error", "Server failed to verify session permissions.");
         return;
       }
       
@@ -142,14 +179,13 @@ export function setupInterviewSocket(io: Server) {
       (socket as any).role = role;
       (socket as any).userName = name;
 
-      // Log participant join in database
+      // Log/Update participant connection trace
       try {
         await db.query(
           "INSERT INTO interview_participants (interview_id, user_id, name, email, role, join_status, joined_at) VALUES (?, ?, ?, ?, ?, 'JOINED', CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE join_status='JOINED', joined_at=CURRENT_TIMESTAMP",
           [interviewId, userId, name, `${role.toLowerCase()}-${userId}@tb.com`, role]
         );
       } catch (e) {
-        // Fallback for sqlite / error tolerance
         try {
           await db.query(
             "INSERT INTO interview_participants (interview_id, user_id, name, email, role, join_status, joined_at) VALUES (?, ?, ?, ?, ?, 'JOINED', CURRENT_TIMESTAMP)",
@@ -158,7 +194,7 @@ export function setupInterviewSocket(io: Server) {
         } catch (_) {}
       }
 
-      // Notify others in room
+      // 1. Notify legacy clients using `peer_joined`
       socket.to(`interview_${interviewId}`).emit("peer_joined", {
         socketId: socket.id,
         userId,
@@ -166,11 +202,20 @@ export function setupInterviewSocket(io: Server) {
         role
       });
 
-      // Send list of current room participants back to the new joiner
-      const clients = io.sockets.adapter.rooms.get(`interview_${interviewId}`);
+      // 2. Notify modern clients using `interview:user-joined`
+      socket.to(`interview_${interviewId}`).emit("interview:user-joined", {
+        socketId: socket.id,
+        userId,
+        name,
+        role,
+        interviewId
+      });
+
+      // Fetch active sockets count in room
+      const activeClients = io.sockets.adapter.rooms.get(`interview_${interviewId}`);
       const peers: any[] = [];
-      if (clients) {
-        for (const clientId of clients) {
+      if (activeClients) {
+        for (const clientId of activeClients) {
           if (clientId !== socket.id) {
             const clientSocket = io.sockets.sockets.get(clientId);
             if (clientSocket) {
@@ -183,15 +228,107 @@ export function setupInterviewSocket(io: Server) {
             }
           }
         }
+
+        // 3. Emit ready signal when exactly 2 peers are present inside the meeting room
+        if (activeClients.size >= 2) {
+          console.log(`[WebRTC Room Ready] Emitting interview:ready to room: interview_${interviewId}`);
+          io.to(`interview_${interviewId}`).emit("interview:ready", {
+            interviewId,
+            message: "All participants present. Handshake initiated."
+          });
+        }
       }
+
+      // Return participants lists to help both legacy and modern engines connect smoothly
       socket.emit("room_peers", peers);
+    };
+
+    // Supporting traditional and modern join room events
+    socket.on("join_video_room", async (data: { interviewId: number; name: string; role: string; userId: number }) => {
+      await handleJoinWebRTCRoom(data.interviewId, data.name);
     });
 
+    socket.on("interview:join-room", async (data: { interviewId: number; name: string }) => {
+      await handleJoinWebRTCRoom(data.interviewId, data.name);
+    });
+
+    // Relaying WebRTC data packets strictly to the designated target in the same authorized room
     socket.on("relay_signal", (data: { targetSocketId: string; signal: any }) => {
       io.to(data.targetSocketId).emit("signal_received", {
         senderSocketId: socket.id,
         signal: data.signal
       });
+    });
+
+    // Modern isolated WebRTC signaling relayers
+    socket.on("rtc:offer", (data: { interviewId: number; offer: any; targetSocketId?: string }) => {
+      const targetId = data.targetSocketId;
+      if (targetId) {
+        io.to(targetId).emit("rtc:offer", {
+          senderSocketId: socket.id,
+          offer: data.offer,
+          interviewId: data.interviewId
+        });
+      } else {
+        socket.to(`interview_${data.interviewId}`).emit("rtc:offer", {
+          senderSocketId: socket.id,
+          offer: data.offer,
+          interviewId: data.interviewId
+        });
+      }
+    });
+
+    socket.on("rtc:answer", (data: { interviewId: number; answer: any; targetSocketId?: string }) => {
+      const targetId = data.targetSocketId;
+      if (targetId) {
+        io.to(targetId).emit("rtc:answer", {
+          senderSocketId: socket.id,
+          answer: data.answer,
+          interviewId: data.interviewId
+        });
+      } else {
+        socket.to(`interview_${data.interviewId}`).emit("rtc:answer", {
+          senderSocketId: socket.id,
+          answer: data.answer,
+          interviewId: data.interviewId
+        });
+      }
+    });
+
+    socket.on("rtc:ice-candidate", (data: { interviewId: number; candidate: any; targetSocketId?: string }) => {
+      const targetId = data.targetSocketId;
+      if (targetId) {
+        io.to(targetId).emit("rtc:ice-candidate", {
+          senderSocketId: socket.id,
+          candidate: data.candidate,
+          interviewId: data.interviewId
+        });
+      } else {
+        socket.to(`interview_${data.interviewId}`).emit("rtc:ice-candidate", {
+          senderSocketId: socket.id,
+          candidate: data.candidate,
+          interviewId: data.interviewId
+        });
+      }
+    });
+
+    socket.on("interview:connection-state", (data: { interviewId: number; state: string }) => {
+      socket.to(`interview_${data.interviewId}`).emit("interview:connection-state", {
+        senderSocketId: socket.id,
+        state: data.state,
+        interviewId: data.interviewId
+      });
+    });
+
+    socket.on("interview:end", (data: { interviewId: number }) => {
+      const userFromToken = socket.data?.user;
+      if (userFromToken && userFromToken.role === "COMPANY") {
+        console.log(`[WebRTC Room End] Recruiter triggered interview:end for interview: ${data.interviewId}`);
+        io.to(`interview_${data.interviewId}`).emit("interview:end", {
+          interviewId: data.interviewId,
+          message: "The interviewer concluded the meeting session."
+        });
+      }
     });
 
     socket.on("send_room_message", (data: { interviewId: number; text: string; senderName: string }) => {
@@ -232,10 +369,19 @@ export function setupInterviewSocket(io: Server) {
 
       const interviewId = (socket as any).interviewId;
       if (interviewId) {
+        // 1. Notify legacy clients Using `peer_left`
         socket.to(`interview_${interviewId}`).emit("peer_left", {
           socketId: socket.id,
           userId: (socket as any).userId,
           name: (socket as any).userName
+        });
+
+        // 2. Notify modern clients Using `interview:user-left`
+        socket.to(`interview_${interviewId}`).emit("interview:user-left", {
+          socketId: socket.id,
+          userId: (socket as any).userId,
+          name: (socket as any).userName,
+          interviewId
         });
         
         // Update participant left_at time in DB

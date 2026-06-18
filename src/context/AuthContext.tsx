@@ -27,12 +27,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedAuth = localStorage.getItem("talentbridge_auth");
+    let savedAuth = null;
+    try {
+      savedAuth = localStorage.getItem("talentbridge_auth");
+    } catch (e) {
+      console.error("Failed to read auth from localStorage", e);
+    }
     if (savedAuth) {
-      const { user, token, profile } = JSON.parse(savedAuth);
-      setUser(user);
-      setToken(token);
-      setProfile(profile);
+      try {
+        const { user, token, profile } = JSON.parse(savedAuth);
+        setUser(user);
+        setToken(token);
+        setProfile(profile);
+      } catch (err) {
+        console.error("Corrupted local storage auth item, resetting", err);
+        try {
+          localStorage.removeItem("talentbridge_auth");
+        } catch (e) {}
+      }
     }
     setLoading(false);
   }, []);
@@ -41,21 +53,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
     setToken(data.token);
     setProfile(data.profile);
-    localStorage.setItem("talentbridge_auth", JSON.stringify(data));
+    try {
+      localStorage.setItem("talentbridge_auth", JSON.stringify(data));
+    } catch (e) {
+      console.error("Failed to save auth to localStorage", e);
+    }
   };
 
   const updateProfile = (newProfile: any) => {
     setProfile(newProfile);
-    const savedAuth = localStorage.getItem("talentbridge_auth");
+    let savedAuth = null;
+    try {
+      savedAuth = localStorage.getItem("talentbridge_auth");
+    } catch (e) {
+      console.error("Failed to read auth from localStorage", e);
+    }
     if (savedAuth) {
-      const auth = JSON.parse(savedAuth);
-      auth.profile = newProfile;
-      localStorage.setItem("talentbridge_auth", JSON.stringify(auth));
+      try {
+        const auth = JSON.parse(savedAuth);
+        auth.profile = newProfile;
+        localStorage.setItem("talentbridge_auth", JSON.stringify(auth));
+      } catch (e) {
+        console.error("Failed to update auth in localStorage", e);
+      }
     }
   };
 
   const logout = async () => {
-    const savedAuth = localStorage.getItem("talentbridge_auth");
+    let savedAuth = null;
+    try {
+      savedAuth = localStorage.getItem("talentbridge_auth");
+    } catch (e) {
+      console.error("Failed to read auth from localStorage", e);
+    }
     if (savedAuth) {
       try {
         const { refreshToken } = JSON.parse(savedAuth);
@@ -67,7 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
     setProfile(null);
-    localStorage.removeItem("talentbridge_auth");
+    try {
+      localStorage.removeItem("talentbridge_auth");
+    } catch (e) {}
   };
 
   return (

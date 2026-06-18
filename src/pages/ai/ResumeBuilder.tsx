@@ -2178,7 +2178,13 @@ export function ResumeBuilder() {
   const [generating, setGenerating] = useState(false);
   const [summary, setSummary] = useState("");
   const [currentStep, setCurrentStep] = useState(1); // 1: Check, 2: Select, 3: Preview/Download
-  const [consentOpen, setConsentOpen] = useState(localStorage.getItem("consent_resume") !== "true");
+  const [consentOpen, setConsentOpen] = useState(() => {
+    try {
+      return localStorage.getItem("consent_resume") !== "true";
+    } catch (e) {
+      return true;
+    }
+  });
   const [editedProfile, setEditedProfile] = useState<any>(null);
   const [sidebarMode, setSidebarMode] = useState<"editor" | "ai-opt">("editor");
   const [editorTab, setEditorTab] = useState<string>("personal");
@@ -2265,7 +2271,12 @@ export function ResumeBuilder() {
         });
 
         // Load custom sections from localStorage
-        const storedCustomSecs = localStorage.getItem(`resume_custom_sections_${user?.id}`);
+        let storedCustomSecs = null;
+        try {
+          storedCustomSecs = localStorage.getItem(`resume_custom_sections_${user?.id}`);
+        } catch (e) {
+          console.warn("localStorage is blocked:", e);
+        }
         if (storedCustomSecs) {
           try { data.custom_sections_json = JSON.parse(storedCustomSecs); } catch (e) { data.custom_sections_json = []; }
         } else {
@@ -2349,7 +2360,11 @@ export function ResumeBuilder() {
       });
 
       // 7. Save Custom Sections to LocalStorage (Durable Client Cache)
-      localStorage.setItem(`resume_custom_sections_${user?.id}`, JSON.stringify(editedProfile.custom_sections_json || []));
+      try {
+        localStorage.setItem(`resume_custom_sections_${user?.id}`, JSON.stringify(editedProfile.custom_sections_json || []));
+      } catch (e) {
+        console.warn("localStorage write blocked:", e);
+      }
 
       // Synchronize in memory
       setProfile(JSON.parse(JSON.stringify(editedProfile)));
@@ -3543,7 +3558,11 @@ export function ResumeBuilder() {
         consentMessage="To leverage our automated AI Resume Optimizer, you consent to the storage, profile-parsing, and transformation of your registered skills, academic records, and technical experiences. Gemini Large Language models will process this information securely server-side to align, re-phrase, and optimize keywords based on standard placement ATS parameters."
         compulsoryWarning="Declining this consent will prevent you from utilizing our automatic AI Resume Optimizer. AI-enabled profiling data is compulsory to match corporate ATS screening metrics."
         onAgree={() => {
-          localStorage.setItem("consent_resume", "true");
+          try {
+            localStorage.setItem("consent_resume", "true");
+          } catch (e) {
+            console.warn("localStorage write blocked:", e);
+          }
           setConsentOpen(false);
         }}
         onDisagreeClose={() => {

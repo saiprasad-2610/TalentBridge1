@@ -311,16 +311,29 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<Language>(() => {
-    return (localStorage.getItem('tb_language') as Language) || 'en';
+    try {
+      const stored = localStorage.getItem('tb_language');
+      if (stored === 'en' || stored === 'mr') {
+        return stored;
+      }
+    } catch (e) {
+      console.error("Failed to read tb_language from localStorage", e);
+    }
+    return 'en';
   });
 
   useEffect(() => {
-    localStorage.setItem('tb_language', language);
+    try {
+      localStorage.setItem('tb_language', language);
+    } catch (e) {
+      console.error("Failed to write to localStorage", e);
+    }
     document.documentElement.lang = language;
   }, [language]);
 
   const t = (key: string): string => {
-    return (translations[language] as any)[key] || key;
+    const group = translations[language] || translations['en'];
+    return (group as any)[key] || key;
   };
 
   return (

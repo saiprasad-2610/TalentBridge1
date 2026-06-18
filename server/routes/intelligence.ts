@@ -296,7 +296,7 @@ router.post("/generate-summary", authenticate, async (req: any, res) => {
     `;
 
     const chatWithHistory = ai.chats.create({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       config: { temperature: 0.7 }
     });
 

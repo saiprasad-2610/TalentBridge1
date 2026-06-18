@@ -22,10 +22,14 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('student_sidebar_collapsed');
-      return saved ? saved === 'true' : true; // Default to collapsed (minimized) as requested
+      try {
+        const saved = localStorage.getItem('student_sidebar_collapsed');
+        return saved ? saved === 'true' : false; // Default to expanded (visible labels) for pristine UX
+      } catch (e) {
+        console.error("Failed to read student_sidebar_collapsed from localStorage", e);
+      }
     }
-    return true;
+    return false;
   });
 
   const location = useLocation();
@@ -42,7 +46,11 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const toggleSidebarCollapse = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem('student_sidebar_collapsed', String(next));
+      try {
+        localStorage.setItem('student_sidebar_collapsed', String(next));
+      } catch (e) {
+        console.error("Failed to save student_sidebar_collapsed to localStorage", e);
+      }
       return next;
     });
   };

@@ -435,14 +435,34 @@ router.get("/profile/:userId", async (req, res) => {
 
     const metrics = await getStudentMetrics(Number(userId));
 
+    const mappedProjects = (projects || []).map((p: any) => ({
+      ...p,
+      techStack: p.tech_stack,
+      githubLink: p.github_link,
+    }));
+
+    const mappedExperience = (experience || []).map((e: any) => ({
+      ...e,
+      isCurrent: e.is_current === 1 || e.is_current === true,
+    }));
+
+    const mappedCertifications = (certifications || []).map((c: any) => ({
+      ...c,
+      issuingOrganization: c.issuing_organization,
+      issueDate: c.issue_date,
+      expiryDate: c.expiry_date,
+      credentialId: c.credential_id,
+      credentialUrl: c.credential_url,
+    }));
+
     res.json({ 
       success: true, 
       data: { 
         ...profile, 
         education, 
-        projects, 
-        experience, 
-        certifications,
+        projects: mappedProjects, 
+        experience: mappedExperience, 
+        certifications: mappedCertifications,
         extracurriculars,
         metrics
       } 
@@ -481,11 +501,12 @@ router.post("/dev/autofill-dummy-profile", authenticate, async (req: any, res) =
     let [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
     let studentId;
     if (profiles.length === 0) {
-      const insertResult: any = await db.query(
+      await db.query(
         "INSERT INTO student_profiles (user_id, full_name, profile_visibility) VALUES (?, 'Test Student', 'PUBLIC')",
         [userId]
       );
-      studentId = insertResult.insertId || insertResult[0]?.insertId || insertResult.id || 1;
+      const [newProfiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+      studentId = newProfiles[0]?.id;
     } else {
       studentId = profiles[0].id;
     }

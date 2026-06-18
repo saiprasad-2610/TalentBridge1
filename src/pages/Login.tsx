@@ -107,7 +107,7 @@ export function Login() {
       });
     }
     return () => setPageContext?.(null);
-  }, [setPageContext, navigate, formik.submitForm, formik.setFieldValue]);
+  }, [setPageContext, navigate]);
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 flex items-center justify-center p-4 sm:p-8 font-sans">
@@ -215,6 +215,54 @@ export function Login() {
               Create an account
             </Link>
           </p>
+
+          {/* Quick Demo Testing Accounts (Visible during development of Video Rooms) */}
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 text-center">
+              Developer Testing Assistant
+            </h4>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  formik.setFieldValue("email", "svkatageri19@gmail.com");
+                  formik.setFieldValue("password", "Student123!");
+                  toast.success("Autofilled Test Student Credentials");
+                }}
+                className="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 text-left rounded-xl transition-all cursor-pointer border border-indigo-100 group"
+              >
+                <div className="font-bold text-[11px] group-hover:underline">Test Student</div>
+                <div className="text-[9px] text-indigo-600 mt-0.5 truncate">svkatageri19@gmail.com</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  formik.setFieldValue("email", "company@talentbridge.com");
+                  formik.setFieldValue("password", "Company123!");
+                  toast.success("Autofilled Company Partner Credentials");
+                }}
+                className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-850 text-left rounded-xl transition-all cursor-pointer border border-emerald-100 group"
+              >
+                <div className="font-bold text-[11px] group-hover:underline">Test Company</div>
+                <div className="text-[9px] text-emerald-600 mt-0.5 truncate">company@talentbridge.com</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  formik.setFieldValue("email", "admin@talentbridge.com");
+                  formik.setFieldValue("password", "admin123");
+                  toast.success("Autofilled Super Admin Credentials");
+                }}
+                className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-left rounded-xl transition-all cursor-pointer border border-slate-150 group"
+              >
+                <div className="font-bold text-[11px] group-hover:underline">Super Admin</div>
+                <div className="text-[9px] text-slate-500 mt-0.5 truncate">admin@talentbridge.com</div>
+              </button>
+            </div>
+            <div className="text-[10px] text-slate-500 mt-4 text-center leading-normal">
+              💡 <span className="font-semibold text-slate-700">Testing Tip:</span> Paste the student email interview room link using the <strong>Shared App URL</strong> inside your incognito tab to bypass the Google sandbox authorization login screen!
+            </div>
+          </div>
         </div>
       </div>
     </div>

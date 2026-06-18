@@ -31,7 +31,7 @@ export class InterviewAIService {
 
       // 3. Fetch questions logger
       const [questions]: any = await db.query(
-        "SELECT question_text FROM interview_questions WHERE interview_id = ? ORDER BY id ASC",
+        "SELECT question_text FROM interview_room_questions WHERE interview_id = ? ORDER BY id ASC",
         [interviewId]
       );
 
@@ -94,7 +94,7 @@ CONFORM TO THE EXACT SCHEMA DEFINITION BELOW (Must return a JSON object ONLY):
 
       // 5. Invoke Google Gemini-3.5-flash with JSON mode
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -149,7 +149,7 @@ CONFORM TO THE EXACT SCHEMA DEFINITION BELOW (Must return a JSON object ONLY):
         );
       } else {
         await db.query(
-          "INSERT INTO interview_reports (interview_id, report_json, status, generated_by_ai_model, generated_at) VALUES (?, ?, 'DRAFT', 'gemini-2.5-flash', CURRENT_TIMESTAMP)",
+          "INSERT INTO interview_reports (interview_id, report_json, status, generated_by_ai_model, generated_at) VALUES (?, ?, 'DRAFT', 'gemini-3.5-flash', CURRENT_TIMESTAMP)",
           [interviewId, reportJsonString]
         );
       }

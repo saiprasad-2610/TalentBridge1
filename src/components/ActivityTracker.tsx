@@ -19,11 +19,15 @@ export function ActivityTracker() {
       // Send activity log to server
       const pathToLog = currentPathRef.current;
       if (durationSeconds > 0) {
+        let token = "";
+        try {
+          token = localStorage.getItem("token") || "";
+        } catch (e) {}
         fetch("/api/students/activity", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token") || ""}`
+            "Authorization": `Bearer ${token}`
           },
           body: JSON.stringify({
             path: pathToLog,
@@ -47,11 +51,15 @@ export function ActivityTracker() {
       if (durationSeconds > 0) {
         // use navigator.sendBeacon for reliable delivery on page unload, 
         // but normally fetch with keepalive is also fine.
+        let token = "";
+        try {
+          token = localStorage.getItem("token") || "";
+        } catch (e) {}
         fetch("/api/students/activity", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token") || ""}`
+            "Authorization": `Bearer ${token}`
           },
           keepalive: true,
           body: JSON.stringify({

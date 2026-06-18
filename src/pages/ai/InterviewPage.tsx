@@ -35,7 +35,13 @@ function StatProgress({ label, value }: { label: string, value: number }) {
 export function InterviewPage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const [consentOpen, setConsentOpen] = useState(localStorage.getItem("consent_interview") !== "true");
+  const [consentOpen, setConsentOpen] = useState(() => {
+    try {
+      return localStorage.getItem("consent_interview") !== "true";
+    } catch (e) {
+      return true;
+    }
+  });
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1025,7 +1031,11 @@ export function InterviewPage() {
       consentMessage="By starting this simulated mock interview, you consent to user authentication verification, conversation transcription through cloud Speech-To-Text processing, and behavioral analyzing logic. Your response summaries, video indicators, and transcripts are analyzed to compile a complete placement scorecard."
       compulsoryWarning="Declining this consent will prevent you from initiating this mock interview simulation sessions. Interview scores and behavior parameters mapping are required elements of recruiters assessments."
       onAgree={() => {
-        localStorage.setItem("consent_interview", "true");
+        try {
+          localStorage.setItem("consent_interview", "true");
+        } catch (e) {
+          console.warn("localStorage write blocked:", e);
+        }
         setConsentOpen(false);
       }}
       onDisagreeClose={() => {
