@@ -9,7 +9,7 @@ const router = express.Router();
 // Get XP balance and status
 router.get("/balance", authenticate, async (req: any, res) => {
   try {
-    const [users]: any = await db.query(
+    const [users] = await db.query(
       "SELECT xp_balance, free_mock_count, login_streak, last_reward_claimed_at, referral_code, total_earned_xp, total_spent_xp FROM users WHERE id = ?",
       [req.user.userId]
     );
@@ -29,7 +29,7 @@ router.get("/balance", authenticate, async (req: any, res) => {
 // Get transaction history
 router.get("/transactions", authenticate, async (req: any, res) => {
   try {
-    const [transactions]: any = await db.query(
+    const [transactions] = await db.query(
       "SELECT * FROM xp_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
       [req.user.userId]
     );
@@ -83,7 +83,7 @@ router.post("/purchase/verify", authenticate, async (req: any, res) => {
 // Get dynamic XP packages configured by admin
 router.get("/packages", authenticate, async (req: any, res) => {
   try {
-    const [packages]: any = await db.query(
+    const [packages] = await db.query(
       "SELECT id, name, xp_amount, price_inr, is_popular, is_best_value, mock_interviews_included, resume_reviews_included FROM xp_packages ORDER BY price_inr ASC"
     );
     res.json({ success: true, packages });
@@ -96,7 +96,7 @@ router.get("/packages", authenticate, async (req: any, res) => {
 // Get referral stats
 router.get("/referrals", authenticate, async (req: any, res) => {
   try {
-    const [referrals]: any = await db.query(
+    const [referrals] = await db.query(
       `SELECT r.*, u.email as referred_email 
        FROM referrals r 
        JOIN users u ON r.referred_user_id = u.id 
@@ -113,7 +113,7 @@ router.get("/referrals", authenticate, async (req: any, res) => {
 // Verify if user can start a mock interview
 router.post("/verify-interview", authenticate, async (req: any, res) => {
   try {
-    const [users]: any = await db.query(
+    const [users] = await db.query(
       "SELECT free_mock_count, xp_balance FROM users WHERE id = ?",
       [req.user.userId]
     );
@@ -122,16 +122,8 @@ router.post("/verify-interview", authenticate, async (req: any, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    let { free_mock_count, xp_balance } = users[0];
+    const { free_mock_count, xp_balance } = users[0];
     const mockCost = await XPService.getConfigValue('MOCK_INTERVIEW_COST', 125);
-
-    // Auto-grant 5 free mocks and 500 XP points to ensure students are never blocked from experiencing the interview features
-    if ((free_mock_count || 0) === 0 && (xp_balance || 0) < mockCost) {
-      await db.query("UPDATE users SET free_mock_count = 5, xp_balance = xp_balance + 500 WHERE id = ?", [req.user.userId]);
-      free_mock_count = 5;
-      xp_balance += 500;
-    }
-
     if (free_mock_count > 0 || xp_balance >= mockCost) {
       res.json({ success: true, method: free_mock_count > 0 ? 'FREE' : 'XP' });
     } else {

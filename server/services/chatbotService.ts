@@ -39,7 +39,7 @@ export class ChatbotService {
   
   static async loadConversationHistory(userId: number) {
     try {
-      const [rows]: any = await db.query(
+      const [rows] = await db.query(
         "SELECT role, message FROM ai_conversations WHERE user_id = ? ORDER BY timestamp ASC",
         [userId]
       );
@@ -65,10 +65,10 @@ export class ChatbotService {
     // Gather basic analytics or profile data to enrich the prompt context
     let context = "";
     try {
-      const [stats]: any = await db.query("SELECT * FROM student_performance_stats WHERE user_id = ?", [userId]);
-      const [profile]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
-      const [interviews]: any = await db.query("SELECT COUNT(*) as count FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
-      const [apps]: any = await db.query("SELECT COUNT(*) as count FROM job_applications WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
+      const [stats] = await db.query("SELECT * FROM student_performance_stats WHERE user_id = ?", [userId]);
+      const [profile] = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
+      const [interviews] = await db.query("SELECT COUNT(*) as count FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
+      const [apps] = await db.query("SELECT COUNT(*) as count FROM job_applications WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
       
       if (profile.length > 0) {
         context += `Name: ${profile[0].full_name || 'Unknown'}. `;
@@ -98,7 +98,7 @@ export class ChatbotService {
   }
 
   static async getMemory(userId: number) {
-    const [rows]: any = await db.query("SELECT * FROM ai_memory WHERE user_id = ?", [userId]);
+    const [rows] = await db.query("SELECT * FROM ai_memory WHERE user_id = ?", [userId]);
     return rows[0] || null;
   }
 }

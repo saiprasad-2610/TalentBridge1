@@ -9,7 +9,7 @@ router.get("/questions", async (req, res) => {
   try {
     const isSQLite = !process.env.DB_HOST;
     const orderBy = isSQLite ? "RANDOM()" : "RAND()";
-    const [questions]: any = await db.query(`SELECT * FROM psychometric_questions ORDER BY ${orderBy}`);
+    const [questions] = await db.query(`SELECT * FROM psychometric_questions ORDER BY ${orderBy}`);
     res.json({ success: true, data: questions });
   } catch (error) {
     console.error("Error fetching psychometric questions:", error);
@@ -22,7 +22,7 @@ router.post("/start", async (req, res) => {
   const { userId } = req.body;
   try {
     // Check if there's already a completed attempt
-    const [existing]: any = await db.query(
+    const [existing] = await db.query(
       "SELECT id FROM psychometric_results WHERE user_id = ?",
       [userId]
     );
@@ -31,7 +31,7 @@ router.post("/start", async (req, res) => {
     }
 
     // Check for an active attempt
-    const [active]: any = await db.query(
+    const [active] = await db.query(
       "SELECT id FROM psychometric_attempts WHERE user_id = ? AND status = 'STARTED'",
       [userId]
     );
@@ -40,7 +40,7 @@ router.post("/start", async (req, res) => {
     if (active.length > 0) {
       attemptId = active[0].id;
     } else {
-      const [result]: any = await db.query(
+      const [result] = await db.query(
         "INSERT INTO psychometric_attempts (user_id, status) VALUES (?, 'STARTED')",
         [userId]
       );
@@ -87,7 +87,7 @@ router.post("/violation", async (req, res) => {
 router.post("/submit", async (req, res) => {
   const { userId, attemptId, answers } = req.body; // answers: { questionId: optionIndex }
   try {
-    const [questions]: any = await db.query("SELECT * FROM psychometric_questions");
+    const [questions] = await db.query("SELECT * FROM psychometric_questions");
     const questionMap = questions.reduce((acc: any, q: any) => {
       acc[q.id] = q;
       return acc;
@@ -169,7 +169,7 @@ router.post("/submit", async (req, res) => {
 // GET result for a student
 router.get("/result/:userId", async (req, res) => {
   try {
-    const [results]: any = await db.query(
+    const [results] = await db.query(
       "SELECT * FROM psychometric_results WHERE user_id = ?",
       [req.params.userId]
     );

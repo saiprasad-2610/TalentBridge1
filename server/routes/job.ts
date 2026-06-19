@@ -35,12 +35,12 @@ router.get("/", async (req, res) => {
       params.push(experience);
     }
 
-    const [jobs]: any = await db.query(query, params);
+    const [jobs] = await db.query(query, params);
 
     // If studentId is provided, calculate match scores
     let enrichedJobs = jobs;
     if (studentId) {
-       const [profiles]: any = await db.query("SELECT skills_json FROM student_profiles WHERE id = ?", [studentId]);
+       const [profiles] = await db.query("SELECT skills_json FROM student_profiles WHERE id = ?", [studentId]);
        if (profiles.length > 0) {
           const studentSkills = profiles[0].skills_json ? (typeof profiles[0].skills_json === 'string' ? JSON.parse(profiles[0].skills_json) : profiles[0].skills_json) : [];
           enrichedJobs = jobs.map((job: any) => {
@@ -77,12 +77,12 @@ router.post("/", async (req, res) => {
 
   try {
     // Verification check
-    const [profiles]: any = await db.query("SELECT status FROM company_profiles WHERE id = ?", [companyId]);
+    const [profiles] = await db.query("SELECT status FROM company_profiles WHERE id = ?", [companyId]);
     if (!profiles[0] || profiles[0].status !== 'APPROVED') {
       return res.status(403).json({ success: false, message: "Only verified companies can post jobs." });
     }
 
-    const [result]: any = await db.query(`
+    const [result] = await db.query(`
       INSERT INTO jobs (
         company_id, title, description, skills_json, location, job_type,
         experience_level, salary_range, education_requirement, responsibilities,
@@ -100,7 +100,7 @@ router.post("/", async (req, res) => {
     // Insert stages
     if (stages && Array.isArray(stages)) {
       for (let i = 0; i < stages.length; i++) {
-        const [stageResult]: any = await db.query(`
+        const [stageResult] = await db.query(`
           INSERT INTO job_stages (job_id, stage_name, stage_type, stage_order, description, config_json)
           VALUES (?, ?, ?, ?, ?, ?)
         `, [
@@ -136,7 +136,7 @@ router.post("/", async (req, res) => {
 // Get current stage details for student
 router.get("/application-status/:appId", async (req, res) => {
   try {
-     const [apps]: any = await db.query(`
+     const [apps] = await db.query(`
        SELECT JA.*, JS.stage_name, JS.stage_type, JS.config_json, JS.stage_order, JS.job_id
        FROM job_applications JA
        JOIN job_stages JS ON JA.current_stage_id = JS.id
@@ -161,7 +161,7 @@ router.get("/application-status/:appId", async (req, res) => {
           FROM test_schedules 
           WHERE job_id = ? AND stage_id = ?
         `;
-        const [schedules]: any = await db.query(testScheduleQuery, [app.job_id, app.current_stage_id]);
+        const [schedules] = await db.query(testScheduleQuery, [app.job_id, app.current_stage_id]);
         content.schedule = schedules[0] || null;
      } else if (app.stage_type.startsWith('INTERVIEW')) {
         const interviewScheduleQuery = db.useMySQL ? `
@@ -173,7 +173,7 @@ router.get("/application-status/:appId", async (req, res) => {
           FROM interview_schedules 
           WHERE application_id = ? AND stage_id = ?
         `;
-        const [schedules]: any = await db.query(interviewScheduleQuery, [app.id, app.current_stage_id]);
+        const [schedules] = await db.query(interviewScheduleQuery, [app.id, app.current_stage_id]);
         content.schedule = schedules[0] || null;
      }
 
@@ -207,7 +207,7 @@ router.post("/bulk-action", async (req, res) => {
       ]);
 
       // Notify student
-      const [jobInfo]: any = await db.query(`
+      const [jobInfo] = await db.query(`
         SELECT J.title, JS.stage_name, SP.user_id
         FROM job_applications JA
         JOIN jobs J ON JA.job_id = J.id
@@ -250,7 +250,7 @@ router.post("/schedule-test-bulk", async (req, res) => {
     }
 
     // Since we need a stageId to attach the test to, we find the first application's current stage and job
-    const [appsInfo]: any = await db.query(`
+    const [appsInfo] = await db.query(`
        SELECT job_id, current_stage_id FROM job_applications WHERE id = ?
     `, [applicationIds[0]]);
     
@@ -264,7 +264,7 @@ router.post("/schedule-test-bulk", async (req, res) => {
     await db.query("DELETE FROM test_schedules WHERE job_id = ? AND stage_id = ?", [jobId, stageId]);
     
     // Create new global test schedule for this stage
-    const [result]: any = await db.query(`
+    const [result] = await db.query(`
       INSERT INTO test_schedules (job_id, stage_id, scheduled_at, duration_minutes, cutoff_score)
       VALUES (?, ?, ?, ?, ?)
     `, [jobId, stageId, scheduledAt, durationMinutes, cutoffScore]);
@@ -272,7 +272,7 @@ router.post("/schedule-test-bulk", async (req, res) => {
     const placeholders = applicationIds.map(() => '?').join(',');
 
     // Notify only selected users
-    const [applicants]: any = await db.query(`
+    const [applicants] = await db.query(`
       SELECT SP.user_id, J.title 
       FROM job_applications JA
       JOIN student_profiles SP ON JA.student_id = SP.id
@@ -310,13 +310,13 @@ router.post("/schedule-test", async (req, res) => {
     // Delete existing schedule for this stage if any
     await db.query("DELETE FROM test_schedules WHERE job_id = ? AND stage_id = ?", [jobId, stageId]);
     
-    const [result]: any = await db.query(`
+    const [result] = await db.query(`
       INSERT INTO test_schedules (job_id, stage_id, scheduled_at, duration_minutes, cutoff_score)
       VALUES (?, ?, ?, ?, ?)
     `, [jobId, stageId, scheduledAt, durationMinutes, cutoffScore]);
 
     // Notify ALL applicants in this stage
-    const [applicants]: any = await db.query(`
+    const [applicants] = await db.query(`
       SELECT SP.user_id, J.title 
       FROM job_applications JA
       JOIN student_profiles SP ON JA.student_id = SP.id
@@ -390,7 +390,7 @@ router.get("/student/active-tests/:studentId", async (req, res) => {
 router.post("/applications/submit-test", async (req, res) => {
   const { applicationId, stageId, answers, tabSwitches, violationCount, isAutoSubmitted } = req.body;
   try {
-     const [questions]: any = await db.query("SELECT * FROM test_questions WHERE stage_id = ?", [stageId]);
+     const [questions] = await db.query("SELECT * FROM test_questions WHERE stage_id = ?", [stageId]);
      let correctCount = 0;
      
      questions.forEach((q: any) => {
@@ -400,7 +400,7 @@ router.post("/applications/submit-test", async (req, res) => {
      const score = questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
      
      // Get applicant info
-     const [apps]: any = await db.query("SELECT * FROM job_applications WHERE id = ?", [applicationId]);
+     const [apps] = await db.query("SELECT * FROM job_applications WHERE id = ?", [applicationId]);
      if (apps.length === 0) throw new Error("Application not found");
      const app = apps[0];
 
@@ -411,15 +411,15 @@ router.post("/applications/submit-test", async (req, res) => {
      `, [applicationId, app.student_id, stageId, JSON.stringify(answers), score, tabSwitches || 0, violationCount || 0, isAutoSubmitted ? 1 : 0]);
 
      // Auto progress logic
-     const [schedules]: any = await db.query("SELECT cutoff_score FROM test_schedules WHERE job_id = ? AND stage_id = ?", [app.job_id, stageId]);
-     const [jobStages]: any = await db.query("SELECT config_json FROM job_stages WHERE id = ?", [stageId]);
+     const [schedules] = await db.query("SELECT cutoff_score FROM test_schedules WHERE job_id = ? AND stage_id = ?", [app.job_id, stageId]);
+     const [jobStages] = await db.query("SELECT config_json FROM job_stages WHERE id = ?", [stageId]);
      const config = jobStages[0].config_json ? (typeof jobStages[0].config_json === 'string' ? JSON.parse(jobStages[0].config_json) : jobStages[0].config_json) : {};
      
      const passScore = schedules.length > 0 ? schedules[0].cutoff_score : (config.passScore || 60);
 
      if (score >= passScore && (violationCount || 0) < 5) {
         // Move to next stage
-        const [nextStages]: any = await db.query(`
+        const [nextStages] = await db.query(`
           SELECT id, stage_name FROM job_stages 
           WHERE job_id = (SELECT job_id FROM job_stages WHERE id = ?) 
           AND stage_order > (SELECT stage_order FROM job_stages WHERE id = ?)
@@ -454,7 +454,7 @@ router.post("/applications/schedule-interview", async (req, res) => {
   const { applicationId, stageId, interviewType, locationOrLink, scheduledAt, notes } = req.body;
   try {
      // Use MySQL compatible REPLACE or manual check
-     const [existing]: any = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [applicationId, stageId]);
+     const [existing] = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [applicationId, stageId]);
      
      if (existing.length > 0) {
         await db.query(`
@@ -486,7 +486,7 @@ router.post("/apply", async (req, res) => {
     }
 
     // Check job exists and its status
-    const [jobs]: any = await db.query("SELECT deadline, status, title FROM jobs WHERE id = ?", [jobId]);
+    const [jobs] = await db.query("SELECT deadline, status, title FROM jobs WHERE id = ?", [jobId]);
     if (jobs.length === 0) return res.status(404).json({ success: false, message: "Job position not found." });
     
     if (jobs[0].status !== 'OPEN') {
@@ -503,7 +503,7 @@ router.post("/apply", async (req, res) => {
     }
 
     // Check student profile completeness and resume
-    const [profiles]: any = await db.query("SELECT completeness_score, resume_url, user_id FROM student_profiles WHERE id = ?", [studentId]);
+    const [profiles] = await db.query("SELECT completeness_score, resume_url, user_id FROM student_profiles WHERE id = ?", [studentId]);
     if (profiles.length === 0) {
        return res.status(404).json({ success: false, message: "Student profile record not found." });
     }
@@ -511,7 +511,7 @@ router.post("/apply", async (req, res) => {
     const profile = profiles[0];
 
     // Mandatory Psychometric Check
-    const [psychResults]: any = await db.query("SELECT id FROM psychometric_results WHERE user_id = ?", [profile.user_id]);
+    const [psychResults] = await db.query("SELECT id FROM psychometric_results WHERE user_id = ?", [profile.user_id]);
     if (psychResults.length === 0) {
       return res.status(403).json({ 
         success: false, 
@@ -519,7 +519,12 @@ router.post("/apply", async (req, res) => {
       });
     }
 
-    // Allow applying regardless of completeness score as requested to enable interview and job features
+    if ((profile.completeness_score || 0) < 70) {
+      return res.status(403).json({ 
+        success: false, 
+        message: `Profile incomplete (${profile.completeness_score || 0}%). You need at least 70% completeness to enable "Apply Now".` 
+      });
+    }
 
     if (!profile.resume_url) {
       return res.status(403).json({ 
@@ -529,11 +534,11 @@ router.post("/apply", async (req, res) => {
     }
 
     // Get initial stage
-    const [stages]: any = await db.query("SELECT id FROM job_stages WHERE job_id = ? ORDER BY stage_order ASC LIMIT 1", [jobId]);
+    const [stages] = await db.query("SELECT id FROM job_stages WHERE job_id = ? ORDER BY stage_order ASC LIMIT 1", [jobId]);
     const firstStageId = stages.length > 0 ? stages[0].id : null;
 
     // Create application
-    const [appResult]: any = await db.query(
+    const [appResult] = await db.query(
       "INSERT INTO job_applications (student_id, job_id, current_stage_id, status) VALUES (?, ?, ?, ?)", 
       [studentId, jobId, firstStageId, 'APPLIED']
     );
@@ -569,7 +574,7 @@ router.post("/apply", async (req, res) => {
 // Get full application timeline
 router.get("/application/:appId/timeline", async (req, res) => {
   try {
-    const [apps]: any = await db.query(`
+    const [apps] = await db.query(`
       SELECT JA.*, J.id as job_id
       FROM job_applications JA
       JOIN jobs J ON JA.job_id = J.id
@@ -579,14 +584,14 @@ router.get("/application/:appId/timeline", async (req, res) => {
     if (apps.length === 0) return res.status(404).json({ success: false, message: "Application not found" });
     const app = apps[0];
 
-    const [stages]: any = await db.query(`
+    const [stages] = await db.query(`
       SELECT id, stage_name, stage_order, stage_type
       FROM job_stages
       WHERE job_id = ?
       ORDER BY stage_order ASC
     `, [app.job_id]);
 
-    const [history]: any = await db.query(`
+    const [history] = await db.query(`
       SELECT stage_id, action, created_at, notes
       FROM application_history
       WHERE application_id = ?
@@ -620,7 +625,7 @@ router.post("/update-stage", async (req, res) => {
   const { applicationId, stageId, action, notes } = req.body;
   try {
     // Verify application
-    const [apps]: any = await db.query("SELECT * FROM job_applications WHERE id = ?", [applicationId]);
+    const [apps] = await db.query("SELECT * FROM job_applications WHERE id = ?", [applicationId]);
     if (apps.length === 0) return res.status(404).json({ success: false, message: "Application not found" });
     
     let status = apps[0].status;
@@ -643,7 +648,7 @@ router.post("/update-stage", async (req, res) => {
     ]);
 
     // Notify student
-    const [jobInfo]: any = await db.query(`
+    const [jobInfo] = await db.query(`
       SELECT J.title, JS.stage_name, SP.user_id
       FROM job_applications JA
       JOIN jobs J ON JA.job_id = J.id
@@ -682,7 +687,7 @@ router.get("/student-full-details/:studentId", async (req, res) => {
   const { studentId } = req.params;
   try {
     // Try to find by student_profile ID first, then by user_id
-    const [profile]: any = await db.query(`
+    const [profile] = await db.query(`
       SELECT sp.*, u.email, ts.overall_score as talent_score, ts.breakdown_json
       FROM student_profiles sp
       JOIN users u ON sp.user_id = u.id
@@ -694,17 +699,17 @@ router.get("/student-full-details/:studentId", async (req, res) => {
 
     const actualStudentId = profile[0].id;
 
-    const [mockInterviews]: any = await db.query(`
+    const [mockInterviews] = await db.query(`
       SELECT * 
       FROM interview_history 
       WHERE student_id = ? 
       ORDER BY created_at DESC
     `, [actualStudentId]);
 
-    const [education]: any = await db.query("SELECT * FROM student_education WHERE student_id = ? ORDER BY start_date DESC", [actualStudentId]);
-    const [experience]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ? ORDER BY start_date DESC", [actualStudentId]);
-    const [projects]: any = await db.query("SELECT * FROM student_projects WHERE student_id = ? ORDER BY created_at DESC", [actualStudentId]);
-    const [extracurriculars]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC", [profile[0].user_id]);
+    const [education] = await db.query("SELECT * FROM student_education WHERE student_id = ? ORDER BY start_date DESC", [actualStudentId]);
+    const [experience] = await db.query("SELECT * FROM student_experience WHERE student_id = ? ORDER BY start_date DESC", [actualStudentId]);
+    const [projects] = await db.query("SELECT * FROM student_projects WHERE student_id = ? ORDER BY created_at DESC", [actualStudentId]);
+    const [extracurriculars] = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC", [profile[0].user_id]);
 
     res.json({
       success: true,
@@ -726,7 +731,7 @@ router.get("/student-full-details/:studentId", async (req, res) => {
 // Get applicants for a job (Kanban View Data)
 router.get("/applicants/:jobId", async (req, res) => {
   try {
-    const [applicants]: any = await db.query(`
+    const [applicants] = await db.query(`
       SELECT 
         JA.id as application_id,
         JA.status,
@@ -785,43 +790,10 @@ router.get("/student/:studentId", async (req, res) => {
   }
 });
 
-// Get all jobs for a specific company (recruiter user_id)
-router.get("/company/:companyUserId", async (req, res) => {
-  try {
-    const [companies]: any = await db.query(
-      "SELECT id FROM company_profiles WHERE user_id = ?",
-      [req.params.companyUserId]
-    );
-    if (!companies || companies.length === 0) {
-      return res.json({ success: true, data: [] });
-    }
-    const companyId = companies[0].id;
-
-    const [jobs]: any = await db.query(`
-      SELECT J.*, 
-        (SELECT COUNT(*) FROM job_applications WHERE job_id = J.id) as applicant_count
-      FROM jobs J
-      WHERE J.company_id = ?
-      ORDER BY J.created_at DESC
-    `, [companyId]);
-
-    // Handle snake_case to camelCase conversion or general mapping safely if required by frontend
-    const sanitizedJobs = jobs.map((job: any) => ({
-      ...job,
-      skills: job.skills_json ? (typeof job.skills_json === 'string' ? JSON.parse(job.skills_json) : job.skills_json) : []
-    }));
-
-    res.json({ success: true, data: sanitizedJobs });
-  } catch (error) {
-    console.error("Error fetching company jobs:", error);
-    res.status(500).json({ success: false, message: "Error fetching company jobs" });
-  }
-});
-
 // Get single job details including stages
 router.get("/:id", async (req, res) => {
   try {
-    const [jobs]: any = await db.query(`
+    const [jobs] = await db.query(`
       SELECT J.*, C.company_name, C.logo_url 
       FROM jobs J 
       JOIN company_profiles C ON J.company_id = C.id 

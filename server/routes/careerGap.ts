@@ -18,24 +18,24 @@ const ai = new GoogleGenAI({
 // Helper: Calculate average metrics for a student dynamically
 async function getStudentMetrics(userId: number) {
   let talentScore = 60;
-  const [talRows]: any = await db.query("SELECT overall_score FROM talent_scores WHERE user_id = ?", [userId]);
+  const [talRows] = await db.query("SELECT overall_score FROM talent_scores WHERE user_id = ?", [userId]);
   if (talRows && talRows.length > 0) {
     talentScore = talRows[0].overall_score;
   }
 
   let codingScore = 55;
-  const [codRows]: any = await db.query("SELECT coding_score FROM coding_analysis WHERE user_id = ?", [userId]);
+  const [codRows] = await db.query("SELECT coding_score FROM coding_analysis WHERE user_id = ?", [userId]);
   if (codRows && codRows.length > 0) {
     codingScore = codRows[0].coding_score;
   }
 
   let interviewScore = 0;
-  const [perfRows]: any = await db.query("SELECT avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
+  const [perfRows] = await db.query("SELECT avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
   if (perfRows && perfRows.length > 0 && perfRows[0].avg_interview_score) {
     interviewScore = Math.round(perfRows[0].avg_interview_score);
   }
   if (interviewScore === 0) {
-    const [histRows]: any = await db.query("SELECT AVG(score) as avg_score FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
+    const [histRows] = await db.query("SELECT AVG(score) as avg_score FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
     if (histRows && histRows[0] && histRows[0].avg_score) {
       interviewScore = Math.round(histRows[0].avg_score);
     }
@@ -45,7 +45,7 @@ async function getStudentMetrics(userId: number) {
   }
 
   let quizScore = 0;
-  const [quizRows]: any = await db.query(
+  const [quizRows] = await db.query(
     "SELECT AVG(percentage) as avg_score FROM quizzes WHERE user_id = ? AND status = 'COMPLETED'",
     [userId]
   );
@@ -57,7 +57,7 @@ async function getStudentMetrics(userId: number) {
   }
 
   let psychometricScore = 50;
-  const [psyRows]: any = await db.query("SELECT overall_score FROM psychometric_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [userId]);
+  const [psyRows] = await db.query("SELECT overall_score FROM psychometric_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [userId]);
   if (psyRows && psyRows.length > 0) {
     psychometricScore = psyRows[0].overall_score || 50;
   }
@@ -78,7 +78,7 @@ router.get("/search", authenticate, async (req: any, res) => {
 
   try {
     // Determine the searching student's college_id for 'COLLEGE_ONLY' visibility matches
-    const [searcherProfile]: any = await db.query("SELECT college_id FROM student_profiles WHERE user_id = ?", [searcherId]);
+    const [searcherProfile] = await db.query("SELECT college_id FROM student_profiles WHERE user_id = ?", [searcherId]);
     const searcherCollegeId = searcherProfile?.[0]?.college_id || null;
 
     let sql = "";
@@ -113,7 +113,7 @@ router.get("/search", authenticate, async (req: any, res) => {
       params = [searcherId, likeQuery, likeQuery, likeQuery, likeQuery];
     }
 
-    const [allStudents]: any = await db.query(sql, params);
+    const [allStudents] = await db.query(sql, params);
 
     // Apply strict privacy settings:
     // - PUBLIC: always matches
@@ -141,7 +141,7 @@ router.get("/profile/:tbId", authenticate, async (req: any, res) => {
   const searcherId = req.user.userId;
 
   try {
-    const [profiles]: any = await db.query(`
+    const [profiles] = await db.query(`
       SELECT p.*, c.college_name 
       FROM student_profiles p 
       LEFT JOIN college_master c ON p.college_id = c.id
@@ -160,7 +160,7 @@ router.get("/profile/:tbId", authenticate, async (req: any, res) => {
     if (vis !== "PUBLIC" && targetUserId !== searcherId) {
       // If college only, check searcher college
       if (vis === "COLLEGE_ONLY") {
-        const [searcherProfile]: any = await db.query("SELECT college_id FROM student_profiles WHERE user_id = ?", [searcherId]);
+        const [searcherProfile] = await db.query("SELECT college_id FROM student_profiles WHERE user_id = ?", [searcherId]);
         const searcherCollegeId = searcherProfile?.[0]?.college_id || null;
         if (!searcherCollegeId || Number(searcherCollegeId) !== Number(targetStudent.college_id)) {
           return res.status(403).json({ success: false, message: "Profile visibility restricted: College members only" });
@@ -172,9 +172,9 @@ router.get("/profile/:tbId", authenticate, async (req: any, res) => {
     }
 
     // Securely pull sub-elements (only non-sensitive public ones)
-    const [projects]: any = await db.query("SELECT id, title, description, tech_stack FROM student_projects WHERE student_id = ?", [targetStudent.id]);
-    const [certifications]: any = await db.query("SELECT id, name, issuing_organization, issue_date FROM student_certifications WHERE student_id = ?", [targetStudent.id]);
-    const [eduList]: any = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [targetStudent.id]);
+    const [projects] = await db.query("SELECT id, title, description, tech_stack FROM student_projects WHERE student_id = ?", [targetStudent.id]);
+    const [certifications] = await db.query("SELECT id, name, issuing_organization, issue_date FROM student_certifications WHERE student_id = ?", [targetStudent.id]);
+    const [eduList] = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [targetStudent.id]);
 
     const metrics = await getStudentMetrics(targetUserId);
     const collegeName = targetStudent.college_name || (eduList && eduList.length > 0 ? eduList[0].institution : null);
@@ -211,8 +211,8 @@ router.post("/compare", authenticate, async (req: any, res) => {
 
   try {
     // Pull student profiles
-    const [profA]: any = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentAId]);
-    const [profB]: any = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentBId]);
+    const [profA] = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentAId]);
+    const [profB] = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentBId]);
 
     if (!profA.length || !profB.length) {
       return res.status(404).json({ success: false, message: "One or both compared profiles not found" });
@@ -228,14 +228,14 @@ router.post("/compare", authenticate, async (req: any, res) => {
     else if (type === "PREMIUM") xpCost = 100;
 
     // FIRST COMPARISON FREE CHECK
-    const [priors]: any = await db.query("SELECT id FROM comparison_history WHERE student_id = ?", [studentA.user_id]);
+    const [priors] = await db.query("SELECT id FROM comparison_history WHERE student_id = ?", [studentA.user_id]);
     const isFirstTime = priors.length === 0;
 
     if (isFirstTime) {
       xpCost = 0; // FREE!
     } else {
       // Check XP balance
-      const [users]: any = await db.query("SELECT xp_balance FROM users WHERE id = ?", [currentUserId]);
+      const [users] = await db.query("SELECT xp_balance FROM users WHERE id = ?", [currentUserId]);
       const currentXP = users[0]?.xp_balance || 0;
       if (currentXP < xpCost) {
         return res.json({ 
@@ -271,11 +271,11 @@ router.post("/compare", authenticate, async (req: any, res) => {
     const uniqueSkillsB = skillsB.filter((s: string) => !skillsA.includes(s));
 
     // Dynamic quiz counts, coding profiles, extra, leadership
-    const [extAs]: any = await db.query("SELECT id, title, description, activity_date FROM extracurricular_activities WHERE user_id = ?", [studentA.user_id]);
-    const [extBs]: any = await db.query("SELECT id, title, description, activity_date FROM extracurricular_activities WHERE user_id = ?", [studentB.user_id]);
+    const [extAs] = await db.query("SELECT id, title, description, activity_date FROM extracurricular_activities WHERE user_id = ?", [studentA.user_id]);
+    const [extBs] = await db.query("SELECT id, title, description, activity_date FROM extracurricular_activities WHERE user_id = ?", [studentB.user_id]);
 
-    const [eduAs]: any = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [studentA.id]);
-    const [eduBs]: any = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [studentB.id]);
+    const [eduAs] = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [studentA.id]);
+    const [eduBs] = await db.query("SELECT institution FROM student_education WHERE student_id = ? ORDER BY start_date DESC LIMIT 1", [studentB.id]);
     const collegeA = studentA.college_name || (eduAs && eduAs.length > 0 ? eduAs[0].institution : null) || "Institution not specified";
     const collegeB = studentB.college_name || (eduBs && eduBs.length > 0 ? eduBs[0].institution : null) || "Institution not specified";
 
@@ -330,8 +330,8 @@ router.post("/generate-gap-analysis", authenticate, async (req: any, res) => {
 
   try {
     // Pull student profiles
-    const [profA]: any = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentAId]);
-    const [profB]: any = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentBId]);
+    const [profA] = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentAId]);
+    const [profB] = await db.query("SELECT p.*, c.college_name FROM student_profiles p LEFT JOIN college_master c ON p.college_id = c.id WHERE p.id = ?", [studentBId]);
 
     if (!profA.length || !profB.length) {
       return res.status(404).json({ success: false, message: "One or both compared profiles not found" });
@@ -432,8 +432,8 @@ router.post("/generate-roadmap", authenticate, async (req: any, res) => {
   const { studentAId, studentBId } = req.body;
 
   try {
-    const [profA]: any = await db.query("SELECT p.* FROM student_profiles p WHERE p.id = ?", [studentAId]);
-    const [profB]: any = await db.query("SELECT p.* FROM student_profiles p WHERE p.id = ?", [studentBId]);
+    const [profA] = await db.query("SELECT p.* FROM student_profiles p WHERE p.id = ?", [studentAId]);
+    const [profB] = await db.query("SELECT p.* FROM student_profiles p WHERE p.id = ?", [studentBId]);
 
     if (!profA.length || !profB.length) {
       return res.status(404).json({ success: false, message: "Compared profiles not found" });
@@ -513,7 +513,7 @@ router.get("/history", authenticate, async (req: any, res) => {
   const userId = req.user.userId;
 
   try {
-    const [history]: any = await db.query(`
+    const [history] = await db.query(`
       SELECT h.*, p.full_name as target_name, p.profile_photo_url as target_photo, 
              p.tb_id as target_tb_id, p.placed_company as target_company
       FROM comparison_history h
@@ -546,12 +546,12 @@ router.get("/history", authenticate, async (req: any, res) => {
 // Helper function to remove seeded fake student accounts to keep the system's data 100% real
 async function cleanupSeededStudents() {
   try {
-    const [seededUsers]: any = await db.query("SELECT id FROM users WHERE email LIKE '%@talentbridge.edu'");
+    const [seededUsers] = await db.query("SELECT id FROM users WHERE email LIKE '%@talentbridge.edu'");
     if (seededUsers && seededUsers.length > 0) {
       const uids = seededUsers.map((u: any) => u.id);
       for (const uid of uids) {
         // Query profile id
-        const [prof]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [uid]);
+        const [prof] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [uid]);
         if (prof && prof.length > 0) {
           const pid = prof[0].id;
           await db.query("DELETE FROM student_education WHERE student_id = ?", [pid]);
@@ -582,7 +582,7 @@ router.get("/success-gallery", authenticate, async (req: any, res) => {
     // Run the cleanup of pre-seeded mock student profiles to comply with 100% real data directives
     await cleanupSeededStudents();
 
-    const [placed]: any = await db.query(`
+    const [placed] = await db.query(`
       SELECT id, full_name as name, tb_id, profile_photo_url as photo, 
              placed_company as company, skills_json as skills, is_top_performer
       FROM student_profiles
@@ -613,7 +613,7 @@ router.get("/insights", authenticate, async (req: any, res) => {
 
   try {
     // Collect stats: missing skills globally from users we compared to
-    const [history]: any = await db.query(`
+    const [history] = await db.query(`
       SELECT gap_analysis_json FROM comparison_history WHERE student_id = ? AND gap_analysis_json IS NOT NULL
     `, [userId]);
 
@@ -664,7 +664,7 @@ router.put("/visibility", authenticate, async (req: any, res) => {
   }
 
   try {
-    const [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
     if (profiles.length === 0) return res.status(404).json({ success: false, message: "Profile not found" });
     const studentId = profiles[0].id;
 
@@ -679,7 +679,7 @@ router.put("/visibility", authenticate, async (req: any, res) => {
   } catch (error) {
     // Fallback block due to SQLite not supporting ON DUPLICATE KEY UPDATE
     try {
-      const [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+      const [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
       const studentId = profiles[0].id;
       await db.query("UPDATE student_profiles SET profile_visibility = ? WHERE id = ?", [visibility, studentId]);
       await db.query("DELETE FROM student_visibility WHERE student_id = ?", [studentId]);

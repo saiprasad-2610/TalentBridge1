@@ -1,44 +1,37 @@
-import React, { useState, useEffect } from "react";
-import { Loader2, AlertCircle, Sparkles, Brain, Compass, Users2, ShieldAlert, CheckCircle, ChevronRight, Play, RefreshCw, BarChart2, BookOpen } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import api from "../../services/api.ts";
-import { useAuth } from "../../context/AuthContext.tsx";
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { motion } from "motion/react";
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
+import { BrainCircuit, HeartHandshake, Users, Zap, CheckCircle2, Lock } from 'lucide-react';
+import { ConsentModal } from '../../components/ConsentModal';
 
-interface QuotientState {
+interface TestStatus {
   completed: boolean;
   score: number | null;
 }
 
-interface AssessmentStatus {
-  pq: QuotientState;
-  iq: QuotientState;
-  eq: QuotientState;
-  sq: QuotientState;
+interface StatusData {
+  pq: TestStatus;
+  iq: TestStatus;
+  eq: TestStatus;
+  sq: TestStatus;
   ai_behavioral_summary: string | null;
 }
 
 export default function IntelligenceDashboard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [data, setData] = useState<AssessmentStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<StatusData | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [activeTestForConsent, setActiveTestForConsent] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const fetchStatus = async () => {
     try {
-      setLoading(true);
-      const res = await api.get("/intelligence/status");
-      if (res.data?.success && res.data?.data) {
-        setData(res.data.data);
+      const { data } = await api.get('/intelligence/status');
+      if (data.success) {
+        setStatus(data.data);
       }
-      setError(null);
-    } catch (err: any) {
-      console.error("Error fetching intelligence mapping:", err);
-      setError("Unable to catalog cognitive test metrics. Please refresh/try again.");
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -46,221 +39,153 @@ export default function IntelligenceDashboard() {
 
   useEffect(() => {
     fetchStatus();
-  }, [user?.id]);
+  }, []);
 
-  const handleGenerateSummary = async () => {
+  const generateSummary = async () => {
+    if (!allCompleted) return;
+    setGenerating(true);
     try {
-      setGenerating(true);
-      setSuccessMsg("");
-      const res = await api.post("/intelligence/generate-summary");
-      if (res.data?.success) {
-        setSuccessMsg("AI behavioral summary generated successfully!");
-        await fetchStatus();
-      }
-    } catch (err: any) {
-      console.error("AI summary error:", err);
-      setError(err.response?.data?.message || "Ensure you complete all 4 tests to generate the summary.");
+      await api.post('/intelligence/generate-summary');
+      await fetchStatus();
+    } catch (e) {
+      console.error(e);
     } finally {
       setGenerating(false);
     }
   };
 
-  const getRadarChartData = (status: AssessmentStatus) => {
-    return [
-      { subject: "Analytical (IQ)", value: status.iq.score || 0 },
-      { subject: "Emotional (EQ)", value: status.eq.score || 0 },
-      { subject: "Psychometric (PQ)", value: status.pq.score || 0 },
-      { subject: "Social (SQ)", value: status.sq.score || 0 },
-    ];
-  };
+  if (loading || !status) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initializing Protocol...</p>
+      </div>
+    );
+  }
 
-  const tests = [
-    {
-      id: "iq",
-      title: "Analytical Intelligence (IQ)",
-      desc: "Measure structural problem solving ability, logic, numeric reasoning, and pattern recognition capabilities.",
-      icon: Brain,
-      color: "from-blue-500 to-cyan-500",
-      accent: "text-blue-500 bg-blue-50",
-    },
-    {
-      id: "eq",
-      title: "Emotional Intelligence (EQ)",
-      desc: "Assess self-regulation, empathy, emotional awareness, and interpersonal crisis management skills.",
-      icon: Compass,
-      color: "from-purple-500 to-pink-500",
-      accent: "text-purple-500 bg-purple-50",
-    },
-    {
-      id: "sq",
-      title: "Social/Situational (SQ)",
-      desc: "Measure multi-cultural collaboration, conflict moderation, communication agility, and inclusive leadership behaviors.",
-      icon: Users2,
-      color: "from-emerald-500 to-teal-500",
-      accent: "text-emerald-500 bg-emerald-50",
-    },
-    {
-      id: "pq",
-      title: "Psychometric Profile (PQ)",
-      desc: "Understand structural career preferences, resilience, and workplace behavioral strengths.",
-      icon: ShieldAlert,
-      color: "from-amber-500 to-orange-500",
-      accent: "text-amber-500 bg-amber-50",
-    }
+  const allCompleted = status.pq.completed && status.iq.completed && status.eq.completed && status.sq.completed;
+
+  const testCards = [
+    { type: 'pq', title: 'Personality Quotient (PQ)', icon: <Users className="w-8 h-8 text-indigo-500" />, desc: 'Analyze personality traits, leadership, and work style.', time: '15 Mins', questions: 20 },
+    { type: 'iq', title: 'Intelligence Quotient (IQ)', icon: <BrainCircuit className="w-8 h-8 text-blue-500" />, desc: 'Logical reasoning, analytical thinking, and pattern recognition.', time: '20 Mins', questions: 25 },
+    { type: 'eq', title: 'Emotional Quotient (EQ)', icon: <HeartHandshake className="w-8 h-8 text-rose-500" />, desc: 'Emotional control, empathy, and stress handling.', time: '15 Mins', questions: 20 },
+    { type: 'sq', title: 'Social Quotient (SQ)', icon: <Zap className="w-8 h-8 text-amber-500" />, desc: 'Social behavior, collaboration, and networking ability.', time: '15 Mins', questions: 20 },
   ];
 
-  const allCompleted = data ? (data.pq.completed && data.iq.completed && data.eq.completed && data.sq.completed) : false;
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 min-h-screen">
-      {/* Top Welcome Title */}
-      <div className="relative bg-gradient-to-r from-[#0d1635] to-[#142352] rounded-3xl p-8 md:p-10 text-white overflow-hidden shadow-xl">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-[80px]" />
-        <div className="relative z-10 max-w-2xl space-y-4">
-          <span className="p-1 px-3 bg-blue-500/20 text-blue-300 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-500/30">
-            Cognitive Assessment Hub
-          </span>
-          <h1 className="text-3xl font-black uppercase tracking-tight">
-            Intelligence Profiler
-          </h1>
-          <p className="text-slate-300 text-xs md:text-sm leading-relaxed font-semibold">
-            Evaluate your core cognitive, psychometric, emotional, and social aptitudes. Verified test credentials are mapped directly onto recruiter dashboards to present a multi-dimensional proof of leadership potential.
-          </p>
+    <div className="max-w-6xl mx-auto py-2 space-y-6 font-sans text-slate-800">
+      
+      {/* Standardized Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 pb-5 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0">
+              <BrainCircuit size={22} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2.5xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight leading-none">Intelligence Operations</h1>
+              <p className="text-slate-500 font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.3em] mt-2">COGNITIVE, EMOTIONAL & SOCIAL ASSESSMENT METRICS</p>
+            </div>
+          </div>
+        </div>
+        <div className="self-stretch md:self-auto flex items-center justify-between">
+          {!allCompleted ? (
+            <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3.5 py-2 rounded-xl border border-red-150 text-[10px] font-black uppercase tracking-wider shadow-sm shrink-0">
+              <Lock className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+              <span>Job Applications Locked</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3.5 py-2 rounded-xl border border-emerald-150 text-[10px] font-black uppercase tracking-wider shadow-sm shrink-0">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Assessments Completed</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {successMsg && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2.5xl p-4 flex items-center gap-3 text-emerald-700 text-xs font-bold">
-          <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-100 rounded-2.5xl p-4 flex items-center gap-3 text-red-700 text-xs font-bold">
-          <AlertCircle size={16} className="text-red-700 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center p-12 space-y-4 bg-white rounded-3xl border border-slate-100 min-h-[300px]">
-          <Loader2 className="animate-spin text-blue-600" size={32} />
-          <p className="text-sm text-slate-500 font-bold uppercase tracking-wider">Syncing Assessment States...</p>
-        </div>
-      ) : data ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Tests Category Cards Left (8 cols) */}
-          <div className="lg:col-span-8 space-y-6">
-            <h3 className="font-black text-slate-950 text-xs uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-50">
-              <BarChart2 size={14} className="text-blue-500" /> Quotient Assessment Sections
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {tests.map((test) => {
-                const metric: QuotientState = (data as any)[test.id];
-                return (
-                  <div key={test.id} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-all group">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className={`p-3 rounded-2xl ${test.accent}`}>
-                          <test.icon size={20} />
-                        </div>
-                        {metric.completed ? (
-                          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 uppercase tracking-widest">
-                            Score: {metric.score || 0}%
-                          </span>
-                        ) : (
-                          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100 uppercase tracking-widest">
-                            Not Started
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <h4 className="font-extrabold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{test.title}</h4>
-                        <p className="text-slate-400 text-[11px] leading-relaxed mt-2 font-medium">{test.desc}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => navigate(`/student/intelligence/${test.id}`)}
-                      className="mt-6 py-3 px-4 rounded-xl border border-slate-100 hover:border-blue-500/30 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-slate-50/50 hover:bg-white shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <Play size={10} /> {metric.completed ? "Retake Assessment" : "Start Assessment"}
-                    </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {testCards.map((test) => {
+          const testStatus = status[test.type as keyof StatusData] as TestStatus;
+          return (
+            <div key={test.type} className="bg-white border border-slate-150 rounded-2xl p-5 md:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.015)] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    {test.icon}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Radar & AI Profile Right Sidebar (4 cols) */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* Radar representation */}
-            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-              <h4 className="font-black text-slate-950 text-xs uppercase tracking-widest pb-3 border-b border-slate-50">
-                Cognitive Footprint
-              </h4>
-              <div className="w-full h-48 flex justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={getRadarChartData(data)}>
-                    <PolarGrid stroke="#f1f5f9" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 8, fontWeight: 'bold' }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#cbd5e1', fontSize: 6 }} />
-                    <Radar name="Metrics" dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                  {testStatus.completed ? (
+                    <div className="w-12 h-12 rounded-full bg-indigo-50 border-2 border-indigo-150 flex items-center justify-center flex-col shadow-inner">
+                      <span className="text-[8px] text-indigo-500 font-extrabold uppercase tracking-widest leading-none">Score</span>
+                      <span className="text-sm font-black text-indigo-900">{testStatus.score}</span>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50/70 px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-100/50">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                      <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Pending</span>
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-1.5 leading-tight">{test.title}</h3>
+                <p className="text-slate-500 text-xs leading-relaxed mb-6">{test.desc}</p>
+              </div>
+              
+              <div className="flex items-center justify-between border-t border-slate-50 pt-4 mt-auto">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <span>{test.questions} Qs</span><span>•</span><span>{test.time}</span>
+                </div>
+                 {testStatus.completed ? (
+                  <button className="px-4 py-2 bg-slate-55 text-slate-400 font-bold text-xs uppercase tracking-widest rounded-lg cursor-not-allowed">
+                    Completed
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => setActiveTestForConsent(test.type)}
+                    className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-600 transition-colors shadow-sm cursor-pointer"
+                  >
+                    Start Test
+                  </button>
+                )}
               </div>
             </div>
+          )
+        })}
+      </div>
 
-            {/* AI report card */}
-            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-              <h4 className="font-black text-slate-950 text-xs uppercase tracking-widest pb-3 border-b border-slate-50 flex items-center gap-1.5">
-                <Sparkles size={14} className="text-indigo-500" /> Behavioral Personality Insights
-              </h4>
-
-              {data.ai_behavioral_summary ? (
-                <div className="space-y-4">
-                  <div className="p-3 bg-indigo-50/40 rounded-2xl border border-indigo-100/10 text-[11px] text-slate-650 font-semibold leading-relaxed">
-                    "{data.ai_behavioral_summary}"
-                  </div>
-                  <button
-                    onClick={handleGenerateSummary}
-                    disabled={generating}
-                    className="w-full py-3 rounded-xl border border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 bg-white flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                  >
-                    <RefreshCw size={12} className={generating ? "animate-spin" : ""} /> Refresh AI Summary
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4 text-left">
-                  <p className="text-slate-405 text-xs font-semibold leading-relaxed">
-                    Complete all 4 Quotient assessments first to trigger a comprehensive automated behavioral summary powered by expert HR models.
-                  </p>
-                  <button
-                    onClick={handleGenerateSummary}
-                    disabled={generating || !allCompleted}
-                    className={`w-full py-4 rounded-2xl text-white font-black text-xs uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2 ${
-                      allCompleted
-                        ? "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
-                        : "bg-slate-200 cursor-not-allowed text-slate-400 border border-slate-100 shadow-none"
-                    }`}
-                  >
-                    {generating ? (
-                      <>
-                        <Loader2 className="animate-spin" size={14} /> Generating...
-                      </>
-                    ) : (
-                      <>Compile AI Report</>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
+        {allCompleted && (
+          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mt-6">
+            <h2 className="text-xl font-black text-indigo-900 mb-4">AI Behavioral Summary</h2>
+            {status.ai_behavioral_summary ? (
+              <div className="bg-white p-5 rounded-xl shadow-sm text-slate-700 leading-relaxed font-medium text-xs sm:text-sm">
+                {status.ai_behavioral_summary}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <button 
+                  onClick={generateSummary}
+                  disabled={generating}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 mx-auto disabled:opacity-50 cursor-pointer"
+                >
+                  <Zap className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
+                  {generating ? 'Analyzing Scores...' : 'Generate AI Report'}
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      ) : null}
+        )}
+
+      <ConsentModal
+        isOpen={activeTestForConsent !== null}
+        title="Assessment Consent Form"
+        subtitle="Data Sharing & Cognitive Processing"
+        consentMessage="By proceeding with this diagnostic module, you consent to the storage and multi-dimensional analysis of your cognitive patterns, logical reasoning choices, situational-behavioral traits, and emotional assessment answers. The resulting raw score mapping and structured metadata will be utilized to generate matching recruiter recommendations on the placement database."
+        compulsoryWarning="Declining this consent will prevent you from initiating this cognitive assessment. Complete diagnostic scoring metrics are required by partnering corporations on recruitment streams to evaluate placement suitability."
+        onAgree={() => {
+          const t = activeTestForConsent;
+          setActiveTestForConsent(null);
+          if (t) navigate(`/student/intelligence/${t}`);
+        }}
+        onDisagreeClose={() => setActiveTestForConsent(null)}
+      />
     </div>
   );
 }

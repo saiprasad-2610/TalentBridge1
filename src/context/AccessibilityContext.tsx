@@ -53,17 +53,13 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         }
       }
       
-      try {
-        const saved = localStorage.getItem("accessibility_settings");
-        if (saved) {
-          try {
-            setSettings(JSON.parse(saved));
-          } catch (e) {
-            console.error("Failed to parse accessibility settings", e);
-          }
+      const saved = localStorage.getItem("accessibility_settings");
+      if (saved) {
+        try {
+          setSettings(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse accessibility settings", e);
         }
-      } catch (e) {
-        console.error("Failed to read accessibility_settings from localStorage", e);
       }
     };
     
@@ -71,11 +67,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   }, [user]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("accessibility_settings", JSON.stringify(settings));
-    } catch (e) {
-      console.error("Failed to save accessibility_settings to localStorage", e);
-    }
+    localStorage.setItem("accessibility_settings", JSON.stringify(settings));
     
     // Sync to backend if logged in
     if (user) {

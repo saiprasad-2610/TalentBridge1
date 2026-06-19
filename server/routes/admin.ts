@@ -24,24 +24,13 @@ async function logAdminAction(adminId: number, action: string, details: any, req
   }
 }
 
-function getAppUrl(req: express.Request) {
-  let url = process.env.APP_URL;
-  if (!url || url === "MY_APP_URL" || url.includes("MY_APP_URL")) {
-    const host = req.get("host") || "localhost:3000";
-    const xForwardedProto = req.headers["x-forwarded-proto"];
-    const protocol = req.secure || xForwardedProto === "https" ? "https" : "http";
-    url = `${protocol}://${host}`;
-  }
-  return url;
-}
-
 // --- COLLEGE MANAGEMENT ---
 
 router.post("/colleges", async (req, res) => {
   try {
     const { college_name, college_code, university, address, district, state, website, contact_number } = req.body;
     
-    const [result]: any = await db.query(`
+    const [result] = await db.query(`
       INSERT INTO college_master (college_name, college_code, university, address, district, state, website, contact_number)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [college_name, college_code, university, address, district, state, website, contact_number]);
@@ -59,7 +48,7 @@ router.post("/colleges", async (req, res) => {
 
 router.get("/colleges", async (req, res) => {
   try {
-    const [colleges]: any = await db.query("SELECT * FROM college_master WHERE status = 'ACTIVE' ORDER BY college_name ASC");
+    const [colleges] = await db.query("SELECT * FROM college_master WHERE status = 'ACTIVE' ORDER BY college_name ASC");
     res.json({ success: true, data: colleges });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error fetching colleges" });
@@ -92,11 +81,11 @@ router.post("/tpos", async (req, res) => {
     const { email, full_name, contact_number, designation, college_ids, batch_name, onboard_students } = req.body;
 
     // Check if user already exists
-    const [existingUsers]: any = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    const [existingUsers] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
     if (existingUsers.length > 0) {
       const existingUser = existingUsers[0];
       // Check if they have a TPO profile
-      const [existingProfiles]: any = await db.query("SELECT * FROM tpo_profiles WHERE user_id = ?", [existingUser.id]);
+      const [existingProfiles] = await db.query("SELECT * FROM tpo_profiles WHERE user_id = ?", [existingUser.id]);
       if (existingProfiles.length > 0) {
         return res.status(400).json({ success: false, message: "Email already exists" });
       } else if (existingUser.role === 'TPO') {
@@ -111,7 +100,7 @@ router.post("/tpos", async (req, res) => {
     const tempPassword = crypto.randomBytes(8).toString("hex");
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-    const [userResult]: any = await db.query(`
+    const [userResult] = await db.query(`
       INSERT INTO users (email, password_hash, role, status, is_verified)
       VALUES (?, ?, 'TPO', 'ACTIVE', 1)
     `, [email, passwordHash]);
@@ -119,7 +108,7 @@ router.post("/tpos", async (req, res) => {
     const userId = userResult.insertId;
 
     // 2. Create TPO Profile
-    const [tpoResult]: any = await db.query(`
+    const [tpoResult] = await db.query(`
       INSERT INTO tpo_profiles (user_id, full_name, contact_number, designation)
       VALUES (?, ?, ?, ?)
     `, [userId, full_name, contact_number, designation]);
@@ -134,14 +123,14 @@ router.post("/tpos", async (req, res) => {
     }
 
     // 4. Send Email
-    const loginUrl = `${getAppUrl(req)}/login`;
+    const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`;
     await sendTPOCredentials(email, full_name, tempPassword, loginUrl);
 
     // 5. Bulk Onboard Students if provided
     let onboardingResults: any[] = [];
     if (onboard_students && Array.isArray(onboard_students) && onboard_students.length > 0 && college_ids && college_ids.length > 0 && batch_name) {
       const collegeId = college_ids[0]; // Map to the first assigned college for this TPO
-      const [colleges]: any = await db.query("SELECT college_name FROM college_master WHERE id = ?", [collegeId]);
+      const [colleges] = await db.query("SELECT college_name FROM college_master WHERE id = ?", [collegeId]);
       const collegeName = colleges[0]?.college_name || "Assigned College";
 
       for (const student of onboard_students) {
@@ -150,7 +139,7 @@ router.post("/tpos", async (req, res) => {
 
         try {
           // Check if student already exists
-          const [existingStudent]: any = await db.query("SELECT id FROM users WHERE email = ?", [studentEmail]);
+          const [existingStudent] = await db.query("SELECT id FROM users WHERE email = ?", [studentEmail]);
           if (existingStudent.length > 0) {
             onboardingResults.push({ email: studentEmail, status: "SKIPPED", reason: "Email already exists" });
             continue;
@@ -160,7 +149,7 @@ router.post("/tpos", async (req, res) => {
           const studentPasswordHash = await bcrypt.hash(studentTempPassword, 10);
 
           // Create student user with 100 bonus XP reward
-          const [studentUserResult]: any = await db.query(`
+          const [studentUserResult] = await db.query(`
             INSERT INTO users (email, password_hash, role, status, is_verified, xp_balance)
             VALUES (?, ?, 'STUDENT', 'ACTIVE', 1, 100)
           `, [studentEmail, studentPasswordHash]);
@@ -208,14 +197,14 @@ router.post("/onboard-batch", async (req, res) => {
     }
 
     // Fetch the college name for branding
-    const [colleges]: any = await db.query("SELECT college_name FROM college_master WHERE id = ?", [college_id]);
+    const [colleges] = await db.query("SELECT college_name FROM college_master WHERE id = ?", [college_id]);
     if (colleges.length === 0) {
       return res.status(404).json({ success: false, message: "College not found" });
     }
     const collegeName = colleges[0].college_name;
 
     const results = [];
-    const loginUrl = `${getAppUrl(req)}/login`;
+    const loginUrl = `${process.env.APP_URL || 'http://localhost:5173'}/login`;
 
     for (const student of students) {
       const { name, email } = student;
@@ -223,7 +212,7 @@ router.post("/onboard-batch", async (req, res) => {
 
       try {
         // Check if student exists
-        const [existing]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+        const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
         if (existing.length > 0) {
           results.push({ email, status: "SKIPPED", reason: "Email already registered" });
           continue;
@@ -232,7 +221,7 @@ router.post("/onboard-batch", async (req, res) => {
         const studentPass = crypto.randomBytes(8).toString("hex");
         const studentHash = await bcrypt.hash(studentPass, 10);
 
-        const [userRes]: any = await db.query(`
+        const [userRes] = await db.query(`
           INSERT INTO users (email, password_hash, role, status, is_verified, xp_balance)
           VALUES (?, ?, 'STUDENT', 'ACTIVE', 1, 100)
         `, [email, studentHash]);
@@ -279,11 +268,11 @@ router.post("/seed-tpo-data-v2", async (req, res) => {
 
     const collegeIds = [];
     for (const c of colleges) {
-      const [existing]: any = await db.query("SELECT id FROM college_master WHERE college_code = ?", [c.code]);
+      const [existing] = await db.query("SELECT id FROM college_master WHERE college_code = ?", [c.code]);
       if (existing.length > 0) {
         collegeIds.push(existing[0].id);
       } else {
-        const [res]: any = await db.query(`
+        const [res] = await db.query(`
           INSERT INTO college_master (college_name, college_code, district, state)
           VALUES (?, ?, ?, 'Maharashtra')
         `, [c.name, c.code, c.city]);
@@ -293,14 +282,14 @@ router.post("/seed-tpo-data-v2", async (req, res) => {
 
     // 2. Ensure at least one TPO exists for events
     let tpoId;
-    const [tpos]: any = await db.query("SELECT id FROM tpo_profiles LIMIT 1");
+    const [tpos] = await db.query("SELECT id FROM tpo_profiles LIMIT 1");
     if (tpos.length > 0) {
       tpoId = tpos[0].id;
     } else {
       // Create a dummy TPO for seeding
       const tempPassword = await bcrypt.hash("Admin@123", 10);
-      const [u]: any = await db.query("INSERT INTO users (email, password_hash, role, is_verified) VALUES (?, ?, 'TPO', 1)", [`seed_tpo@talentbridge.com`, tempPassword]);
-      const [t]: any = await db.query("INSERT INTO tpo_profiles (user_id, full_name, designation) VALUES (?, 'System Seed TPO', 'Administrator')", [u.insertId]);
+      const [u] = await db.query("INSERT INTO users (email, password_hash, role, is_verified) VALUES (?, ?, 'TPO', 1)", [`seed_tpo@talentbridge.com`, tempPassword]);
+      const [t] = await db.query("INSERT INTO tpo_profiles (user_id, full_name, designation) VALUES (?, 'System Seed TPO', 'Administrator')", [u.insertId]);
       tpoId = t.insertId;
       // Assign to all seeded colleges
       for (const cid of collegeIds) {
@@ -315,11 +304,11 @@ router.post("/seed-tpo-data-v2", async (req, res) => {
 
     for (let i = 0; i < 20; i++) {
       const email = `student${i + 100}@talentbridge.com`;
-      const [existing]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+      const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
       if (existing.length > 0) continue;
 
       const passwordHash = await bcrypt.hash("Student123!", 10);
-      const [u]: any = await db.query("INSERT INTO users (email, password_hash, role, is_verified) VALUES (?, ?, 'STUDENT', 1)", [email, passwordHash]);
+      const [u] = await db.query("INSERT INTO users (email, password_hash, role, is_verified) VALUES (?, ?, 'STUDENT', 1)", [email, passwordHash]);
       const userId = u.insertId;
 
       const dept = departments[i % 4];
@@ -340,7 +329,7 @@ router.post("/seed-tpo-data-v2", async (req, res) => {
 
     // 4. Companies & Drives
     const dateSql = db.useMySQL ? "DATE_ADD(NOW(), INTERVAL 7 DAY)" : "datetime('now', '+7 days')";
-    const [driveRes]: any = await db.query(`
+    const [driveRes] = await db.query(`
       INSERT INTO events (college_id, tpo_id, title, description, event_type, start_date, status)
       VALUES (?, ?, 'TCS Ninja Drive 2026', 'Campus recruitment for TCS Ninja role', 'PLACEMENT_DRIVE', ${dateSql}, 'UPCOMING')
     `, [collegeIds[0], tpoId]);
@@ -388,7 +377,7 @@ router.post("/seed-tpo-data-v2", async (req, res) => {
 
 router.get("/tpos", async (req, res) => {
   try {
-    const [tpos]: any = await db.query(`
+    const [tpos] = await db.query(`
       SELECT t.*, u.email, u.status as user_status, 
       GROUP_CONCAT(c.college_name) as assigned_colleges
       FROM tpo_profiles t
@@ -406,13 +395,13 @@ router.get("/tpos", async (req, res) => {
 // Admin stats
 router.get("/stats", async (req, res) => {
   try {
-    const [userCount]: any = await db.query("SELECT COUNT(*) as total FROM users");
-    const [studentCount]: any = await db.query("SELECT COUNT(*) as total FROM users WHERE role = 'STUDENT'");
-    const [companyCount]: any = await db.query("SELECT COUNT(*) as total FROM users WHERE role = 'COMPANY'");
-    const [pendingCompanies]: any = await db.query("SELECT COUNT(*) as total FROM company_profiles WHERE status = 'PENDING'");
-    const [jobCount]: any = await db.query("SELECT COUNT(*) as total FROM jobs");
-    const [appCount]: any = await db.query("SELECT COUNT(*) as total FROM job_applications");
-    const [shortlistedCount]: any = await db.query("SELECT COUNT(*) as total FROM job_applications WHERE status = 'SHORTLISTED'");
+    const [userCount] = await db.query("SELECT COUNT(*) as total FROM users");
+    const [studentCount] = await db.query("SELECT COUNT(*) as total FROM users WHERE role = 'STUDENT'");
+    const [companyCount] = await db.query("SELECT COUNT(*) as total FROM users WHERE role = 'COMPANY'");
+    const [pendingCompanies] = await db.query("SELECT COUNT(*) as total FROM company_profiles WHERE status = 'PENDING'");
+    const [jobCount] = await db.query("SELECT COUNT(*) as total FROM jobs");
+    const [appCount] = await db.query("SELECT COUNT(*) as total FROM job_applications");
+    const [shortlistedCount] = await db.query("SELECT COUNT(*) as total FROM job_applications WHERE status = 'SHORTLISTED'");
 
     // Application trend (last 7 days)
     const trendQuery = db.useMySQL ? `
@@ -429,7 +418,7 @@ router.get("/stats", async (req, res) => {
       ORDER BY date ASC
     `;
 
-    const [trend]: any = await db.query(trendQuery);
+    const [trend] = await db.query(trendQuery);
 
     res.json({
       success: true,
@@ -456,7 +445,7 @@ router.get("/stats", async (req, res) => {
 router.get("/students/:userId/activity-logs", async (req, res) => {
   try {
     const { userId } = req.params;
-    const [logs]: any = await db.query(`
+    const [logs] = await db.query(`
       SELECT * FROM student_activity_logs 
       WHERE student_id = ? 
       ORDER BY created_at DESC 
@@ -475,11 +464,11 @@ router.get("/students/:userId/details", async (req, res) => {
     const { userId } = req.params;
     
     // Check if student exists
-    const [userQuery]: any = await db.query("SELECT id, email, status, role, created_at FROM users WHERE id = ?", [userId]);
+    const [userQuery] = await db.query("SELECT id, email, status, role, created_at FROM users WHERE id = ?", [userId]);
     if (userQuery.length === 0) return res.status(404).json({ success: false, message: "User not found" });
     const user = userQuery[0];
 
-    const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
     const profile = profiles[0] || null;
 
     if (!profile) {
@@ -488,13 +477,13 @@ router.get("/students/:userId/details", async (req, res) => {
 
     const studentId = profile.id;
 
-    const [education]: any = await db.query("SELECT * FROM student_education WHERE student_id = ? ORDER BY start_date DESC", [studentId]);
-    const [experience]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ? ORDER BY start_date DESC", [studentId]);
-    const [projects]: any = await db.query("SELECT * FROM student_projects WHERE student_id = ? ORDER BY created_at DESC", [studentId]);
-    const [certifications]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ? ORDER BY issue_date DESC", [studentId]);
-    const [extracurriculars]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC", [userId]);
+    const [education] = await db.query("SELECT * FROM student_education WHERE student_id = ? ORDER BY start_date DESC", [studentId]);
+    const [experience] = await db.query("SELECT * FROM student_experience WHERE student_id = ? ORDER BY start_date DESC", [studentId]);
+    const [projects] = await db.query("SELECT * FROM student_projects WHERE student_id = ? ORDER BY created_at DESC", [studentId]);
+    const [certifications] = await db.query("SELECT * FROM student_certifications WHERE student_id = ? ORDER BY issue_date DESC", [studentId]);
+    const [extracurriculars] = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC", [userId]);
     
-    const [applications]: any = await db.query(`
+    const [applications] = await db.query(`
       SELECT a.id, a.status, a.applied_at, j.title as job_title, cp.company_name
       FROM job_applications a
       JOIN jobs j ON a.job_id = j.id
@@ -503,7 +492,7 @@ router.get("/students/:userId/details", async (req, res) => {
       ORDER BY a.applied_at DESC
     `, [studentId]);
 
-    const [activityLogs]: any = await db.query(`
+    const [activityLogs] = await db.query(`
       SELECT path, action, duration_seconds, created_at 
       FROM student_activity_logs 
       WHERE student_id = ? 
@@ -536,11 +525,11 @@ router.get("/companies/:userId/details", async (req, res) => {
   try {
     const { userId } = req.params;
     
-    const [userQuery]: any = await db.query("SELECT id, email, status, role, created_at FROM users WHERE id = ?", [userId]);
+    const [userQuery] = await db.query("SELECT id, email, status, role, created_at FROM users WHERE id = ?", [userId]);
     if (userQuery.length === 0) return res.status(404).json({ success: false, message: "User not found" });
     const user = userQuery[0];
 
-    const [profiles]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [userId]);
     const profile = profiles[0] || null;
 
     if (!profile) {
@@ -550,13 +539,13 @@ router.get("/companies/:userId/details", async (req, res) => {
     const companyId = profile.id;
 
     // Fetch jobs
-    const [jobs]: any = await db.query("SELECT * FROM jobs WHERE company_id = ? ORDER BY created_at DESC", [companyId]);
+    const [jobs] = await db.query("SELECT * FROM jobs WHERE company_id = ? ORDER BY created_at DESC", [companyId]);
 
     // Fetch documents
-    const [documents]: any = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [companyId]);
+    const [documents] = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [companyId]);
 
     // Fetch brief application stats
-    const [applications]: any = await db.query(`
+    const [applications] = await db.query(`
       SELECT a.status, COUNT(*) as count
       FROM job_applications a
       JOIN jobs j ON a.job_id = j.id
@@ -584,7 +573,7 @@ router.get("/companies/:userId/details", async (req, res) => {
 // List all users
 router.get("/users", async (req, res) => {
   try {
-    const [users]: any = await db.query(`
+    const [users] = await db.query(`
       SELECT u.id, u.email, u.role, u.status, u.created_at,
              cp.company_name, cp.status as company_status, cp.id as company_profile_id,
              cp.company_type, cp.industry, cp.city as location, cp.contact_number, cp.about as description,
@@ -603,7 +592,7 @@ router.get("/users", async (req, res) => {
 // Pending verification list with details
 router.get("/companies/pending", async (req, res) => {
   try {
-    const [pending]: any = await db.query(`
+    const [pending] = await db.query(`
       SELECT C.*, U.email 
       FROM company_profiles C 
       JOIN users U ON C.user_id = U.id 
@@ -613,7 +602,7 @@ router.get("/companies/pending", async (req, res) => {
 
     // Fetch documents for each pending company
     const enriched = await Promise.all(pending.map(async (p: any) => {
-      const [docs]: any = await db.query("SELECT id, doc_type, status FROM company_documents WHERE company_id = ?", [p.id]);
+      const [docs] = await db.query("SELECT id, doc_type, status FROM company_documents WHERE company_id = ?", [p.id]);
       return { ...p, documents: docs };
     }));
 
@@ -655,7 +644,7 @@ router.post("/companies/verify", async (req, res) => {
 // Applications Tracker (Global)
 router.get("/applications", async (req, res) => {
   try {
-    const [apps]: any = await db.query(`
+    const [apps] = await db.query(`
       SELECT a.*, sp.full_name as student_name, j.title as job_title, cp.company_name
       FROM applications a
       JOIN student_profiles sp ON a.student_id = sp.id
@@ -672,7 +661,7 @@ router.get("/applications", async (req, res) => {
 // Talent Score Monitoring
 router.get("/monitoring/talent-scores", async (req, res) => {
   try {
-    const [scores]: any = await db.query(`
+    const [scores] = await db.query(`
       SELECT sp.full_name, sp.id as profile_id, u.email, sp.completeness_score,
              (SELECT COUNT(*) FROM applications WHERE student_id = sp.id) as app_count
       FROM student_profiles sp
@@ -689,7 +678,7 @@ router.get("/monitoring/talent-scores", async (req, res) => {
 // Admin Logs
 router.get("/logs", async (req, res) => {
   try {
-    const [logs]: any = await db.query(`
+    const [logs] = await db.query(`
       SELECT al.*, u.email as admin_email
       FROM admin_logs al
       JOIN users u ON al.admin_id = u.id
@@ -705,7 +694,7 @@ router.get("/logs", async (req, res) => {
 // Moderate jobs
 router.get("/jobs", async (req, res) => {
   try {
-    const [jobs]: any = await db.query(`
+    const [jobs] = await db.query(`
       SELECT j.*, cp.company_name 
       FROM jobs j
       JOIN company_profiles cp ON j.company_id = cp.id
@@ -746,7 +735,7 @@ router.patch("/users/:id/status", async (req, res) => {
 // List all psychometric questions
 router.get("/psychometric/questions", async (req, res) => {
   try {
-    const [questions]: any = await db.query("SELECT * FROM psychometric_questions ORDER BY created_at DESC");
+    const [questions] = await db.query("SELECT * FROM psychometric_questions ORDER BY created_at DESC");
     res.json({ success: true, data: questions });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error fetching psychometric questions" });
@@ -758,7 +747,7 @@ router.post("/psychometric/questions", async (req, res) => {
   const { category, trait, question_text, options_json } = req.body;
   const adminId = (req as any).user.userId;
   try {
-    const [result]: any = await db.query(
+    const [result] = await db.query(
       "INSERT INTO psychometric_questions (category, trait, question_text, options_json) VALUES (?, ?, ?, ?)",
       [category, trait, question_text, JSON.stringify(options_json)]
     );
@@ -851,7 +840,7 @@ router.post("/packages", async (req, res) => {
   const adminId = (req as any).user.userId;
 
   try {
-    const [result]: any = await db.query(
+    const [result] = await db.query(
       "INSERT INTO xp_packages (name, xp_amount, price_inr, is_popular, is_best_value, mock_interviews_included, resume_reviews_included) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [
         name, 
@@ -944,7 +933,7 @@ router.put("/community/posts/:id/verify", async (req, res) => {
   const adminId = (req as any).user.userId;
 
   try {
-    const [posts]: any = await db.query("SELECT * FROM posts WHERE id = ?", [id]);
+    const [posts] = await db.query("SELECT * FROM posts WHERE id = ?", [id]);
     if (posts.length === 0) {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
@@ -1044,7 +1033,7 @@ router.post("/staff", async (req, res) => {
     }
 
     // Check if email already exists
-    const [existingUsers]: any = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    const [existingUsers] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
     if (existingUsers.length > 0) {
       return res.status(400).json({ success: false, message: "Email already registered" });
     }
@@ -1053,7 +1042,7 @@ router.post("/staff", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    const [userResult]: any = await db.query(`
+    const [userResult] = await db.query(`
       INSERT INTO users (email, password_hash, role, status, is_verified)
       VALUES (?, ?, 'ADMIN', 'ACTIVE', 1)
     `, [email, hashedPassword]);
@@ -1078,7 +1067,7 @@ router.post("/staff", async (req, res) => {
 // Get all staff officers & their sidebar access
 router.get("/staff", async (req, res) => {
   try {
-    const [staffList]: any = await db.query(`
+    const [staffList] = await db.query(`
       SELECT u.id, u.email, u.status, u.created_at, p.allowed_pages
       FROM users u
       LEFT JOIN admin_sidebar_permissions p ON u.id = p.user_id
@@ -1123,7 +1112,7 @@ router.put("/staff/:id", async (req, res) => {
     }
 
     // Verify email doesn't collide with other users
-    const [existing]: any = await db.query("SELECT * FROM users WHERE email = ? AND id != ?", [email, id]);
+    const [existing] = await db.query("SELECT * FROM users WHERE email = ? AND id != ?", [email, id]);
     if (existing.length > 0) {
       return res.status(400).json({ success: false, message: "Email is already in use by another user" });
     }
@@ -1137,7 +1126,7 @@ router.put("/staff/:id", async (req, res) => {
     }
 
     // Upsert sidebar permissions
-    const [perms]: any = await db.query("SELECT * FROM admin_sidebar_permissions WHERE user_id = ?", [id]);
+    const [perms] = await db.query("SELECT * FROM admin_sidebar_permissions WHERE user_id = ?", [id]);
     if (perms.length > 0) {
       await db.query("UPDATE admin_sidebar_permissions SET allowed_pages = ? WHERE user_id = ?", [JSON.stringify(allowed_pages), id]);
     } else {

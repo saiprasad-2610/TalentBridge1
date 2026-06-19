@@ -27,24 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let savedAuth = null;
-    try {
-      savedAuth = localStorage.getItem("talentbridge_auth");
-    } catch (e) {
-      console.error("Failed to read auth from localStorage", e);
-    }
+    const savedAuth = localStorage.getItem("talentbridge_auth");
     if (savedAuth) {
-      try {
-        const { user, token, profile } = JSON.parse(savedAuth);
-        setUser(user);
-        setToken(token);
-        setProfile(profile);
-      } catch (err) {
-        console.error("Corrupted local storage auth item, resetting", err);
-        try {
-          localStorage.removeItem("talentbridge_auth");
-        } catch (e) {}
-      }
+      const { user, token, profile } = JSON.parse(savedAuth);
+      setUser(user);
+      setToken(token);
+      setProfile(profile);
     }
     setLoading(false);
   }, []);
@@ -53,39 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
     setToken(data.token);
     setProfile(data.profile);
-    try {
-      localStorage.setItem("talentbridge_auth", JSON.stringify(data));
-    } catch (e) {
-      console.error("Failed to save auth to localStorage", e);
-    }
+    localStorage.setItem("talentbridge_auth", JSON.stringify(data));
   };
 
   const updateProfile = (newProfile: any) => {
     setProfile(newProfile);
-    let savedAuth = null;
-    try {
-      savedAuth = localStorage.getItem("talentbridge_auth");
-    } catch (e) {
-      console.error("Failed to read auth from localStorage", e);
-    }
+    const savedAuth = localStorage.getItem("talentbridge_auth");
     if (savedAuth) {
-      try {
-        const auth = JSON.parse(savedAuth);
-        auth.profile = newProfile;
-        localStorage.setItem("talentbridge_auth", JSON.stringify(auth));
-      } catch (e) {
-        console.error("Failed to update auth in localStorage", e);
-      }
+      const auth = JSON.parse(savedAuth);
+      auth.profile = newProfile;
+      localStorage.setItem("talentbridge_auth", JSON.stringify(auth));
     }
   };
 
   const logout = async () => {
-    let savedAuth = null;
-    try {
-      savedAuth = localStorage.getItem("talentbridge_auth");
-    } catch (e) {
-      console.error("Failed to read auth from localStorage", e);
-    }
+    const savedAuth = localStorage.getItem("talentbridge_auth");
     if (savedAuth) {
       try {
         const { refreshToken } = JSON.parse(savedAuth);
@@ -97,9 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
     setProfile(null);
-    try {
-      localStorage.removeItem("talentbridge_auth");
-    } catch (e) {}
+    localStorage.removeItem("talentbridge_auth");
   };
 
   return (

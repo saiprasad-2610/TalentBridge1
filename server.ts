@@ -32,12 +32,12 @@ import chatbotRoutes from "./server/routes/chatbot.ts";
 import intelligenceRoutes from "./server/routes/intelligence.ts";
 import communityRoutes from "./server/routes/community.ts";
 import careerGapRoutes from "./server/routes/careerGap.ts";
-import interviewRoutes from "./server/routes/interview.ts";
+import liveInterviewRoutes from "./server/routes/interview.ts";
 
 async function startServer() {
   const app = express();
   
-  // Necessary for rate limiters working behind reverse/Cloud Run proxy
+  // Trust proxy for express-rate-limit & standard secure headers in production routing environments
   app.set("trust proxy", 1);
   
   // Security Headers
@@ -117,7 +117,7 @@ async function startServer() {
   app.use("/api/intelligence", intelligenceRoutes);
   app.use("/api/community", communityRoutes);
   app.use("/api/career-gap", careerGapRoutes);
-  app.use("/api/interviews", interviewRoutes);
+  app.use("/api/interviews", liveInterviewRoutes);
 
   // WebSocket for AI Mock Interview
   const { setupInterviewSocket } = await import("./server/sockets/interview.ts");

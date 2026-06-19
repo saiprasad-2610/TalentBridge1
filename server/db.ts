@@ -930,7 +930,18 @@ export async function initDb() {
       `);
 
       // Ensure columns exist for older schemas
-      const [columns]: any = await connection.query("SHOW COLUMNS FROM interview_history");
+      try {
+        const [ischedCols] = await connection.query("SHOW COLUMNS FROM interview_schedules");
+        const ischedColNames = ischedCols.map((c: any) => c.Field);
+        if (!ischedColNames.includes("status")) {
+          console.log("📡 Adding missing status column to MySQL interview_schedules...");
+          await connection.query("ALTER TABLE interview_schedules ADD COLUMN status VARCHAR(50) DEFAULT 'UPCOMING'");
+        }
+      } catch (err) {
+        console.error("MySQL migration error for interview_schedules status:", err);
+      }
+
+      const [columns] = await connection.query("SHOW COLUMNS FROM interview_history");
       const columnNames = columns.map((c: any) => c.Field);
       
       const requiredColumns = [
@@ -961,7 +972,7 @@ export async function initDb() {
       }
 
       // Add student_profiles columns if missing
-      const [studentCols]: any = await connection.query("SHOW COLUMNS FROM student_profiles");
+      const [studentCols] = await connection.query("SHOW COLUMNS FROM student_profiles");
       const studentColNames = studentCols.map((c: any) => c.Field);
       const requiredStudentCols = [
         { name: "college_id", type: "INT" },
@@ -1012,7 +1023,7 @@ export async function initDb() {
       }
 
       // Add company_profiles columns if missing
-      const [compCols]: any = await connection.query("SHOW COLUMNS FROM company_profiles");
+      const [compCols] = await connection.query("SHOW COLUMNS FROM company_profiles");
       const compColNames = compCols.map((c: any) => c.Field);
       const requiredCompCols = [
         { name: "logo_url", type: "LONGTEXT" },
@@ -1063,7 +1074,7 @@ export async function initDb() {
       }
 
       // Add missing users columns
-      const [userCols]: any = await connection.query("SHOW COLUMNS FROM users");
+      const [userCols] = await connection.query("SHOW COLUMNS FROM users");
       const userColNames = userCols.map((c: any) => c.Field);
       const requiredUserCols = [
         { name: "is_verified", type: "TINYINT DEFAULT 0" },
@@ -1090,7 +1101,7 @@ export async function initDb() {
       }
 
       // Add test_submissions columns if missing
-      const [testSubCols]: any = await connection.query("SHOW COLUMNS FROM test_submissions");
+      const [testSubCols] = await connection.query("SHOW COLUMNS FROM test_submissions");
       const testSubColNames = testSubCols.map((c: any) => c.Field);
       const requiredTestSubCols = [
         { name: "tab_switches", type: "INT DEFAULT 0" },
@@ -1382,7 +1393,7 @@ export async function initDb() {
       `);
 
       // Seed psychometric questions if empty
-      const [existingQuestions]: any = await connection.query("SELECT COUNT(*) as count FROM psychometric_questions");
+      const [existingQuestions] = await connection.query("SELECT COUNT(*) as count FROM psychometric_questions");
       if (existingQuestions[0].count === 0) {
         console.log("🌱 Seeding psychometric questions...");
         const questions = [
@@ -1534,150 +1545,12 @@ export async function initDb() {
 
   // Seed Default Super Admin
   const adminEmail = "admin@talentbridge.com";
-  const [admins]: any = await performQuery("SELECT * FROM users WHERE email = ?", [adminEmail]);
+  const [admins] = await performQuery("SELECT * FROM users WHERE email = ?", [adminEmail]);
   if (admins.length === 0) {
     const bcrypt = await import("bcryptjs");
     const hash = await bcrypt.default.hash("admin123", 10);
     await performQuery("INSERT INTO users (email, password_hash, role, is_verified) VALUES (?, ?, ?, 1)", [adminEmail, hash, "SUPER_ADMIN"]);
     console.log("👤 Default Super Admin created: admin@talentbridge.com / admin123");
-  }
-
-  // Seed Default Test Company
-  const companyEmail = "company@talentbridge.com";
-  const [companies]: any = await performQuery("SELECT * FROM users WHERE email = ?", [companyEmail]);
-  if (companies.length === 0) {
-    const bcrypt = await import("bcryptjs");
-    const hash = await bcrypt.default.hash("Company123!", 10);
-    const referralCode = "COYREF";
-    await performQuery(
-      "INSERT INTO users (email, password_hash, role, is_verified, referral_code) VALUES (?, ?, 'COMPANY', 1, ?)",
-      [companyEmail, hash, referralCode]
-    );
-    const [newComp]: any = await performQuery("SELECT id FROM users WHERE email = ?", [companyEmail]);
-    const newCompanyUserId = newComp[0]?.id;
-    if (newCompanyUserId) {
-      await performQuery(
-        "INSERT INTO company_profiles (user_id, company_name, company_email, status, is_submitted, completeness_score) VALUES (?, 'TalentBridge Partner Company', ?, 'APPROVED', 1, 100)",
-        [newCompanyUserId, companyEmail]
-      );
-    }
-    console.log("👤 Default Test Company created: company@talentbridge.com / Company123!");
-  }
-
-  // Seed Default Test Student
-  const studentEmailSeed = "student@talentbridge.com";
-  const [students]: any = await performQuery("SELECT * FROM users WHERE email = ?", [studentEmailSeed]);
-  if (students.length === 0) {
-    const bcrypt = await import("bcryptjs");
-    const hash = await bcrypt.default.hash("Student123!", 10);
-    const referralCode = "STDREF";
-    await performQuery(
-      "INSERT INTO users (email, password_hash, role, is_verified, referral_code) VALUES (?, ?, 'STUDENT', 1, ?)",
-      [studentEmailSeed, hash, referralCode]
-    );
-    const [newStud]: any = await performQuery("SELECT id FROM users WHERE email = ?", [studentEmailSeed]);
-    const newStudentUserId = newStud[0]?.id;
-    if (newStudentUserId) {
-      const tbId = "TB-2026-99999";
-      await performQuery(
-        "INSERT INTO student_profiles (user_id, full_name, tb_id, profile_visibility) VALUES (?, 'Test Student', ?, 'PUBLIC')",
-        [newStudentUserId, tbId]
-      );
-      await performQuery(
-        "INSERT INTO student_visibility (student_id, visibility) SELECT id, 'PUBLIC' FROM student_profiles WHERE user_id = ?",
-        [newStudentUserId]
-      );
-      await performQuery(
-        "INSERT INTO student_performance_stats (user_id, xp_points, last_active_at, current_streak) VALUES (?, 500, CURRENT_TIMESTAMP, 1)",
-        [newStudentUserId]
-      );
-    }
-    console.log("👤 Default Test Student created: student@talentbridge.com / Student123!");
-  }
-
-  // Seed Designated Candidate Test Students
-  const designatedEmails = ["svkatageri19@gmail.com", "svkatageri18@gmail.com"];
-  for (const designatedEmail of designatedEmails) {
-    const [degStudents]: any = await performQuery("SELECT * FROM users WHERE email = ?", [designatedEmail]);
-    if (degStudents.length === 0) {
-      const bcrypt = await import("bcryptjs");
-      const hash = await bcrypt.default.hash("Student123!", 10);
-      const suffix = designatedEmail.includes("18") ? "18" : "19";
-      const referralCode = `COYREF${suffix}`;
-      await performQuery(
-        "INSERT INTO users (email, password_hash, role, is_verified, referral_code) VALUES (?, ?, 'STUDENT', 1, ?)",
-        [designatedEmail, hash, referralCode]
-      );
-      const [newStud]: any = await performQuery("SELECT id FROM users WHERE email = ?", [designatedEmail]);
-      const newStudentUserId = newStud[0]?.id;
-      if (newStudentUserId) {
-        const tbId = `TB-2026-1919${suffix}`;
-        await performQuery(
-          "INSERT INTO student_profiles (user_id, full_name, tb_id, profile_visibility) VALUES (?, ?, ?, 'PUBLIC')",
-          [newStudentUserId, `Demo Student (svkatageri${suffix})`, tbId]
-        );
-        await performQuery(
-          "INSERT INTO student_visibility (student_id, visibility) SELECT id, 'PUBLIC' FROM student_profiles WHERE user_id = ?",
-          [newStudentUserId]
-        );
-        await performQuery(
-          "INSERT INTO student_performance_stats (user_id, xp_points, last_active_at, current_streak) VALUES (?, 500, CURRENT_TIMESTAMP, 1)",
-          [newStudentUserId]
-        );
-      }
-      console.log(`👤 Designated Candidate Test Student created: ${designatedEmail} / Student123!`);
-    }
-  }
-
-  // Seed default job and interview room 6 or 7
-  try {
-    const [allComps]: any = await performQuery("SELECT id FROM company_profiles LIMIT 1");
-    const compProfileId = allComps[0]?.id;
-
-    if (compProfileId) {
-      const [existingJobs]: any = await performQuery("SELECT * FROM jobs WHERE id = 1");
-      if (existingJobs.length === 0) {
-        await performQuery(
-          "INSERT INTO jobs (id, company_id, title, description, skills_json, location, job_type, experience_level, status) VALUES (1, ?, 'Software Engineer', 'Talent Bridge Core Platform Engineer', '[\"React\", \"Node\", \"TypeScript\"]', 'Remote', 'Full-time', 'Entry level', 'OPEN')",
-          [compProfileId]
-        );
-      }
-
-      for (const designatedEmail of designatedEmails) {
-        const [svUser]: any = await performQuery("SELECT id FROM users WHERE email = ?", [designatedEmail]);
-        const studentUserId = svUser[0]?.id;
-        if (studentUserId) {
-          const [svProfile]: any = await performQuery("SELECT id FROM student_profiles WHERE user_id = ?", [studentUserId]);
-          const svProfileId = svProfile[0]?.id;
-
-          if (svProfileId) {
-            const intId = designatedEmail.includes("18") ? 8 : 6;
-            const [existingInterviews]: any = await performQuery("SELECT * FROM interviews WHERE id = ?", [intId]);
-            if (existingInterviews.length === 0) {
-              const startTime = new Date();
-              const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour from now
-              const startTimeFmt = startTime.toISOString().slice(0, 19).replace('T', ' ');
-              const endTimeFmt = endTime.toISOString().slice(0, 19).replace('T', ' ');
-              const titleFmt = designatedEmail.includes("18") ? 'Technical Interview - Room 7' : 'Technical Interview - Room 6';
-              await performQuery(
-                "INSERT INTO interviews (id, company_id, job_id, application_id, student_id, scheduled_by, title, interview_type, scheduled_start, scheduled_end, timezone, duration_minutes, status) VALUES (?, ?, 1, 1, ?, 2, ?, 'VIDEO_CALL', ?, ?, 'UTC', 60, 'SCHEDULED')",
-                [intId, compProfileId, svProfileId, titleFmt, startTimeFmt, endTimeFmt]
-              );
-              
-              // Seed notification too!
-              const msg = `You have been scheduled for an interview: ${titleFmt} with Demo Enterprise.`;
-              await performQuery(
-                "INSERT INTO notifications (user_id, title, message, type, is_read) VALUES (?, 'Interview Scheduled', ?, 'INTERVIEW', 0)",
-                [studentUserId, msg]
-              );
-              console.log(`👤 Default Interview Room ${intId} successfully seeded for ${designatedEmail}!`);
-            }
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Failed to seed default interview room 6/7:", error);
   }
 
   // Seed Default System Configs
@@ -1687,7 +1560,7 @@ export async function initDb() {
     console.error("Failed to delete legacy config key:", err);
   }
 
-  const [existingConfigs]: any = await performQuery("SELECT COUNT(*) as count FROM system_configs");
+  const [existingConfigs] = await performQuery("SELECT COUNT(*) as count FROM system_configs");
   const configCount = existingConfigs[0]?.count || 0;
   
   const defaultConfigValues = [
@@ -1716,7 +1589,7 @@ export async function initDb() {
   } else {
     // Standalone check to guarantee new parameters are active on already-initialized databases
     for (const item of defaultConfigValues) {
-      const [found]: any = await performQuery("SELECT * FROM system_configs WHERE config_key = ?", [item.key]);
+      const [found] = await performQuery("SELECT * FROM system_configs WHERE config_key = ?", [item.key]);
       if (found.length === 0) {
         await performQuery(
           "INSERT INTO system_configs (config_key, config_value, description) VALUES (?, ?, ?)",
@@ -1736,7 +1609,7 @@ export async function initDb() {
   } catch (err) { /* column may exist */ }
 
   // Seed Default XP Packages
-  const [existingPackages]: any = await performQuery("SELECT COUNT(*) as count FROM xp_packages");
+  const [existingPackages] = await performQuery("SELECT COUNT(*) as count FROM xp_packages");
   const pkgCount = existingPackages[0]?.count || 0;
   if (pkgCount === 0) {
     console.log("🌱 Seeding default XP packages...");
@@ -1857,150 +1730,6 @@ export async function initDb() {
   } catch (err) {
     console.error("❌ Error setting up Community tables:", err);
   }
-
-  // --- ADDITIVE VIDEO INTERVIEW SYSTEM TABLES ---
-  try {
-    const isMysql = useMySQL;
-    const pkType = isMysql ? "INT PRIMARY KEY AUTO_INCREMENT" : "INTEGER PRIMARY KEY AUTOINCREMENT";
-    const jsonType = isMysql ? "JSON" : "TEXT";
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interviews (
-        id ${pkType},
-        company_id INT NOT NULL,
-        job_id INT NOT NULL,
-        application_id INT NOT NULL,
-        student_id INT NOT NULL,
-        scheduled_by INT NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        interview_type VARCHAR(100) NOT NULL,
-        scheduled_start DATETIME NOT NULL,
-        scheduled_end DATETIME NOT NULL,
-        timezone VARCHAR(100) NOT NULL,
-        duration_minutes INT NOT NULL,
-        status VARCHAR(100) DEFAULT 'SCHEDULED',
-        instructions TEXT DEFAULT NULL,
-        proctoring_settings_json ${jsonType} DEFAULT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        cancelled_at DATETIME DEFAULT NULL,
-        cancel_reason TEXT DEFAULT NULL
-      )
-    `);
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_participants (
-        id ${pkType},
-        interview_id INT NOT NULL,
-        user_id INT DEFAULT NULL,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        role VARCHAR(100) NOT NULL,
-        join_status VARCHAR(100) DEFAULT 'PENDING',
-        joined_at DATETIME DEFAULT NULL,
-        left_at DATETIME DEFAULT NULL
-      )
-    `);
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_room_sessions (
-        id ${pkType},
-        interview_id INT NOT NULL,
-        room_id VARCHAR(255) NOT NULL,
-        started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ended_at DATETIME DEFAULT NULL,
-        ended_by INT DEFAULT NULL,
-        recording_url VARCHAR(500) DEFAULT NULL,
-        transcript_status VARCHAR(100) DEFAULT 'PENDING'
-      )
-    `);
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_room_questions (
-        id ${pkType},
-        interview_id INT NOT NULL,
-        asked_by_user_id INT DEFAULT NULL,
-        question_text TEXT NOT NULL,
-        asked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        source VARCHAR(100) DEFAULT 'MANUAL'
-      )
-    `);
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_transcript_segments (
-        id ${pkType},
-        interview_id INT NOT NULL,
-        speaker_role VARCHAR(100) NOT NULL,
-        speaker_user_id INT DEFAULT NULL,
-        text TEXT NOT NULL,
-        started_at DATETIME DEFAULT NULL,
-        ended_at DATETIME DEFAULT NULL,
-        confidence DOUBLE DEFAULT 1.0
-      )
-    `);
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_proctoring_events (
-        id ${pkType},
-        interview_id INT NOT NULL,
-        student_id INT NOT NULL,
-        event_type VARCHAR(100) NOT NULL,
-        severity VARCHAR(50) NOT NULL,
-        metadata_json ${jsonType} DEFAULT NULL,
-        occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_reports (
-        id ${pkType},
-        interview_id INT NOT NULL,
-        report_json ${jsonType} NOT NULL,
-        status VARCHAR(100) DEFAULT 'DRAFT',
-        generated_by_ai_model VARCHAR(100) DEFAULT NULL,
-        generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        finalized_by INT DEFAULT NULL,
-        finalized_at DATETIME DEFAULT NULL,
-        emailed_at DATETIME DEFAULT NULL
-      )
-    `);
-
-    await performQuery(`
-      CREATE TABLE IF NOT EXISTS interview_notifications (
-        id ${pkType},
-        interview_id INT NOT NULL,
-        user_id INT NOT NULL,
-        type VARCHAR(100) NOT NULL,
-        channel VARCHAR(100) NOT NULL,
-        status VARCHAR(100) DEFAULT 'PENDING',
-        sent_at DATETIME DEFAULT NULL
-      )
-    `);
-
-    // Add High-Performance index layers to interviews safely matching all SQL dialects
-    try {
-      await performQuery("CREATE INDEX idx_interviews_company_id ON interviews(company_id);");
-    } catch (_) {}
-    try {
-      await performQuery("CREATE INDEX idx_interviews_student_id ON interviews(student_id);");
-    } catch (_) {}
-    try {
-      await performQuery("CREATE INDEX idx_interviews_job_id ON interviews(job_id);");
-    } catch (_) {}
-    try {
-      await performQuery("CREATE INDEX idx_interviews_app_id ON interviews(application_id);");
-    } catch (_) {}
-    try {
-      await performQuery("CREATE INDEX idx_interviews_start ON interviews(scheduled_start);");
-    } catch (_) {}
-    try {
-      await performQuery("CREATE INDEX idx_interviews_status ON interviews(status);");
-    } catch (_) {}
-
-    console.log("🚀 Production Video Interview Tables Initialized safely.");
-  } catch (error) {
-    console.error("❌ Critical Error during Video Interview Tables creation:", error);
-  }
 }
 
 async function runSqliteInit() {
@@ -2076,17 +1805,6 @@ async function runSqliteInit() {
       user_agent TEXT,
       details TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      title TEXT NOT NULL,
-      message TEXT NOT NULL,
-      type TEXT DEFAULT 'INFO',
-      is_read INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS otps (
@@ -2362,6 +2080,30 @@ async function runSqliteInit() {
       FOREIGN KEY (stage_id) REFERENCES job_stages(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      type TEXT DEFAULT 'INFO',
+      is_read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS test_schedules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      stage_id INTEGER NOT NULL,
+      scheduled_at DATETIME NOT NULL,
+      duration_minutes INTEGER NOT NULL,
+      cutoff_score INTEGER DEFAULT 60,
+      status TEXT DEFAULT 'PENDING',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+      FOREIGN KEY (stage_id) REFERENCES job_stages(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS job_applications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       job_id INTEGER NOT NULL,
@@ -2416,6 +2158,18 @@ async function runSqliteInit() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       job_id INTEGER UNIQUE NOT NULL,
       questions_json TEXT NOT NULL, 
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      job_id INTEGER NOT NULL,
+      status TEXT CHECK(status IN ('APPLIED', 'TEST_TAKEN', 'SHORTLISTED', 'REJECTED')) DEFAULT 'APPLIED',
+      test_score INTEGER,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, job_id),
+      FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE,
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
     );
 
@@ -2960,6 +2714,13 @@ async function runSqliteInit() {
     const companyCheckColNames = companyCheckCols.map((c: any) => c.name);
     if (!companyCheckColNames.includes("is_submitted")) {
       sqliteDb.exec("ALTER TABLE company_profiles ADD COLUMN is_submitted INTEGER DEFAULT 0");
+    }
+
+    const interviewSchedCols = sqliteDb.prepare("PRAGMA table_info(interview_schedules)").all();
+    const interviewSchedColNames = interviewSchedCols.map((c: any) => c.name);
+    if (!interviewSchedColNames.includes("status")) {
+      console.log("📡 Adding missing status column to SQLite interview_schedules...");
+      sqliteDb.exec("ALTER TABLE interview_schedules ADD COLUMN status TEXT DEFAULT 'UPCOMING'");
     }
 
     // Apply High-Coverage Performance Indices for SQLite

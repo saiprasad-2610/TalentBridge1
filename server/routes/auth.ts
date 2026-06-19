@@ -33,7 +33,7 @@ router.post("/register", async (req, res) => {
 
   try {
     console.log(`[AUTH] Registering user: ${email}, role: ${role}`);
-    const [existing]: any = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    const [existing] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
     if (existing && existing.length > 0) {
       return res.status(400).json({ success: false, message: "Email already registered." });
     }
@@ -41,7 +41,7 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
     const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     console.log("[AUTH] Creating user record...");
-    const [result]: any = await db.query(
+    const [result] = await db.query(
       "INSERT INTO users (email, password_hash, role, is_verified, referral_code) VALUES (?, ?, ?, 0, ?)", 
       [email, hashedPassword, role, referralCode]
     );
@@ -116,7 +116,7 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const [users]: any = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
     const user = users[0];
 
     if (!user) {
@@ -165,13 +165,13 @@ router.post("/login", async (req, res) => {
     let sidebarPermissions: string[] | null = null;
 
     if (user.role === "STUDENT") {
-      const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [user.id]);
+      const [profiles] = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [user.id]);
       profileData = profiles[0];
     } else if (user.role === "COMPANY") {
-      const [profiles]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [user.id]);
+      const [profiles] = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [user.id]);
       profileData = profiles[0];
     } else if (user.role === "TPO") {
-      const [profiles]: any = await db.query("SELECT * FROM tpo_profiles WHERE user_id = ?", [user.id]);
+      const [profiles] = await db.query("SELECT * FROM tpo_profiles WHERE user_id = ?", [user.id]);
       profileData = profiles[0];
       if (profileData && profileData.first_login === 1) {
         requiresPasswordChange = true;
@@ -180,7 +180,7 @@ router.post("/login", async (req, res) => {
 
     if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
       try {
-        const [perms]: any = await db.query("SELECT allowed_pages FROM admin_sidebar_permissions WHERE user_id = ?", [user.id]);
+        const [perms] = await db.query("SELECT allowed_pages FROM admin_sidebar_permissions WHERE user_id = ?", [user.id]);
         if (perms && perms.length > 0) {
           sidebarPermissions = JSON.parse(perms[0].allowed_pages);
         }
@@ -221,12 +221,12 @@ router.post("/refresh-token", async (req, res) => {
     const payload: any = verifyRefreshToken(refreshToken);
     if (!payload) return res.status(401).json({ success: false, message: "Invalid refresh token" });
 
-    const [stored]: any = await db.query("SELECT * FROM refresh_tokens WHERE token = ? AND user_id = ?", [refreshToken, payload.userId]);
+    const [stored] = await db.query("SELECT * FROM refresh_tokens WHERE token = ? AND user_id = ?", [refreshToken, payload.userId]);
     if (stored.length === 0 || new Date(stored[0].expires_at) < new Date()) {
        return res.status(401).json({ success: false, message: "Token expired or revoked" });
     }
 
-    const [users]: any = await db.query("SELECT * FROM users WHERE id = ?", [payload.userId]);
+    const [users] = await db.query("SELECT * FROM users WHERE id = ?", [payload.userId]);
     const user = users[0];
 
     const newAccessToken = generateToken({ userId: user.id, role: user.role, email: user.email });
@@ -243,7 +243,7 @@ router.post("/send-otp", async (req, res) => {
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
   try {
-    const [users]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    const [users] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: "Email not found." });
     }
@@ -272,7 +272,7 @@ router.post("/send-otp", async (req, res) => {
 router.post("/verify-otp", async (req, res) => {
   const { email, code } = req.body;
   try {
-    const [otps]: any = await db.query("SELECT * FROM otps WHERE email = ? AND code = ?", [email, code]);
+    const [otps] = await db.query("SELECT * FROM otps WHERE email = ? AND code = ?", [email, code]);
     const record = otps[0];
 
     if (!record) {
@@ -306,7 +306,7 @@ router.post("/verify-otp", async (req, res) => {
     await db.query("UPDATE users SET is_verified = 1 WHERE email = ?", [email]);
     await db.query("DELETE FROM otps WHERE email = ?", [email]);
     
-    const [users]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    const [users] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (users[0]) await logSecurityEvent(users[0].id, "EMAIL_VERIFIED", req);
 
     res.json({ success: true, message: "Email verified successfully. You can now login." });
@@ -321,7 +321,7 @@ router.post("/logout", async (req, res) => {
   const { refreshToken } = req.body;
   if (refreshToken) {
     try {
-      const [tokens]: any = await db.query("SELECT user_id FROM refresh_tokens WHERE token = ?", [refreshToken]);
+      const [tokens] = await db.query("SELECT user_id FROM refresh_tokens WHERE token = ?", [refreshToken]);
       if (tokens.length > 0) {
         const userId = tokens[0].user_id;
         // The user specifically requested to delete the chat history upon logout
@@ -339,7 +339,7 @@ router.post("/logout", async (req, res) => {
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
   try {
-    const [users]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    const [users] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (users.length === 0) {
       return res.json({ success: true, message: "If that email exists, a reset link has been sent." });
     }
@@ -368,7 +368,7 @@ router.post("/forgot-password", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   const { email, token, newPassword } = req.body;
   try {
-    const [otps]: any = await db.query("SELECT * FROM otps WHERE email = ? AND code = ?", [email, token]);
+    const [otps] = await db.query("SELECT * FROM otps WHERE email = ? AND code = ?", [email, token]);
     if (otps.length === 0) {
       return res.status(400).json({ success: false, message: "Invalid reset token." });
     }
@@ -386,7 +386,7 @@ router.post("/reset-password", async (req, res) => {
     await db.query("UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL WHERE email = ?", [hashedPassword, email]);
     await db.query("DELETE FROM otps WHERE email = ?", [email]);
 
-    const [users]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    const [users] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (users[0]) await logSecurityEvent(users[0].id, "PASSWORD_RESET", req);
 
     res.json({ success: true, message: "Password reset successfully." });
@@ -400,7 +400,7 @@ router.post("/change-password", async (req, res) => {
   const { userId, currentPassword, newPassword } = req.body;
 
   try {
-    const [users]: any = await db.query("SELECT * FROM users WHERE id = ?", [userId]);
+    const [users] = await db.query("SELECT * FROM users WHERE id = ?", [userId]);
     const user = users[0];
 
     if (!user) return res.status(404).json({ success: false, message: "User not found" });

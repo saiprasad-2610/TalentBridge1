@@ -35,38 +35,35 @@ export const configureCors = () => {
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000000, // Practically unlimited for development/testing environments
+  max: 300, // Limit each IP to 300 requests per window
   message: {
     success: false,
     message: "Rate limit exceeded. Please try again after 15 minutes.",
   },
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { trustProxy: false },
 });
 
 export const strictAuthLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000000, // Practically unlimited for development/testing environments
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: 10, // Limit login/register attempts to 10 per 24 hours to mitigate brute force
   message: {
     success: false,
-    message: "Too many authentication attempts. Please try again after 15 minutes.",
+    message: "Too many authentication attempts. Please try again after 24 hours.",
   },
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { trustProxy: false },
 });
 
 export const aiServiceLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 1000000, // Practically unlimited for development/testing environments
+  max: 50, // Limit AI requests to 50 per hour per IP to contain token/credit drain
   message: {
     success: false,
     message: "Hourly AI consumption quota exceeded. Please wait before asking again.",
   },
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { trustProxy: false },
 });
 
 /**

@@ -19,11 +19,11 @@ router.use(authenticate, authorize(['TPO']));
 
 // Helper to get TPO Profile and Assigned College IDs
 async function getTPOContext(userId: number) {
-  const [tpoProfiles]: any = await db.query("SELECT id FROM tpo_profiles WHERE user_id = ?", [userId]);
+  const [tpoProfiles] = await db.query("SELECT id FROM tpo_profiles WHERE user_id = ?", [userId]);
   if (tpoProfiles.length === 0) return null;
   const tpoId = tpoProfiles[0].id;
 
-  const [colleges]: any = await db.query("SELECT college_id FROM tpo_colleges WHERE tpo_id = ?", [tpoId]);
+  const [colleges] = await db.query("SELECT college_id FROM tpo_colleges WHERE tpo_id = ?", [tpoId]);
   const collegeIds = colleges.map((c: any) => c.college_id);
 
   return { tpoId, collegeIds };
@@ -54,21 +54,21 @@ router.get("/dashboard-stats", async (req: any, res) => {
     const placeholders = collegeIds.map(() => '?').join(',');
 
     // 1. Core Metrics
-    const [studentStats]: any = await db.query(`
+    const [studentStats] = await db.query(`
       SELECT COUNT(*) as totalStudents,
              SUM(CASE WHEN completeness_score >= 80 THEN 1 ELSE 0 END) as activeStudents
       FROM student_profiles
       WHERE college_id IN (${placeholders})
     `, [...collegeIds]);
 
-    const [placementStats]: any = await db.query(`
+    const [placementStats] = await db.query(`
       SELECT COUNT(*) as placedStudents
       FROM event_registrations er
       JOIN student_profiles sp ON er.student_id = sp.id
       WHERE sp.college_id IN (${placeholders}) AND er.status = 'SELECTED'
     `, [...collegeIds]);
 
-    const [talentStats]: any = await db.query(`
+    const [talentStats] = await db.query(`
       SELECT AVG(overall_score) as avgTalentScore,
              SUM(CASE WHEN overall_score < 40 THEN 1 ELSE 0 END) as atRiskStudents
       FROM talent_scores ts
@@ -77,7 +77,7 @@ router.get("/dashboard-stats", async (req: any, res) => {
     `, [...collegeIds]);
 
     // 2. College-wise Analytics
-    const [collegeAnalytics]: any = await db.query(`
+    const [collegeAnalytics] = await db.query(`
       SELECT cm.college_name, ca.*
       FROM college_analytics ca
       JOIN college_master cm ON ca.college_id = cm.id
@@ -115,7 +115,7 @@ router.get("/students", async (req: any, res) => {
     const { collegeIds } = context;
     const placeholders = collegeIds.map(() => '?').join(',');
 
-    const [students]: any = await db.query(`
+    const [students] = await db.query(`
       SELECT sp.*, u.email, ts.overall_score as talent_score, cm.college_name
       FROM student_profiles sp
       JOIN users u ON sp.user_id = u.id
@@ -143,7 +143,7 @@ router.get("/ai-skill-gap", async (req: any, res) => {
     const placeholders = collegeIds.map(() => '?').join(',');
 
     // Get aggregated skills and scores from students
-    const [studentData]: any = await db.query(`
+    const [studentData] = await db.query(`
       SELECT sp.skills_json, ts.overall_score, ts.breakdown_json, cs.topics_json
       FROM student_profiles sp
       LEFT JOIN talent_scores ts ON sp.user_id = ts.user_id
@@ -167,7 +167,7 @@ router.get("/ai-skill-gap", async (req: any, res) => {
     const avgScore = studentData.reduce((acc: number, curr: any) => acc + (curr.overall_score || 0), 0) / (studentData.length || 1);
     
     // Get latest job requirements
-    const [jobs]: any = await db.query("SELECT title, skills_json FROM jobs WHERE status = 'OPEN' LIMIT 20");
+    const [jobs] = await db.query("SELECT title, skills_json FROM jobs WHERE status = 'OPEN' LIMIT 20");
     const jobReqs = jobs.map((j: any) => {
       const skills = typeof j.skills_json === 'string' ? JSON.parse(j.skills_json) : (j.skills_json || []);
       return `${j.title}: ${skills.join(', ')}`;
@@ -199,7 +199,7 @@ router.get("/ai-skill-gap", async (req: any, res) => {
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
     });
     const text = result.text;
@@ -239,7 +239,7 @@ router.post("/events", async (req: any, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized for this college" });
     }
 
-    const [result]: any = await db.query(`
+    const [result] = await db.query(`
       INSERT INTO events (college_id, tpo_id, title, description, event_type, start_date, end_date, location_or_link, image_url)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [targetCollegeId, context.tpoId, title, description, event_type, start_date, end_date, location_or_link, image_url || null]);
@@ -258,7 +258,7 @@ router.get("/events", async (req: any, res) => {
 
     const placeholders = context.collegeIds.map(() => '?').join(',');
 
-    const [events]: any = await db.query(`
+    const [events] = await db.query(`
       SELECT e.*, cm.college_name,
              (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as registration_count
       FROM events e
@@ -281,12 +281,12 @@ router.get("/events/:id/registrations", async (req: any, res) => {
     const eventId = Number(req.params.id);
 
     // Verify if this event belongs to the TPO's colleges
-    const [eventRow]: any = await db.query(`SELECT college_id FROM events WHERE id = ?`, [eventId]);
+    const [eventRow] = await db.query(`SELECT college_id FROM events WHERE id = ?`, [eventId]);
     if (eventRow.length === 0 || !context.collegeIds.map((id: any) => Number(id)).includes(Number(eventRow[0].college_id))) {
       return res.status(403).json({ success: false, message: "Unauthorized for this event" });
     }
 
-    const [registrations]: any = await db.query(`
+    const [registrations] = await db.query(`
       SELECT er.id as registration_id, er.status, er.registered_at, 
              sp.id as student_id, sp.full_name, sp.contact, sp.profile_photo_url, sp.resume_url, sp.aadhar_or_college_id
       FROM event_registrations er
@@ -312,7 +312,7 @@ router.put("/events/:id/registrations/:regId", async (req: any, res) => {
     const { status } = req.body;
 
     // Verify if this event belongs to the TPO's colleges
-    const [eventRow]: any = await db.query(`SELECT college_id FROM events WHERE id = ?`, [eventId]);
+    const [eventRow] = await db.query(`SELECT college_id FROM events WHERE id = ?`, [eventId]);
     if (eventRow.length === 0 || !context.collegeIds.map((id: any) => Number(id)).includes(Number(eventRow[0].college_id))) {
       return res.status(403).json({ success: false, message: "Unauthorized for this event" });
     }
@@ -339,7 +339,7 @@ router.post("/tests", async (req: any, res) => {
 
     const { title, duration, total_marks, questions, college_id } = req.body;
 
-    const [result]: any = await db.query(`
+    const [result] = await db.query(`
       INSERT INTO tpo_tests (tpo_id, college_id, title, duration_minutes, total_marks, questions_json)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [context.tpoId, college_id, title, duration, total_marks, JSON.stringify(questions)]);
@@ -357,7 +357,7 @@ router.get("/tests", async (req: any, res) => {
 
     const placeholders = context.collegeIds.map(() => '?').join(',');
 
-    const [tests]: any = await db.query(`
+    const [tests] = await db.query(`
       SELECT t.*, cm.college_name,
              (SELECT COUNT(*) FROM student_test_submissions WHERE test_id = t.id) as submission_count
       FROM tpo_tests t
@@ -378,7 +378,7 @@ router.get("/colleges", async (req: any, res) => {
     if (!context || context.collegeIds.length === 0) return res.json({ success: true, data: [] });
 
     const placeholders = context.collegeIds.map(() => '?').join(',');
-    const [colleges]: any = await db.query(`
+    const [colleges] = await db.query(`
       SELECT id, college_name, college_code, district, state 
       FROM college_master 
       WHERE id IN (${placeholders}) AND status = 'ACTIVE'
@@ -454,7 +454,7 @@ router.get("/verifications", async (req: any, res) => {
     const placeholders = collegeIds.map(() => '?').join(',');
 
     // 1. Proactive auto-generation of verification rows for student profiles who uploaded resumes but don't have records
-    const [eligibleStudents]: any = await db.query(`
+    const [eligibleStudents] = await db.query(`
       SELECT sp.id, sp.resume_url, sp.aadhar_or_college_id
       FROM student_profiles sp
       WHERE sp.college_id IN (${placeholders}) 
@@ -463,7 +463,7 @@ router.get("/verifications", async (req: any, res) => {
 
     for (const student of eligibleStudents) {
       if (student.resume_url) {
-        const [existing]: any = await db.query(
+        const [existing] = await db.query(
           "SELECT id FROM tpo_verifications WHERE student_id = ? AND document_type = 'Resume'",
           [student.id]
         );
@@ -477,7 +477,7 @@ router.get("/verifications", async (req: any, res) => {
     }
 
     // Checking for Aadhar / College ID Card
-    const [eligibleIdStudents]: any = await db.query(`
+    const [eligibleIdStudents] = await db.query(`
       SELECT sp.id, sp.aadhar_or_college_id
       FROM student_profiles sp
       WHERE sp.college_id IN (${placeholders}) 
@@ -486,7 +486,7 @@ router.get("/verifications", async (req: any, res) => {
 
     for (const student of eligibleIdStudents) {
       if (student.aadhar_or_college_id) {
-        const [existing]: any = await db.query(
+        const [existing] = await db.query(
           "SELECT id FROM tpo_verifications WHERE student_id = ? AND document_type = 'College ID Card'",
           [student.id]
         );
@@ -504,7 +504,7 @@ router.get("/verifications", async (req: any, res) => {
     }
 
     // 2. Fetch all verification records for assigned colleges
-    const [verifications]: any = await db.query(`
+    const [verifications] = await db.query(`
       SELECT v.*, sp.full_name, cm.college_name as college_name, u.email
       FROM tpo_verifications v
       JOIN student_profiles sp ON v.student_id = sp.id
@@ -534,7 +534,7 @@ router.post("/verifications/:id/approve", async (req: any, res) => {
     const placeholders = collegeIds.map(() => '?').join(',');
 
     // Ensure verification belongs to a student of TPO's assigned colleges
-    const [verification]: any = await db.query(`
+    const [verification] = await db.query(`
       SELECT v.id, v.student_id
       FROM tpo_verifications v
       JOIN student_profiles sp ON v.student_id = sp.id
@@ -572,7 +572,7 @@ router.post("/verifications/:id/reject", async (req: any, res) => {
     const placeholders = collegeIds.map(() => '?').join(',');
 
     // Ensure verification belongs to a student of TPO's assigned colleges
-    const [verification]: any = await db.query(`
+    const [verification] = await db.query(`
       SELECT v.id, v.student_id
       FROM tpo_verifications v
       JOIN student_profiles sp ON v.student_id = sp.id

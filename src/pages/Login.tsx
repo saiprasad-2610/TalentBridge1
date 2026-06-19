@@ -1,6 +1,6 @@
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.tsx";
 import { useAccessibility } from "../context/AccessibilityContext.tsx";
@@ -12,25 +12,13 @@ import toast from "react-hot-toast";
 export function Login() {
   const { login, user, loading, profile } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { setPageContext } = useAccessibility();
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
       if (user.role === "STUDENT") {
-        const from = location.state?.from;
-        const isInterviewFrom = from && (from === "/interview" || from.startsWith("/interview/room/"));
-        const metaEnv = (import.meta as any).env || {};
-        const isDev = metaEnv.MODE !== "production";
-        const isDummyEnabled = metaEnv.VITE_ENABLE_TEST_STUDENT_DUMMY_PROFILE === "true";
-
-        if (isInterviewFrom && isDev && isDummyEnabled) {
-          navigate(from, { replace: true });
-          return;
-        }
-
-        if (!profile || profile.onboarding_completed === 0) {
+        if (!profile || profile.onboarding_completed === 0 || (profile.completeness_score || 0) < 70) {
           navigate("/profile");
         } else {
           navigate("/student");
@@ -39,7 +27,7 @@ export function Login() {
       else if (user.role === "COMPANY") navigate("/company");
       else if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") navigate("/admin");
     }
-  }, [user, loading, profile, navigate, location.state]);
+  }, [user, loading, profile, navigate]);
 
   const formik = useFormik({
     initialValues: { email: "", password: "" },
@@ -63,18 +51,10 @@ export function Login() {
           const role = data.data.user.role;
           if (role === "STUDENT") {
             const p = data.data.profile;
-            const from = location.state?.from;
-            const isInterviewFrom = from && (from === "/interview" || from.startsWith("/interview/room/"));
-
-            if (isInterviewFrom) {
-              navigate(from, { replace: true });
-              return;
-            }
-
-            if (!p || p.onboarding_completed === 0) {
+            if (!p || p.onboarding_completed === 0 || (p.completeness_score || 0) < 70) {
               navigate("/profile");
             } else {
-              navigate(from || "/student");
+              navigate("/student");
             }
           }
           else if (role === "COMPANY") navigate("/company");
@@ -107,7 +87,7 @@ export function Login() {
       });
     }
     return () => setPageContext?.(null);
-  }, [setPageContext, navigate]);
+  }, [setPageContext, navigate, formik.submitForm, formik.setFieldValue]);
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 flex items-center justify-center p-4 sm:p-8 font-sans">
@@ -215,54 +195,6 @@ export function Login() {
               Create an account
             </Link>
           </p>
-
-          {/* Quick Demo Testing Accounts (Visible during development of Video Rooms) */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 text-center">
-              Developer Testing Assistant
-            </h4>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  formik.setFieldValue("email", "svkatageri19@gmail.com");
-                  formik.setFieldValue("password", "Student123!");
-                  toast.success("Autofilled Test Student Credentials");
-                }}
-                className="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 text-left rounded-xl transition-all cursor-pointer border border-indigo-100 group"
-              >
-                <div className="font-bold text-[11px] group-hover:underline">Test Student</div>
-                <div className="text-[9px] text-indigo-600 mt-0.5 truncate">svkatageri19@gmail.com</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  formik.setFieldValue("email", "company@talentbridge.com");
-                  formik.setFieldValue("password", "Company123!");
-                  toast.success("Autofilled Company Partner Credentials");
-                }}
-                className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-850 text-left rounded-xl transition-all cursor-pointer border border-emerald-100 group"
-              >
-                <div className="font-bold text-[11px] group-hover:underline">Test Company</div>
-                <div className="text-[9px] text-emerald-600 mt-0.5 truncate">company@talentbridge.com</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  formik.setFieldValue("email", "admin@talentbridge.com");
-                  formik.setFieldValue("password", "admin123");
-                  toast.success("Autofilled Super Admin Credentials");
-                }}
-                className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-left rounded-xl transition-all cursor-pointer border border-slate-150 group"
-              >
-                <div className="font-bold text-[11px] group-hover:underline">Super Admin</div>
-                <div className="text-[9px] text-slate-500 mt-0.5 truncate">admin@talentbridge.com</div>
-              </button>
-            </div>
-            <div className="text-[10px] text-slate-500 mt-4 text-center leading-normal">
-              💡 <span className="font-semibold text-slate-700">Testing Tip:</span> Paste the student email interview room link using the <strong>Shared App URL</strong> inside your incognito tab to bypass the Google sandbox authorization login screen!
-            </div>
-          </div>
         </div>
       </div>
     </div>

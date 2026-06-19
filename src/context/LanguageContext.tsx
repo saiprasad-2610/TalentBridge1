@@ -311,29 +311,16 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<Language>(() => {
-    try {
-      const stored = localStorage.getItem('tb_language');
-      if (stored === 'en' || stored === 'mr') {
-        return stored;
-      }
-    } catch (e) {
-      console.error("Failed to read tb_language from localStorage", e);
-    }
-    return 'en';
+    return (localStorage.getItem('tb_language') as Language) || 'en';
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem('tb_language', language);
-    } catch (e) {
-      console.error("Failed to write to localStorage", e);
-    }
+    localStorage.setItem('tb_language', language);
     document.documentElement.lang = language;
   }, [language]);
 
   const t = (key: string): string => {
-    const group = translations[language] || translations['en'];
-    return (group as any)[key] || key;
+    return (translations[language] as any)[key] || key;
   };
 
   return (
@@ -366,12 +353,7 @@ export const DynamicText: React.FC<{ text: string | undefined | null }> = ({ tex
     }
     
     const cacheKey = `trans_${language}_${text}`;
-    let cached = null;
-    try {
-      cached = localStorage.getItem(cacheKey);
-    } catch (e) {
-      console.warn("Storage access is blocked:", e);
-    }
+    const cached = localStorage.getItem(cacheKey);
     if (cached) {
       setTranslated(cached);
       return;
@@ -388,11 +370,7 @@ export const DynamicText: React.FC<{ text: string | undefined | null }> = ({ tex
     .then(data => {
       if (data.success && data.translatedText) {
         setTranslated(data.translatedText);
-        try {
-          localStorage.setItem(cacheKey, data.translatedText);
-        } catch (e) {
-          console.warn("Storage access is blocked:", e);
-        }
+        localStorage.setItem(cacheKey, data.translatedText);
       }
     })
     .catch(console.error);

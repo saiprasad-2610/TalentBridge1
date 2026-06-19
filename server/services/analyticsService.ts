@@ -2,7 +2,7 @@ import db from "../db.ts";
 
 export async function updateLoginStreak(userId: number) {
   try {
-    const [tracking]: any = await db.query("SELECT * FROM activity_tracking WHERE user_id = ?", [userId]);
+    const [tracking] = await db.query("SELECT * FROM activity_tracking WHERE user_id = ?", [userId]);
     const now = new Date();
     
     if (!tracking || tracking.length === 0) {
@@ -42,7 +42,7 @@ export async function updateLoginStreak(userId: number) {
 export async function calculateTalentScore(userId: number) {
   try {
     // 1. Get Profile Completeness (10%)
-    const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
     const profile = profiles[0];
     if (!profile) return 0;
     
@@ -51,7 +51,7 @@ export async function calculateTalentScore(userId: number) {
     const profileWeight = (profileScore / 100) * 10;
 
     // 2. AI Mock Interview Score (20%)
-    const [history]: any = await db.query(`
+    const [history] = await db.query(`
       SELECT AVG(score) as avg_score, COUNT(*) as interview_count 
       FROM interview_history ih
       JOIN student_profiles sp ON ih.student_id = sp.id
@@ -68,7 +68,7 @@ export async function calculateTalentScore(userId: number) {
     const interviewWeight = (interviewFinalScore / 100) * 20;
 
     // 3. AI Quiz/Test Performance (20%)
-    const [quizzes]: any = await db.query(`
+    const [quizzes] = await db.query(`
       SELECT AVG(percentage) as avg_quiz_score 
       FROM quizzes 
       WHERE user_id = ? AND status = 'COMPLETED'
@@ -77,14 +77,14 @@ export async function calculateTalentScore(userId: number) {
     const quizWeight = (quizScore / 100) * 20;
 
     // 4. Coding Platform Analysis (20%)
-    const [codingData]: any = await db.query(`
+    const [codingData] = await db.query(`
       SELECT coding_score FROM coding_analysis WHERE user_id = ?
     `, [userId]);
     let codingScore = codingData[0]?.coding_score || 0;
     
     // If no analysis score, fallback to simple stats check
     if (!codingScore) {
-       const [codingStats]: any = await db.query(`
+       const [codingStats] = await db.query(`
          SELECT cs.problems_solved, cs.contest_rating 
          FROM coding_stats cs
          JOIN coding_profiles cp ON cs.profile_id = cp.id
@@ -99,7 +99,7 @@ export async function calculateTalentScore(userId: number) {
     const codingWeight = (codingScore / 100) * 20;
 
     // 5. Intelligence Assessment (PQ, IQ, EQ, SQ - 10% total, 2.5% each)
-    const [intelData]: any = await db.query("SELECT * FROM student_assessment_results WHERE user_id = ?", [userId]);
+    const [intelData] = await db.query("SELECT * FROM student_assessment_results WHERE user_id = ?", [userId]);
     const intel = intelData[0] || {};
     const pqScore = intel.pq_score || 0;
     const iqScore = intel.iq_score || 0;
@@ -113,7 +113,7 @@ export async function calculateTalentScore(userId: number) {
     const sqWeight = (sqScore / 100) * 2.5;
     
     // If not using new intelligence system yet, fallback to older psychometric schema, or 0.
-    const [psychResults]: any = await db.query("SELECT overall_score FROM psychometric_results WHERE user_id = ?", [userId]);
+    const [psychResults] = await db.query("SELECT overall_score FROM psychometric_results WHERE user_id = ?", [userId]);
     const oldPsychScore = psychResults[0]?.overall_score || 0;
     const oldPsychWeight = (oldPsychScore / 100) * 10;
     
@@ -128,12 +128,12 @@ export async function calculateTalentScore(userId: number) {
     }
 
     // 6. Extracurricular & Leadership (10%)
-    const [leadershipData]: any = await db.query("SELECT leadership_score FROM leadership_analysis WHERE user_id = ?", [userId]);
+    const [leadershipData] = await db.query("SELECT leadership_score FROM leadership_analysis WHERE user_id = ?", [userId]);
     let leadershipScore = leadershipData[0]?.leadership_score || 0;
     
     // Fallback if no analysis but has activities
     if (!leadershipScore) {
-       const [activities]: any = await db.query("SELECT COUNT(*) as count FROM extracurricular_activities WHERE user_id = ?", [userId]);
+       const [activities] = await db.query("SELECT COUNT(*) as count FROM extracurricular_activities WHERE user_id = ?", [userId]);
        const count = activities[0]?.count || 0;
        leadershipScore = Math.min((count / 3) * 100, 100); // 3 activities max out the score if no AI analysis
     }
@@ -141,10 +141,10 @@ export async function calculateTalentScore(userId: number) {
 
     // 7. Activity & Consistency (10%)
     // Let's use users login_streak and activity tracking
-    const [userRow]: any = await db.query("SELECT login_streak FROM users WHERE id = ?", [userId]);
+    const [userRow] = await db.query("SELECT login_streak FROM users WHERE id = ?", [userId]);
     const streak = userRow[0]?.login_streak || 0;
     
-    const [activityData]: any = await db.query("SELECT consistency_score FROM activity_tracking WHERE user_id = ?", [userId]);
+    const [activityData] = await db.query("SELECT consistency_score FROM activity_tracking WHERE user_id = ?", [userId]);
     let consistencyScore = activityData[0]?.consistency_score || 0;
     
     if (!consistencyScore) {
@@ -183,7 +183,7 @@ export async function calculateTalentScore(userId: number) {
     };
 
     // Update table
-    const [existingScore]: any = await db.query("SELECT id FROM talent_scores WHERE user_id = ?", [userId]);
+    const [existingScore] = await db.query("SELECT id FROM talent_scores WHERE user_id = ?", [userId]);
     if (existingScore.length > 0) {
       await db.query(
         "UPDATE talent_scores SET overall_score = ?, breakdown_json = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
@@ -208,7 +208,7 @@ export async function updateDailyTask(userId: number, taskType: 'INTERVIEW' | 'P
     const today = new Date().toISOString().split('T')[0];
     const xpReward = 50;
 
-    const [existing]: any = await db.query(
+    const [existing] = await db.query(
       "SELECT * FROM daily_tasks WHERE user_id = ? AND task_date = ?",
       [userId, today]
     );
@@ -221,7 +221,7 @@ export async function updateDailyTask(userId: number, taskType: 'INTERVIEW' | 'P
       `, [userId, today, taskType === 'CHECK_IN' ? 1 : 0, taskType === 'INTERVIEW' ? 1 : 0, taskType === 'PROFILE' ? 1 : 0, 0]);
       
       // Update last active in stats (XP is now handled by XPService)
-      const [stats]: any = await db.query("SELECT id FROM student_performance_stats WHERE user_id = ?", [userId]);
+      const [stats] = await db.query("SELECT id FROM student_performance_stats WHERE user_id = ?", [userId]);
       if (stats.length > 0) {
         await db.query(`
           UPDATE student_performance_stats 
@@ -267,7 +267,7 @@ export async function updateDailyTask(userId: number, taskType: 'INTERVIEW' | 'P
 }
 
 async function checkAndAwardBadges(userId: number) {
-  const [users]: any = await db.query("SELECT total_earned_xp FROM users WHERE id = ?", [userId]);
+  const [users] = await db.query("SELECT total_earned_xp FROM users WHERE id = ?", [userId]);
   const xp = users[0]?.total_earned_xp || 0;
 
   let badgeType: 'BEGINNER' | 'INTERMEDIATE' | 'PRO' | null = null;
@@ -288,8 +288,8 @@ async function checkAndAwardBadges(userId: number) {
 export async function logProfileView(studentUserId: number, companyUserId: number) {
   try {
     // Get student profile ID
-    const [students]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [studentUserId]);
-    const [companies]: any = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [companyUserId]);
+    const [students] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [studentUserId]);
+    const [companies] = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [companyUserId]);
     
     if (students[0] && companies[0]) {
       await db.query(

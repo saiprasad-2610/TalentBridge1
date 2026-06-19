@@ -459,13 +459,7 @@ export function StudentProfile() {
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
-  const [consentOpen, setConsentOpen] = useState(() => {
-    try {
-      return localStorage.getItem("consent_profile") !== "true";
-    } catch (e) {
-      return true;
-    }
-  });
+  const [consentOpen, setConsentOpen] = useState(localStorage.getItem("consent_profile") !== "true");
 
   // Educational step states (High School is always compulsory, others toggle-able and compulsory if enabled)
   const [schoolInst, setSchoolInst] = useState("");
@@ -494,7 +488,6 @@ export function StudentProfile() {
   const [degreeStart, setDegreeStart] = useState("");
   const [degreeEnd, setDegreeEnd] = useState("");
   const [degreeGrade, setDegreeGrade] = useState("");
-  const [interviews, setInterviews] = useState<any[]>([]);
 
   const fetchProfile = async () => {
     try {
@@ -512,22 +505,8 @@ export function StudentProfile() {
     }
   };
 
-  const fetchInterviews = async () => {
-    try {
-      const { data } = await api.get("/interviews/student");
-      if (data.success) {
-        setInterviews(data.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to load student interviews in profile view:", err);
-    }
-  };
-
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchInterviews();
-    }
+    if (user) fetchProfile();
   }, [user]);
 
   const parseJSON = (data: any, fallback: any = []) => {
@@ -838,57 +817,6 @@ export function StudentProfile() {
           </div>
         )}
 
-        {interviews && interviews.length > 0 && (
-          <div className="mb-8 p-6 bg-blue-50/70 border border-blue-200/60 rounded-3xl shadow-sm">
-            <div className="flex gap-3 items-center mb-4">
-              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-                <Calendar size={16} />
-              </div>
-              <h3 className="font-extrabold text-slate-900 text-sm sm:text-base uppercase tracking-wider">Your Scheduled Video Interviews</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {interviews.map((interview: any) => {
-                const startTime = new Date(interview.scheduled_start);
-                const isLive = interview.status === "LIVE";
-                return (
-                  <div key={interview.id} className="bg-white border border-slate-150 p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[10px] font-black font-mono px-2 py-0.5 rounded-md uppercase tracking-wider bg-slate-100 text-slate-600">
-                          {interview.status}
-                        </span>
-                        {isLive && (
-                          <span className="flex items-center gap-1.5 text-red-600 text-[10px] font-black uppercase tracking-widest animate-pulse">
-                            <span className="w-2 h-2 rounded-full bg-red-600" /> LIVE NOW
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="font-bold text-slate-800 text-sm uppercase tracking-tight text-left">{interview.job_title}</h4>
-                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1 text-left">{interview.company_name}</p>
-                      <div className="text-[11px] text-slate-400 font-medium mt-3 flex items-center gap-1.5">
-                        <Calendar size={12} />
-                        {startTime.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} at {startTime.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                      </div>
-                    </div>
-                    <div>
-                      <button
-                        onClick={() => navigate(`/interview/room/${interview.id}`)}
-                        className={`w-full py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                          isLive 
-                            ? "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20" 
-                            : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
-                        }`}
-                      >
-                        {isLive ? "Enter Live Room Now" : "Pre-Join & Test Hardware"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           
           {/* Sidebar / Left Column */}
@@ -1119,12 +1047,12 @@ export function StudentProfile() {
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">{exp.role}</h4>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{(exp.isCurrent || (exp as any).is_current) ? 'Current' : 'Completed'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{exp.isCurrent ? 'Current' : 'Completed'}</span>
                       </div>
                       <p className="text-slate-500 font-bold text-sm mb-2">{exp.company} • {exp.location}</p>
                       <p className="text-xs text-slate-600 leading-relaxed mb-4">{exp.description}</p>
                       <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <Calendar size={12}/> {exp.start_date || "Start"} - {(exp.isCurrent || (exp as any).is_current) ? "Present" : (exp.end_date || "End")}
+                        <Calendar size={12}/> {exp.start_date || "Start"} - {exp.isCurrent ? "Present" : (exp.end_date || "End")}
                       </div>
                     </div>
                   </div>
@@ -1146,13 +1074,9 @@ export function StudentProfile() {
                     <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-2">{proj.title}</h4>
                     <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4 line-clamp-3">{proj.description}</p>
                     <div className="flex flex-wrap gap-2 mb-6">
-                      {((proj.techStack || (proj as any).tech_stack || "") as string)
-                        .split(",")
-                        .filter(Boolean)
-                        .map((tech: string) => (
-                          <span key={tech} className="px-2 py-1 bg-white text-[9px] font-black text-slate-400 uppercase tracking-widest rounded border border-slate-200">{tech.trim()}</span>
-                        ))
-                      }
+                      {proj.techStack?.split(',').map((tech: string) => (
+                        <span key={tech} className="px-2 py-1 bg-white text-[9px] font-black text-slate-400 uppercase tracking-widest rounded border border-slate-200">{tech.trim()}</span>
+                      ))}
                     </div>
                     <div className="flex gap-4">
                       {proj.githubLink && (
@@ -1187,10 +1111,10 @@ export function StudentProfile() {
                     </div>
                     <div className="flex-1">
                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{cert.name}</h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cert.issuingOrganization || (cert as any).issuing_organization}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cert.issuingOrganization}</p>
                     </div>
-                    {(cert.credentialUrl || (cert as any).credential_url) && (
-                      <a href={cert.credentialUrl || (cert as any).credential_url} target="_blank" className="p-2 hover:bg-white rounded-lg text-blue-600 transition-all">
+                    {cert.credentialUrl && (
+                      <a href={cert.credentialUrl} target="_blank" className="p-2 hover:bg-white rounded-lg text-blue-600 transition-all">
                         <ExternalLink size={16} />
                       </a>
                     )}
@@ -2318,11 +2242,7 @@ export function StudentProfile() {
         consentMessage="To register on the main placement server, you consent to the sharing of your professional experiences, profiles, diagnostic intelligence quotients, and resume attachments with verified HR recruiters and enterprise partners. Placement-ready scoring dashboards will be made searchable for matching job listings."
         compulsoryWarning="Declining this consent will prevent you from utilizing our recruitment services. Shared profile visibility is compulsory to enlist for ongoing active campus placements."
         onAgree={() => {
-          try {
-            localStorage.setItem("consent_profile", "true");
-          } catch (e) {
-            console.warn("localStorage write blocked:", e);
-          }
+          localStorage.setItem("consent_profile", "true");
           setConsentOpen(false);
         }}
         onDisagreeClose={() => {

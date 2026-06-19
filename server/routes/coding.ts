@@ -43,7 +43,7 @@ router.post("/connect", async (req, res) => {
     const username = extractUsername(profileUrl, platform);
     
     // Check if exists
-    const [existing]: any = await db.query("SELECT id FROM coding_profiles WHERE user_id = ? AND platform = ?", [userId, platform]);
+    const [existing] = await db.query("SELECT id FROM coding_profiles WHERE user_id = ? AND platform = ?", [userId, platform]);
     
     if (existing.length > 0) {
       await db.query(`
@@ -64,7 +64,7 @@ router.post("/connect", async (req, res) => {
       `, [userId, platform, profileUrl, username]);
       insertResult = dbRes;
     } else {
-      const [dbRes]: any = await db.query(`
+      const [dbRes] = await db.query(`
         INSERT INTO coding_profiles (user_id, platform, profile_url, username, is_verified) 
         VALUES (?, ?, ?, ?, 1)
       `, [userId, platform, profileUrl, username]);
@@ -279,7 +279,7 @@ export async function syncProfileData(profileId: number, platform: string, usern
   }
   
   // Upsert stats
-  const [existing]: any = await db.query("SELECT id FROM coding_stats WHERE profile_id = ?", [profileId]);
+  const [existing] = await db.query("SELECT id FROM coding_stats WHERE profile_id = ?", [profileId]);
   
   if (existing.length > 0) {
     await db.query(`
@@ -302,7 +302,7 @@ export async function syncProfileData(profileId: number, platform: string, usern
 router.get("/profiles/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
-    const [profiles]: any = await db.query("SELECT * FROM coding_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT * FROM coding_profiles WHERE user_id = ?", [userId]);
     res.json({ success: true, profiles });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error fetching profiles" });
@@ -313,7 +313,7 @@ router.get("/profiles/:userId", async (req, res) => {
 router.get("/analytics/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
-    const [profiles]: any = await db.query("SELECT * FROM coding_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT * FROM coding_profiles WHERE user_id = ?", [userId]);
     
     // Auto-sync logic (sync if older than 1 hour)
     for (const profile of profiles) {
@@ -332,11 +332,11 @@ router.get("/analytics/:userId", async (req, res) => {
     if (profiles.length > 0) {
       const profileIds = profiles.map((p: any) => p.id);
       const placeholders = profileIds.map(() => '?').join(',');
-      const [statsResult]: any = await db.query(`SELECT * FROM coding_stats WHERE profile_id IN (${placeholders})`, profileIds);
+      const [statsResult] = await db.query(`SELECT * FROM coding_stats WHERE profile_id IN (${placeholders})`, profileIds);
       stats = statsResult;
     }
 
-    const [analysis]: any = await db.query("SELECT * FROM coding_analysis WHERE user_id = ?", [userId]);
+    const [analysis] = await db.query("SELECT * FROM coding_analysis WHERE user_id = ?", [userId]);
 
     res.json({ 
       success: true, 
@@ -352,7 +352,7 @@ router.get("/analytics/:userId", async (req, res) => {
 // 4. Manual Sync
 router.post("/sync/:profileId", async (req, res) => {
   try {
-    const [profile]: any = await db.query("SELECT * FROM coding_profiles WHERE id = ?", [req.params.profileId]);
+    const [profile] = await db.query("SELECT * FROM coding_profiles WHERE id = ?", [req.params.profileId]);
     if (profile.length === 0) return res.status(404).json({ success: false, message: "Profile not found" });
     
     await syncProfileData(profile[0].id, profile[0].platform, profile[0].username);
@@ -380,14 +380,14 @@ router.post("/analyze", async (req, res) => {
 
   try {
     // Gather all stats
-    const [profiles]: any = await db.query("SELECT * FROM coding_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT * FROM coding_profiles WHERE user_id = ?", [userId]);
     if (profiles.length === 0) {
       return res.status(400).json({ success: false, message: "No coding profiles connected to analyze." });
     }
 
     const profileIds = profiles.map((p: any) => p.id);
     const placeholders = profileIds.map(() => '?').join(',');
-    const [stats]: any = await db.query(`SELECT * FROM coding_stats WHERE profile_id IN (${placeholders})`, profileIds);
+    const [stats] = await db.query(`SELECT * FROM coding_stats WHERE profile_id IN (${placeholders})`, profileIds);
 
     const codingData = profiles.map((p: any) => {
       const stat = stats.find((s: any) => s.profile_id === p.id);
@@ -454,7 +454,7 @@ Return EXACTLY in this JSON format:
     const parsed = JSON.parse(cleanedJson);
 
     // Save
-    const [existing]: any = await db.query("SELECT id FROM coding_analysis WHERE user_id = ?", [userId]);
+    const [existing] = await db.query("SELECT id FROM coding_analysis WHERE user_id = ?", [userId]);
     
     if (existing.length > 0) {
       await db.query(`

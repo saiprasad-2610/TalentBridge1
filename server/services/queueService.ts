@@ -86,7 +86,7 @@ export async function processSessionEvaluation(data: { studentId: number; transc
   const rawResult = await geminiBreaker.fire({
     apiCall: async () => {
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
@@ -99,7 +99,7 @@ export async function processSessionEvaluation(data: { studentId: number; transc
   const overallScore = scores.overall || 75;
 
   // Retrieve student profile
-  let [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [studentId]);
+  let [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [studentId]);
   let profileId = null;
 
   if (profiles && profiles.length > 0) {
@@ -144,7 +144,7 @@ export async function processSessionEvaluation(data: { studentId: number; transc
   ]);
 
   // Update rolling stats
-  const [existingPerf]: any = await db.query("SELECT id, avg_interview_score FROM student_performance_stats WHERE user_id = ?", [studentId]);
+  const [existingPerf] = await db.query("SELECT id, avg_interview_score FROM student_performance_stats WHERE user_id = ?", [studentId]);
   if (existingPerf.length > 0) {
     const currentAvg = existingPerf[0].avg_interview_score || 0;
     const newAvg = (currentAvg + overallScore) / 2;

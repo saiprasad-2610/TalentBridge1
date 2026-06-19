@@ -6,6 +6,11 @@ export const xpService = {
     return data.success ? data.balance : 0;
   },
 
+  async getTransactions() {
+    const { data } = await api.get("/xp/transactions");
+    return data;
+  },
+
   async claimDailyReward() {
     const { data } = await api.post("/xp/claim-daily");
     return data;

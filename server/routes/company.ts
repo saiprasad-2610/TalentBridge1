@@ -42,11 +42,11 @@ const calculateCompleteness = (profile: any, docs: any[]) => {
 // Company profile
 router.get("/profile/:userId", async (req, res) => {
   try {
-    const [profiles]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [req.params.userId]);
+    const [profiles] = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [req.params.userId]);
     if (!profiles[0]) {
       return res.json({ success: true, data: null });
     }
-    const [docs]: any = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [profiles[0].id]);
+    const [docs] = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [profiles[0].id]);
     res.json({ success: true, data: { ...profiles[0], documents: docs } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error fetching profile" });
@@ -60,7 +60,7 @@ router.put("/profile/:userId", async (req, res) => {
 
   try {
     // Check if profile exists
-    const [existing]: any = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [userId]);
+    const [existing] = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [userId]);
     
     if (existing[0]) {
       await db.query(`
@@ -99,8 +99,8 @@ router.put("/profile/:userId", async (req, res) => {
     }
 
     // Refresh score
-    const [refProf]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [userId]);
-    const [refDocs]: any = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [refProf[0].id]);
+    const [refProf] = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [userId]);
+    const [refDocs] = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [refProf[0].id]);
     const score = calculateCompleteness(refProf[0], refDocs);
     await db.query("UPDATE company_profiles SET completeness_score = ? WHERE user_id = ?", [score, userId]);
 
@@ -117,7 +117,7 @@ router.post("/profile/:userId/documents", async (req, res) => {
   const userId = req.params.userId;
 
   try {
-    const [profiles]: any = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [userId]);
     if (!profiles[0]) return res.status(404).json({ success: false, message: "Profile not found" });
 
     const companyId = profiles[0].id;
@@ -129,8 +129,8 @@ router.post("/profile/:userId/documents", async (req, res) => {
     await db.query("INSERT INTO company_documents (company_id, doc_type, doc_url) VALUES (?, ?, ?)", [companyId, doc_type, doc_url]);
 
     // Recalculate score
-    const [refProf]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [userId]);
-    const [refDocs]: any = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [refProf[0].id]);
+    const [refProf] = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [userId]);
+    const [refDocs] = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [refProf[0].id]);
     const score = calculateCompleteness(refProf[0], refDocs);
     await db.query("UPDATE company_profiles SET completeness_score = ? WHERE user_id = ?", [score, userId]);
 
@@ -144,10 +144,10 @@ router.post("/profile/:userId/documents", async (req, res) => {
 // Submit for Verification
 router.post("/profile/:userId/submit", async (req, res) => {
   try {
-    const [profiles]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [req.params.userId]);
+    const [profiles] = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [req.params.userId]);
     if (!profiles[0]) return res.status(404).json({ success: false, message: "Profile not found" });
 
-    const [docs]: any = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [profiles[0].id]);
+    const [docs] = await db.query("SELECT * FROM company_documents WHERE company_id = ?", [profiles[0].id]);
     const score = calculateCompleteness(profiles[0], docs);
 
     if (score < 80) {
@@ -181,7 +181,7 @@ router.get("/tests/:jobId", async (req, res) => {
     const jobId = req.params.jobId;
     console.log(`📡 Fetching tests for Job ID: ${jobId}`);
 
-    const [questions]: any = await db.query(`
+    const [questions] = await db.query(`
       SELECT TQ.*, JS.stage_name, JS.job_id
       FROM test_questions TQ
       JOIN job_stages JS ON TQ.stage_id = JS.id
@@ -195,7 +195,7 @@ router.get("/tests/:jobId", async (req, res) => {
 
     // Fallback to legacy tests table
     console.log(`🔍 No stage-specific questions, checking legacy tests table for job ${jobId}...`);
-    const [legacyTests]: any = await db.query("SELECT * FROM tests WHERE job_id = ?", [jobId]);
+    const [legacyTests] = await db.query("SELECT * FROM tests WHERE job_id = ?", [jobId]);
     if (legacyTests.length > 0) {
        console.log(`✅ Found legacy test for job ${jobId}`);
        const qs = typeof legacyTests[0].questions_json === 'string' ? JSON.parse(legacyTests[0].questions_json) : legacyTests[0].questions_json;

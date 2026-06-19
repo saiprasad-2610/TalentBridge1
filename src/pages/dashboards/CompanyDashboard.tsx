@@ -1,367 +1,265 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext.tsx";
 import api from "../../services/api.ts";
 import { 
-  Briefcase, Users, UserCheck, Eye, TrendingUp, Sparkles, Plus, 
-  ArrowRight, Calendar, MessageSquare, Loader2, ArrowUpRight, Award,
-  CheckCircle, Target, ShieldCheck, Mail, Phone, ListChecks
+  Plus, Users, Briefcase, Target, ArrowRight, Sparkles, Trophy, BarChart3
 } from "lucide-react";
-import { motion } from "motion/react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
-import { toast } from "react-hot-toast";
+import { AnimatePresence } from "motion/react";
+import { Link } from "react-router-dom";
 
-interface StatProps {
-  label: string;
-  value: string | number;
-  icon: any;
-  trend?: string;
-  trendType?: "up" | "down" | "neutral";
-  description: string;
-}
+// Components
+import { AnalyticsCard } from "../../components/company/AnalyticsCard.tsx";
+import { JobCard } from "../../components/company/JobCard.tsx";
+import { CandidateTable } from "../../components/company/CandidateTable.tsx";
+import { CandidateDetailModal } from "../../components/company/CandidateDetailModal.tsx";
+import { AIInsightsPanel } from "../../components/company/AIInsightsPanel.tsx";
+import { HiringHealthPanel } from "../../components/company/HiringHealthPanel.tsx";
 
 export function CompanyDashboard() {
   const { user, profile } = useAuth();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
-
-  const fetchDashboardData = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const { data: resData } = await api.get(`/analytics/employer/${user.id}`);
-      if (resData.success) {
-        setData(resData.data);
-      } else {
-        toast.error("Failed to load recruiter analytics.");
-      }
-    } catch (err) {
-      console.error("Failed to fetch employer dashboard stats:", err);
-      toast.error("Unable to load real-time analytics.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [applicants, setApplicants] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
+  const [companyJobs, setCompanyJobs] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [user]);
+    if (user?.id) {
+      fetchInitialData();
+    }
+  }, [user?.id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="animate-spin text-blue-600" size={36} />
-        <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">Compiling Talent Analytics...</p>
-      </div>
-    );
-  }
+  const fetchInitialData = async () => {
+    if (!user?.id) return;
+    try {
+      const [applicantsRes, jobsRes] = await Promise.all([
+        api.get(`/analytics/employer/${user.id}`),
+        api.get(`/jobs`)
+      ]);
 
-  const s = data?.stats || {
-    totalJobs: 0,
-    totalApps: 0,
-    totalHires: 0,
-    totalViews: 0,
-    applicationRate: "0%",
-    avgTimeToHire: "14 Days",
-    interviewSuccess: "0%"
+      if (applicantsRes.data.success) {
+        setApplicants(applicantsRes.data.data.applicants || []);
+        setStats(applicantsRes.data.data.stats || null);
+      }
+
+      const filteredJobs = (jobsRes.data.data || []).filter((j: any) => j.company_id === profile?.id);
+      setCompanyJobs(filteredJobs);
+    } catch (e) { console.error(e); }
   };
 
-  const trendData = data?.trendData && data.trendData.length > 0 ? data.trendData : [
-    { name: "Mon", apps: 2 },
-    { name: "Tue", apps: 5 },
-    { name: "Wed", apps: 4 },
-    { name: "Thu", apps: 8 },
-    { name: "Fri", apps: 7 },
-    { name: "Sat", apps: 3 },
-    { name: "Sun", apps: 4 }
-  ];
-
-  const funnelData = data?.funnelData && data.funnelData.length > 0 ? data.funnelData : [
-    { name: "Applied", value: s.totalApps || 0 },
-    { name: "Testing", value: Math.round((s.totalApps || 0) * 0.6) },
-    { name: "Interview", value: Math.round((s.totalApps || 0) * 0.3) },
-    { name: "Hired", value: s.totalHires || 0 }
-  ];
-
-  const recentApplicants = data?.applicants?.slice(0, 5) || [];
-
-  const stats: StatProps[] = [
-    {
-      label: "Active Job Slots",
-      value: s.totalJobs,
-      icon: Briefcase,
-      trend: "Unlimited",
-      trendType: "neutral",
-      description: "Live open postings on portal"
-    },
-    {
-      label: "Candidate Applications",
-      value: s.totalApps,
-      icon: Users,
-      trend: `${s.applicationRate} Conversion`,
-      trendType: "up",
-      description: "Total developer submissions"
-    },
-    {
-      label: "Position Hires",
-      value: s.totalHires,
-      icon: UserCheck,
-      trend: s.interviewSuccess,
-      trendType: "up",
-      description: "Shortlisted & finalized candidates"
-    },
-    {
-      label: "Profile Impressions",
-      value: s.totalViews,
-      icon: Eye,
-      trend: "+12.4% MoM",
-      trendType: "up",
-      description: "Student views of employer details"
-    }
-  ];
-
-  const COLORS = ["#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#10b981"];
+  const handleViewCandidate = async (candidate: any) => {
+    setSelectedCandidate(candidate);
+    try {
+      await api.post("/analytics/profile-view", { 
+        studentUserId: candidate.user_id, 
+        companyUserId: user?.id 
+      });
+    } catch (e) { console.error(e); }
+  };
 
   return (
-    <div className="space-y-10 min-h-screen pb-12">
-      {/* Welcome & Action Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-8 rounded-[32px] border border-slate-800 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600/10 rounded-full -mr-20 -mt-20 blur-[60px]" />
-        
-        <div className="space-y-2 relative z-10">
-          <span className="px-3.5 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-full">
-            Recruiter Center
-          </span>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight leading-none mt-2">
-            Welcome, {profile?.company_name || "Recruiter"}
-          </h1>
-          <p className="text-slate-400 text-xs leading-relaxed max-w-xl font-semibold">
-            Evaluate developer profiles, schedule secure interactive proctored video calls, and access comprehensive AI evaluations immediately.
-          </p>
+    <div className="space-y-16 max-w-7xl mx-auto px-4 py-12">
+      {/* Welcome Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10 bg-white p-12 rounded-[3rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.02)] relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-50/30 rounded-full blur-[100px] -mr-64 -mt-64 transition-transform duration-1000 group-hover:scale-110" />
+        <div className="relative z-10 flex-1">
+           <div className="flex items-center gap-4 mb-6">
+              <div className="w-3 h-3 rounded-full bg-blue-600 animate-pulse shadow-[0_0_15px_rgba(37,99,235,0.5)]" />
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.5em]">Recruiter Command Center</p>
+           </div>
+           <h1 className="text-6xl font-black text-slate-900 uppercase tracking-tight leading-[0.9] mb-8">
+             {(() => {
+                const hour = new Date().getHours();
+                if (hour < 12) return 'Good Morning';
+                if (hour < 17) return 'Good Afternoon';
+                return 'Good Evening';
+             })()}, <br/><span className="text-blue-600">{profile?.company_name || 'Partner'}</span>
+           </h1>
+           <div className="flex flex-wrap items-center gap-8">
+              <div className="flex items-center gap-3 group/stat">
+                 <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover/stat:bg-blue-50 group-hover/stat:text-blue-600 transition-all">
+                    <Users size={18} />
+                 </div>
+                 <div>
+                    <p className="text-slate-900 font-black text-sm tracking-tight leading-none">{applicants.length}</p>
+                    <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Active Pipeline</p>
+                 </div>
+              </div>
+              <div className="w-px h-10 bg-slate-100 hidden md:block" />
+              <div className="flex items-center gap-3 group/stat">
+                 <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover/stat:bg-blue-50 group-hover/stat:text-blue-600 transition-all">
+                    <Briefcase size={18} />
+                 </div>
+                 <div>
+                    <p className="text-slate-900 font-black text-sm tracking-tight leading-none">{companyJobs.length}</p>
+                    <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Open Campaigns</p>
+                 </div>
+              </div>
+              <div className="w-px h-10 bg-slate-100 hidden md:block" />
+              <Link to="/company/analytics" className="flex items-center gap-4 px-6 py-3 bg-blue-50 text-blue-600 rounded-2xl group/link hover:bg-blue-600 hover:text-white transition-all duration-300">
+                 <BarChart3 size={18} className="transition-transform group-hover/link:scale-110" />
+                 <p className="font-black text-[10px] uppercase tracking-widest">Real-time Insights</p>
+              </Link>
+           </div>
         </div>
-
-        <div className="flex flex-wrap gap-4 relative z-10">
-          <button 
-            onClick={() => navigate("/company/jobs/new")}
-            className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[20px] text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Plus size={16} /> Post New Position
-          </button>
-          <button 
-            onClick={() => navigate("/company/interviews")}
-            className="px-6 py-4 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-[20px] text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Calendar size={16} className="text-blue-500" /> Interview Center
-          </button>
+        <div className="flex gap-4 relative z-10 shrink-0">
+           <Link 
+              to="/company/jobs/new"
+              className="group flex items-center gap-4 bg-slate-900 text-white px-10 py-6 rounded-[2rem] font-black uppercase tracking-[0.2em] text-[11px] shadow-2xl shadow-slate-900/20 hover:bg-blue-600 hover:shadow-blue-500/40 hover:-translate-y-1 transition-all duration-500 active:scale-95"
+           >
+              <Plus size={24} strokeWidth={3} className="group-hover:rotate-90 transition-transform duration-500" /> 
+              Post Global Role
+           </Link>
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="bg-white border border-slate-100 rounded-3xl p-6 hover:shadow-xl hover:shadow-slate-100/40 transition-all flex flex-col justify-between"
-          >
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
-                <h3 className="text-2xl font-black text-slate-900 mt-1">{stat.value}</h3>
-              </div>
-              <div className="p-3.5 bg-blue-50/50 rounded-2xl text-blue-600">
-                <stat.icon size={22} />
-              </div>
-            </div>
-            
-            <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 font-semibold">{stat.description}</span>
-              {stat.trend && (
-                <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                  stat.trendType === "up" ? "bg-emerald-50 text-emerald-600" :
-                  stat.trendType === "down" ? "bg-red-50 text-red-600" : "bg-slate-50 text-slate-500"
-                }`}>
-                  {stat.trend}
-                </span>
-              )}
-            </div>
-          </motion.div>
-        ))}
+      {/* Analytics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+         <AnalyticsCard 
+            label="Active Jobs" 
+            value={companyJobs.length} 
+            trend="Current" 
+            trendUp={true} 
+            icon={<Briefcase size={22}/>} 
+            color="blue"
+         />
+         <AnalyticsCard 
+            label="Pipeline" 
+            value={stats?.totalApps || 0} 
+            trend="Current" 
+            trendUp={true} 
+            icon={<Users size={22}/>} 
+            color="purple"
+         />
+         <AnalyticsCard 
+            label="Shortlisted" 
+            value={applicants.filter(a => a.status === 'SHORTLISTED' || a.status === 'TESTING' || a.status === 'INTERVIEW').length} 
+            trend="Current" 
+            trendUp={true} 
+            icon={<Target size={22}/>} 
+            color="blue"
+         />
+         <AnalyticsCard 
+            label="Hired" 
+            value={applicants.filter(a => a.status === 'SELECTED').length} 
+            trend="Current" 
+            trendUp={true} 
+            icon={<Trophy size={22}/>} 
+            color="emerald"
+         />
       </div>
 
-      {/* Analytical Charts Block */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Area Trend Chart */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-8 col-span-2 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-50 pb-5">
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Application Trajectory</h3>
-              <p className="text-slate-400 text-[10px] uppercase font-bold mt-1">Last 7 Days Response metrics</p>
-            </div>
-            <div className="p-2.5 bg-slate-50 text-slate-500 rounded-xl">
-              <TrendingUp size={16} />
-            </div>
-          </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorApps" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: "#0f172a", borderRadius: "16px", border: "none" }}
-                  labelStyle={{ color: "#ffffff", fontWeight: "bold", fontSize: "11px" }}
-                  itemStyle={{ color: "#60a5fa", fontSize: "11px" }}
-                />
-                <Area type="monotone" dataKey="apps" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorApps)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+         {/* Main Column */}
+         <div className="lg:col-span-8 space-y-12">
+            {/* Selected Candidates Section */}
+            {applicants.some(a => a.status === 'SELECTED') && (
+              <section className="space-y-8">
+                 <div className="flex justify-between items-center px-4">
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
+                          <Trophy size={20} />
+                       </div>
+                       <div>
+                          <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Recent Selections</h3>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Successful hires for your company</p>
+                       </div>
+                    </div>
+                 </div>
 
-        {/* Funnel Distribution Chart */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-50 pb-5">
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Hiring Pipeline</h3>
-              <p className="text-slate-400 text-[10px] uppercase font-bold mt-1">Conversion Stage Allocation</p>
-            </div>
-            <div className="p-2.5 bg-slate-50 text-slate-500 rounded-xl">
-              <ListChecks size={16} />
-            </div>
-          </div>
-          <div className="h-72 flex flex-col justify-between">
-            <ResponsiveContainer width="100%" height="80%">
-              <BarChart data={funnelData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#0f172a", borderRadius: "16px", border: "none" }}
-                  itemStyle={{ color: "#ffffff", fontSize: "11px" }}
-                />
-                <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]}>
-                  {funnelData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                 <div className="bg-white rounded-[40px] border border-emerald-100 shadow-sm overflow-hidden">
+                    <CandidateTable 
+                       applicants={applicants.filter(a => a.status === 'SELECTED').slice(0, 5)} 
+                       onViewCandidate={handleViewCandidate} 
+                    />
+                 </div>
+              </section>
+            )}
+
+            {/* Active Jobs Section */}
+            <section className="space-y-8">
+               <div className="flex justify-between items-center px-4">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-inner">
+                        <Briefcase size={20} />
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Active Campaigns</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Manage your live job postings</p>
+                     </div>
+                  </div>
+                  <Link to="/company/jobs" className="group flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
+                    View All <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </Link>
+               </div>
+
+               <div className="grid grid-cols-1 gap-6">
+                  {companyJobs.slice(0, 3).map((job) => (
+                    <JobCard key={job.id} job={job} />
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              {funnelData.map((d, i) => (
-                <div key={i} className="flex items-center gap-1.5 font-bold text-slate-500 uppercase tracking-widest">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span>{d.name}: {d.value}</span>
-                </div>
-              ))}
+                  {companyJobs.length === 0 && (
+                    <div className="p-16 text-center bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-100">
+                       <Briefcase size={48} className="mx-auto text-slate-200 mb-6" />
+                       <h4 className="text-xl font-black text-slate-400 uppercase tracking-tight">No active campaigns</h4>
+                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-2">Start hiring by posting your first job role.</p>
+                    </div>
+                  )}
+               </div>
+            </section>
+
+            {/* Recent Applicants Section */}
+            <section className="space-y-8">
+               <div className="flex justify-between items-center px-4">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shadow-inner">
+                        <Users size={20} />
+                     </div>
+                     <div>
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Recent Talent</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Latest applications across all roles</p>
+                     </div>
+                  </div>
+                  <Link to="/company/applicants" className="group flex items-center gap-2 text-[10px] font-black text-purple-600 uppercase tracking-widest hover:bg-purple-50 px-4 py-2 rounded-xl transition-all">
+                    Pipeline <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </Link>
+               </div>
+
+               <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
+                  <CandidateTable 
+                     applicants={applicants.slice(0, 5)} 
+                     onViewCandidate={handleViewCandidate} 
+                  />
+               </div>
+            </section>
+         </div>
+
+         {/* Sidebar Column */}
+         <div className="lg:col-span-4 space-y-12">
+            <div className="sticky top-32 space-y-10">
+               <AIInsightsPanel jobs={companyJobs} />
+               <HiringHealthPanel stats={stats} />
+               
+               <div className="p-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[40px] text-white relative overflow-hidden shadow-2xl shadow-blue-500/20">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] mb-4">Talent Discovery</h4>
+                  <p className="text-xs font-medium text-blue-100 leading-relaxed mb-8">
+                    Our AI matched <span className="text-white font-black underline decoration-blue-400 underline-offset-4">several highly-qualified candidates</span> for your {companyJobs.length > 0 ? companyJobs[0].title : 'open'} role recently.
+                  </p>
+                  <Link to="/company/applicants" className="w-full py-4 bg-white text-blue-600 rounded-[20px] font-black uppercase text-[10px] tracking-widest hover:bg-blue-50 transition-all shadow-xl block text-center">
+                    Review Matches
+                  </Link>
+               </div>
             </div>
-          </div>
-        </div>
+         </div>
       </div>
 
-      {/* Recent Application Activity table */}
-      <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-50 pb-6 gap-4">
-          <div>
-            <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Recent Developer Applicants</h3>
-            <p className="text-slate-400 text-[10px] uppercase font-bold mt-1">Review top cognitive scores & schedules</p>
-          </div>
-          <button 
-            onClick={() => navigate("/company/applicants")}
-            className="self-start text-xs font-black uppercase text-blue-600 hover:text-blue-700 tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            All Applicants <ArrowRight size={14} />
-          </button>
-        </div>
-
-        {recentApplicants.length === 0 ? (
-          <div className="h-44 flex flex-col items-center justify-center gap-3 text-center border border-dashed border-slate-100 rounded-3xl">
-            <Users className="text-slate-350" size={32} />
-            <div>
-              <p className="font-bold text-slate-700 text-xs uppercase tracking-wider">No applicants yet</p>
-              <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest leading-none">Your live postings will capture applications here.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr className="border-b border-slate-50 text-[10px] font-black text-slate-450 uppercase tracking-widest">
-                  <th className="py-4">Candidate Profile</th>
-                  <th className="py-4">Applied Position</th>
-                  <th className="py-4">Talent Index</th>
-                  <th className="py-4">Evaluation Track</th>
-                  <th className="py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {recentApplicants.map((app: any, index: any) => (
-                  <tr key={index} className="text-xs text-slate-650 group font-medium">
-                    <td className="py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 font-black shadow-inner uppercase overflow-hidden">
-                          {app.avatar_url ? (
-                            <img src={app.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                          ) : (
-                            app.first_name?.[0] || "U"
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 leading-none">
-                            {app.first_name} {app.last_name}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-semibold mt-1 flex items-center gap-3">
-                            <span className="flex items-center gap-1"><Mail size={11} /> {app.contact_email || "Not specified"}</span>
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-5 font-bold text-slate-900">
-                      {app.job_title}
-                    </td>
-                    <td className="py-5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-slate-900 border border-indigo-50/80 bg-indigo-50/30 text-indigo-700 px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
-                          <Award size={12} className="text-indigo-600 fill-indigo-200" />
-                          {app.talent_score || 72} XP
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-5">
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                        app.status === "SELECTED" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
-                        app.status === "REJECTED" ? "bg-red-50 text-red-600 border border-red-100" :
-                        app.status === "INTERVIEW" ? "bg-indigo-50 text-indigo-700 border border-indigo-100 animate-pulse" :
-                        app.status === "TESTING" ? "bg-amber-50 text-amber-700 border border-amber-100" :
-                        "bg-blue-50 text-blue-700 border border-blue-105"
-                      }`}>
-                        {app.status || "APPLIED"}
-                      </span>
-                    </td>
-                    <td className="py-5 text-right">
-                      <button 
-                        onClick={() => navigate(`/company/pipeline`)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <ArrowUpRight size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <AnimatePresence>
+        {selectedCandidate && (
+          <CandidateDetailModal 
+            candidate={selectedCandidate} 
+            onClose={() => setSelectedCandidate(null)} 
+          />
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
-
-export default CompanyDashboard;

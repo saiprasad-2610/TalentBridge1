@@ -1,310 +1,228 @@
-import React, { useEffect, useState } from "react";
-import { useAuth } from "../../context/AuthContext.tsx";
-import api from "../../services/api.ts";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext.tsx';
+import api from '../../services/api.ts';
 import { 
-  BarChart3, Loader2, Sparkles, TrendingUp, Award, Clock, ArrowUpRight, 
-  HelpCircle, ShieldCheck, Heart, PieChart as PieIcon, Briefcase, RefreshCw, BarChart
-} from "lucide-react";
-import { motion } from "motion/react";
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, FunnelChart, Funnel, LabelList
+} from 'recharts';
 import { 
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  BarChart as ReBarChart, Bar, Cell, PieChart, Pie
-} from "recharts";
-import { toast } from "react-hot-toast";
+  TrendingUp, Users, Briefcase, Target, 
+  Calendar, Filter, Download, ArrowUpRight, ArrowDownRight, BarChart3
+} from 'lucide-react';
 
-interface StatItem {
-  id: number;
-  label: string;
-  value: string | number;
-  icon: any;
-  trend: string;
-  color: string;
-}
+const COLORS = ['#2563eb', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#6366f1'];
 
 export function AnalyticsDashboard() {
   const { user } = useAuth();
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<any>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchAnalytics();
+    }
+  }, [user?.id]);
 
   const fetchAnalytics = async () => {
-    if (!user) return;
-    setLoading(true);
+    if (!user?.id) return;
     try {
-      const { data } = await api.get(`/analytics/employer/${user.id}`);
-      if (data.success) {
-        setAnalytics(data.data);
-      } else {
-        toast.error("Telemetry failed log extraction.");
+      setLoading(true);
+      const res = await api.get(`/analytics/employer/${user.id}`);
+      if (res.data.success) {
+        setData(res.data.data);
       }
-    } catch (err) {
-      console.error("Telemetry analytics load error:", err);
-      toast.error("Database querying latency.");
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [user]);
+  const trendData = data?.trendData || [];
+  const funnelData = data?.funnelData || [];
+  const skillData = data?.skillData || [];
+  const rejectionData = data?.rejectionData || [];
+  const stats = data?.stats || {};
+  const applicants = data?.applicants || [];
+  const totalHires = applicants.filter((a: any) => a.status === 'SELECTED').length;
 
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="animate-spin text-blue-600" size={36} />
-        <p className="text-xs font-mono text-slate-500 uppercase tracking-widest font-bold">Querying Deep Analytics...</p>
+  if (loading) return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!data) return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+      <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-300">
+        <BarChart3 size={40} />
       </div>
-    );
-  }
-
-  const s = analytics?.stats || {};
-  const stats: StatItem[] = [
-    {
-      id: 1,
-      label: "Total Hires Count",
-      value: s.totalHires || 0,
-      icon: Award,
-      trend: s.interviewSuccess || "0% Success",
-      color: "bg-emerald-50 text-emerald-600"
-    },
-    {
-      id: 2,
-      label: "Conversion Yield",
-      value: s.applicationRate || "0%",
-      icon: TrendingUp,
-      trend: "Traffic metrics",
-      color: "bg-blue-50 text-blue-600"
-    },
-    {
-      id: 3,
-      label: "Average Hiring Velocity",
-      value: s.avgTimeToHire || "14 Days",
-      icon: Clock,
-      trend: "Screener to final round",
-      color: "bg-indigo-50 text-indigo-600"
-    },
-    {
-      id: 4,
-      label: "Recruiter Impressions",
-      value: s.totalViews || 0,
-      icon: Briefcase,
-      trend: "Profile Views",
-      color: "bg-purple-50 text-purple-600"
-    }
-  ];
-
-  const trendData = analytics?.trendData && analytics.trendData.length > 0 ? analytics.trendData : [
-    { name: "Mon", apps: 2 },
-    { name: "Tue", apps: 5 },
-    { name: "Wed", apps: 4 },
-    { name: "Thu", apps: 8 },
-    { name: "Fri", apps: 7 },
-    { name: "Sat", apps: 3 },
-    { name: "Sun", apps: 4 }
-  ];
-
-  const funnelData = analytics?.funnelData && analytics.funnelData.length > 0 ? analytics.funnelData : [
-    { name: "Applied", value: s.totalApps || 4 },
-    { name: "Testing", value: Math.round((s.totalApps || 4) * 0.6) },
-    { name: "Interview", value: Math.round((s.totalApps || 4) * 0.3) },
-    { name: "Hired", value: s.totalHires || 1 }
-  ];
-
-  const skillData = analytics?.skillData && analytics.skillData.length > 0 ? analytics.skillData : [
-    { name: "React", count: 4 },
-    { name: "TypeScript", count: 3 },
-    { name: "Node.js", count: 3 },
-    { name: "SQL", count: 2 },
-    { name: "CSS", count: 1 }
-  ];
-
-  const rejectionData = analytics?.rejectionData && analytics.rejectionData.length > 0 ? analytics.rejectionData : [
-    { name: "Skill Match", value: 3 },
-    { name: "Experienc Level", value: 2 },
-    { name: "Culture fit", value: 1 }
-  ];
-
-  const COLORS = ["#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#10b981"];
+      <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">No Analytics Data Yet</h2>
+      <p className="text-slate-500 text-sm max-w-xs text-center font-medium italic">
+        We're still gathering insights for your workspace. Start posting jobs and reviewing candidates to see trends here!
+      </p>
+      <button 
+        onClick={fetchAnalytics}
+        className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg"
+      >
+        Refresh Data
+      </button>
+    </div>
+  );
 
   return (
-    <div className="space-y-8 min-h-screen pb-12 font-sans">
+    <div className="space-y-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+      <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Talent Pipeline Analytics</h1>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mt-1">Review demand indices, screening trends, and hiring funnel velocity</p>
+          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Recruiter Analytics</h1>
+          <p className="text-slate-500 font-medium text-sm italic mt-1">Real-time insights into your hiring performance and talent trends.</p>
         </div>
-        <button
-          onClick={fetchAnalytics}
-          className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-        >
-          <RefreshCw size={13} className="text-blue-600" /> Refresh Tel. Data
-        </button>
+        <div className="flex gap-3">
+          <button className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+            <Calendar size={16} /> Last 30 Days
+          </button>
+          <button className="flex items-center gap-2 px-5 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg shadow-slate-900/10">
+            <Download size={16} /> Export Report
+          </button>
+        </div>
       </div>
 
-      {/* KPI Stats list */}
+      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <div key={stat.id} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:shadow-lg transition-transform duration-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
-                <h3 className="text-2xl font-black text-slate-900 mt-1">{stat.value}</h3>
-              </div>
-              <div className={`p-3.5 rounded-2xl ${stat.color}`}>
-                <stat.icon size={20} />
-              </div>
-            </div>
-
-            <p className="text-[10px] text-slate-400 font-extrabold uppercase mt-5 pt-4 border-t border-slate-50">
-              {stat.trend}
-            </p>
+        {[
+          { label: 'Total Hires', value: totalHires, trend: '+100%', up: true, icon: Users, color: 'emerald' },
+          { label: 'Application Rate', value: stats.applicationRate || '0%', trend: '+4.2%', up: true, icon: TrendingUp, color: 'blue' },
+          { label: 'Interview Success', value: stats.interviewSuccess || '0%', trend: '+12%', up: true, icon: Target, color: 'purple' },
+          { label: 'Active Jobs', value: stats.totalJobs || '0', trend: '+2', up: true, icon: Briefcase, color: 'orange' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm group hover:shadow-xl transition-all">
+             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${
+               stat.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+               stat.color === 'purple' ? 'bg-purple-50 text-purple-600' :
+               stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+               'bg-orange-50 text-orange-600'
+             }`}>
+               <stat.icon size={24} />
+             </div>
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+             <div className="flex items-end gap-3">
+               <h3 className="text-2xl font-black text-slate-900">{stat.value}</h3>
+               <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 ${stat.up ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                 {stat.up ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                 {stat.trend}
+               </span>
+             </div>
           </div>
         ))}
       </div>
 
-      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Trend Area Chart */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-50 pb-5">
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Candidate volume trajectory</h3>
-              <p className="text-slate-400 text-[10px] uppercase font-bold mt-1">Application velocity over time</p>
-            </div>
-            <div className="p-2 bg-slate-50 rounded-xl text-slate-500">
-              <TrendingUp size={16} />
+        {/* Application Trends */}
+        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Application Trends</h3>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-600" />
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Weekly Growth</span>
             </div>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <AreaChart data={trendData}>
                 <defs>
                   <linearGradient id="colorApps" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: "#0f172a", borderRadius: "16px", border: "none" }}
-                  labelStyle={{ color: "#ffffff", fontWeight: "bold", fontSize: "11px" }}
-                  itemStyle={{ color: "#60a5fa", fontSize: "11px" }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase' }}
                 />
-                <Area type="monotone" dataKey="apps" stroke="#3b82f6" strokeWidth={3.5} fillOpacity={1} fill="url(#colorApps)" />
+                <Area type="monotone" dataKey="apps" stroke="#2563eb" strokeWidth={4} fillOpacity={1} fill="url(#colorApps)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Pipeline Funnel Distribution */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-50 pb-5">
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Conversion Stages Allocation</h3>
-              <p className="text-slate-400 text-[10px] uppercase font-bold mt-1">Pipeline dropoff diagnostics</p>
-            </div>
-            <div className="p-2 bg-slate-50 rounded-xl text-slate-500">
-              <BarChart3 size={16} />
-            </div>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ReBarChart data={funnelData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#0f172a", borderRadius: "16px", border: "none" }}
-                  itemStyle={{ color: "#ffffff", fontSize: "11px" }}
+        {/* Hiring Funnel */}
+        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Hiring Funnel</h3>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <FunnelChart>
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                 />
-                <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]}>
-                  {funnelData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </ReBarChart>
+                <Funnel data={funnelData} dataKey="value">
+                  <LabelList position="right" fill="#64748b" stroke="none" dataKey="name" style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                </Funnel>
+              </FunnelChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Skills required */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-50 pb-5">
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Top Required Skill Index</h3>
-              <p className="text-slate-400 text-[10px] uppercase font-bold mt-1">Tech stacks in demand from your job postings</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            {skillData.map((skill: any, idx: number) => {
-              const maxCount = Math.max(...skillData.map((s: any) => s.count)) || 1;
-              const percent = (skill.count / maxCount) * 100;
-              return (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold uppercase tracking-wide">
-                    <span className="text-slate-800">{skill.name}</span>
-                    <span className="text-slate-400 font-mono font-medium">{skill.count} Jobs</span>
-                  </div>
-                  <div className="w-full bg-slate-50 h-2.5 rounded-full overflow-hidden border border-slate-100">
-                    <div 
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 h-full rounded-full" 
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+        {/* Skill Demand */}
+        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Top Skill Demands</h3>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <BarChart data={skillData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} width={80} />
+                <Tooltip 
+                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="count" radius={[0, 10, 10, 0]} barSize={24}>
+                  {skillData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Archive/Rejections pie reasons */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-50 pb-5">
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Archive Rejections Breakdown</h3>
-              <p className="text-slate-400 text-[10px] uppercase font-bold mt-1">Analytical audit of archive actions</p>
-            </div>
-            <div className="p-2 bg-slate-50 rounded-xl text-slate-500">
-              <PieIcon size={16} />
-            </div>
-          </div>
-          <div className="h-44 flex items-center justify-around">
-            <ResponsiveContainer width="50%" height="100%">
+        {/* Rejection Reasons */}
+        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Rejection Insights</h3>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <PieChart>
                 <Pie
                   data={rejectionData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={35}
-                  outerRadius={55}
-                  fill="#8884d8"
-                  paddingAngle={5}
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={8}
                   dataKey="value"
                 >
-                  {rejectionData.map((entry: any, index: number) => (
+                  {rejectionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#0f172a", borderRadius: "12px", border: "none" }}
-                  itemStyle={{ color: "#ffffff", fontSize: "10px" }}
+                <Tooltip 
+                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-2">
-              {rejectionData.map((r: any, idx: number) => (
-                <div key={idx} className="flex items-center gap-2 text-[10px]">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                  <span className="font-extrabold text-slate-500 uppercase tracking-wider">{r.name}: {r.value}</span>
-                </div>
-              ))}
-            </div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-6 mt-4">
+             {rejectionData.map((entry, index) => (
+               <div key={index} className="flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{entry.name}</span>
+               </div>
+             ))}
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-export default AnalyticsDashboard;

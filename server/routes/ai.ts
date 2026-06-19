@@ -2,10 +2,7 @@ import express from "express";
 import multer from "multer";
 import fs from "fs";
 import { createRequire } from "module";
-const currentUrl = typeof import.meta !== "undefined" && import.meta.url 
-  ? import.meta.url 
-  : (typeof __filename !== "undefined" ? __filename : process.cwd());
-const require = createRequire(currentUrl);
+const require = createRequire(import.meta.url);
 const pdf = require("pdf-parse");
 import { GoogleGenAI } from "@google/genai";
 import db from "../db.ts";
@@ -80,7 +77,7 @@ router.post("/analyze-resume", upload.single("resume"), async (req, res) => {
 
     // Update stats if userId is provided
     if (userId && userId !== 'undefined') {
-      const [existingStats]: any = await db.query("SELECT id FROM student_performance_stats WHERE user_id = ?", [userId]);
+      const [existingStats] = await db.query("SELECT id FROM student_performance_stats WHERE user_id = ?", [userId]);
       if (existingStats.length > 0) {
         await db.query(`
           UPDATE student_performance_stats 
@@ -162,7 +159,7 @@ router.post("/save-interview-feedback", async (req, res) => {
     const overallScore = scores?.overall ?? scores?.score ?? 0;
 
     // Save to the legacy interview_history table for backward compatibility in the dashboard
-    let [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+    let [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
     
     if (profiles && profiles.length > 0) {
       const studentId = profiles[0].id;
@@ -189,7 +186,7 @@ router.post("/save-interview-feedback", async (req, res) => {
     }
 
     // Save to the NEW Adaptive Engine Tables
-    const [sessionResult]: any = await db.query(`
+    const [sessionResult] = await db.query(`
       INSERT INTO interview_sessions 
       (user_id, role, level, techstack, focus, difficulty, communication, score, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED')
@@ -212,7 +209,7 @@ router.post("/save-interview-feedback", async (req, res) => {
     if (transcript && Array.isArray(transcript)) {
       for (const msg of transcript) {
         if (msg.role === 'ai') {
-          const [qResult]: any = await db.query(`
+          const [qResult] = await db.query(`
             INSERT INTO interview_questions (session_id, question, difficulty, category)
             VALUES (?, ?, ?, ?)
           `, [sessionId, msg.text, profile?.difficulty || 'Medium', profile?.focus || 'Mixed']);
@@ -228,7 +225,7 @@ router.post("/save-interview-feedback", async (req, res) => {
     }
 
     // UPDATE PERFORMANCE STATS
-    const [existingPerf]: any = await db.query("SELECT id, avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
+    const [existingPerf] = await db.query("SELECT id, avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
     if (existingPerf.length > 0) {
       const currentAvg = existingPerf[0].avg_interview_score || 0;
       const newAvg = (currentAvg + overallScore) / 2; // Simple rolling avg
@@ -279,11 +276,11 @@ router.post("/queue-interview-evaluation", async (req, res) => {
 router.get("/history/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
-    let [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+    let [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
     
     if (!profiles || profiles.length === 0) {
       // Fallback for development stale sessions
-      const [anyStudent]: any = await db.query("SELECT sp.id FROM student_profiles sp JOIN users u ON sp.user_id = u.id WHERE u.role = 'STUDENT' LIMIT 1");
+      const [anyStudent] = await db.query("SELECT sp.id FROM student_profiles sp JOIN users u ON sp.user_id = u.id WHERE u.role = 'STUDENT' LIMIT 1");
       profiles = anyStudent;
     }
 

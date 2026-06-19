@@ -376,7 +376,7 @@ const RESUME_TEMPLATES = [
 
 // Check Reset Daily Limit
 async function checkAndResetLimit(userId: number) {
-  const [profiles]: any = await db.query("SELECT daily_resume_count, last_resume_reset_at FROM student_profiles WHERE user_id = ?", [userId]);
+  const [profiles] = await db.query("SELECT daily_resume_count, last_resume_reset_at FROM student_profiles WHERE user_id = ?", [userId]);
   if (profiles.length === 0) return { count: 0, reset: true };
 
   const profile = profiles[0];
@@ -401,7 +401,7 @@ router.get("/status/:userId", async (req, res) => {
     const { count } = await checkAndResetLimit(parseInt(req.params.userId));
     
     // Fetch profile
-    const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [req.params.userId]);
+    const [profiles] = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [req.params.userId]);
     if (profiles.length === 0) return res.status(404).json({ message: "Profile not found" });
 
     const p = profiles[0];
@@ -411,7 +411,7 @@ router.get("/status/:userId", async (req, res) => {
     const skills = typeof p.skills_json === 'string' ? JSON.parse(p.skills_json) : (p.skills_json || []);
 
     const errors = [];
-    // if (p.completeness_score < 70) errors.push("Profile completion must be at least 70%");
+    if (p.completeness_score < 70) errors.push("Profile completion must be at least 70%");
     if (!p.profile_photo_url) errors.push("Profile photo is mandatory");
     if (projects.length < 1) errors.push("At least one project is required");
     if (skills.length < 3) errors.push("At least 3 skills are required");
@@ -440,7 +440,7 @@ router.post("/generate", async (req, res) => {
 
     if (mustPayXP) {
       // Check if enough XP
-      const [users]: any = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
+      const [users] = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
       const xpBalance = users[0]?.xp_balance || 0;
       if (xpBalance < cost) {
         return res.status(403).json({ success: false, message: `Insufficient XP. Generating an extra resume requires ${cost} XP.` });

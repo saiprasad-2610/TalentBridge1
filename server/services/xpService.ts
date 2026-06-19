@@ -49,7 +49,7 @@ export class XPService {
    */
   static async getConfigs() {
     try {
-      const [rows]: any = await db.query("SELECT config_key, config_value FROM system_configs");
+      const [rows] = await db.query("SELECT config_key, config_value FROM system_configs");
       const configs: Record<string, number> = {
         DAILY_REWARD_BASE: XP_CONFIG.DAILY_REWARD_BASE,
         STREAK_BONUS_STEP: XP_CONFIG.STREAK_BONUS_STEP,
@@ -94,7 +94,7 @@ export class XPService {
    */
   static async getConfigValue(key: string, defaultValue: number): Promise<number> {
     try {
-      const [rows]: any = await db.query("SELECT config_value FROM system_configs WHERE config_key = ?", [key]);
+      const [rows] = await db.query("SELECT config_value FROM system_configs WHERE config_key = ?", [key]);
       if (rows && rows.length > 0) {
         return Number(rows[0].config_value);
       }
@@ -132,7 +132,7 @@ export class XPService {
    * Deduct XP from user's wallet
    */
   static async deductXP(userId: number, amount: number, type: string, description: string) {
-    const [users]: any = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
+    const [users] = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
     if (!users || users.length === 0 || users[0].xp_balance < amount) {
       throw new Error("Insufficient XP balance");
     }
@@ -162,7 +162,7 @@ export class XPService {
    * Claim daily reward and update streak
    */
   static async claimDailyReward(userId: number) {
-    const [users]: any = await db.query(
+    const [users] = await db.query(
       "SELECT last_reward_claimed_at, login_streak FROM users WHERE id = ?",
       [userId]
     );
@@ -206,13 +206,13 @@ export class XPService {
    * Handle referral reward
    */
   static async processReferral(referralCode: string, referredUserId: number) {
-    const [referrers]: any = await db.query("SELECT id FROM users WHERE referral_code = ?", [referralCode]);
+    const [referrers] = await db.query("SELECT id FROM users WHERE referral_code = ?", [referralCode]);
     if (!referrers || referrers.length === 0) return;
 
     const referrerId = referrers[0].id;
 
     // Check if referral record already exists
-    const [existing]: any = await db.query(
+    const [existing] = await db.query(
       "SELECT id FROM referrals WHERE referred_user_id = ?",
       [referredUserId]
     );
@@ -268,7 +268,7 @@ export class XPService {
 
     if (expectedSignature === razorpaySignature) {
       // Find payment record
-      const [payments]: any = await db.query(
+      const [payments] = await db.query(
         "SELECT xp_added FROM payments WHERE razorpay_order_id = ? AND user_id = ?",
         [razorpayOrderId, userId]
       );
@@ -295,7 +295,7 @@ export class XPService {
    * Check and spend interview credits
    */
   static async spendInterviewCredit(userId: number) {
-    const [users]: any = await db.query("SELECT free_mock_count, xp_balance FROM users WHERE id = ?", [userId]);
+    const [users] = await db.query("SELECT free_mock_count, xp_balance FROM users WHERE id = ?", [userId]);
     if (!users || users.length === 0) throw new Error("User not found");
 
     const { free_mock_count, xp_balance } = users[0];

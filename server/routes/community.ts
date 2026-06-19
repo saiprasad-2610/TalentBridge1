@@ -350,7 +350,7 @@ router.post("/posts", authenticate, async (req: any, res) => {
   }
 
   try {
-    const [result]: any = await db.query(
+    const [result] = await db.query(
       `
       INSERT INTO posts (
         user_id, type, title, content, preview_text, xp_unlock_cost, 
@@ -403,7 +403,7 @@ router.post("/posts", authenticate, async (req: any, res) => {
 
 router.get("/events", authenticate, async (req: any, res) => {
   try {
-    const [events]: any = await db.query(`
+    const [events] = await db.query(`
       SELECT e.*, cm.college_name,
              (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as registration_count
       FROM events e
@@ -422,13 +422,13 @@ router.post("/events/register/:id", authenticate, async (req: any, res) => {
   const eventId = req.params.id;
 
   try {
-    const [students]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [currentUserId]);
+    const [students] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [currentUserId]);
     if (!students || students.length === 0) {
       return res.status(400).json({ success: false, message: "Student profile not found" });
     }
     const studentId = students[0].id;
 
-    const [existing]: any = await db.query(
+    const [existing] = await db.query(
       "SELECT * FROM event_registrations WHERE event_id = ? AND student_id = ?",
       [eventId, studentId]
     );
@@ -513,10 +513,10 @@ router.get("/feed", authenticate, async (req: any, res) => {
 
     sql += " ORDER BY p.created_at DESC";
 
-    const [posts]: any = await db.query(sql, params);
+    const [posts] = await db.query(sql, params);
 
     // B. AI Personalized Recommendation Scoring based on calling user's skills
-    const [studentProfile]: any = await db.query("SELECT skills_json,preferred_job_role FROM student_profiles WHERE user_id = ?", [currentUserId]);
+    const [studentProfile] = await db.query("SELECT skills_json,preferred_job_role FROM student_profiles WHERE user_id = ?", [currentUserId]);
     let studentSkills: string[] = [];
     if (studentProfile && studentProfile.length > 0 && studentProfile[0].skills_json) {
       try {
@@ -600,7 +600,7 @@ router.post("/posts/:id/unlock", authenticate, async (req: any, res) => {
   const postId = Number(req.params.id);
 
   try {
-    const [posts]: any = await db.query("SELECT * FROM posts WHERE id = ?", [postId]);
+    const [posts] = await db.query("SELECT * FROM posts WHERE id = ?", [postId]);
     if (!posts || posts.length === 0) {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
@@ -613,7 +613,7 @@ router.post("/posts/:id/unlock", authenticate, async (req: any, res) => {
     }
 
     // Check if already unlocked
-    const [existingUnlock]: any = await db.query(
+    const [existingUnlock] = await db.query(
       "SELECT * FROM unlocked_posts WHERE user_id = ? AND post_id = ?",
       [userId, postId]
     );
@@ -653,14 +653,14 @@ router.post("/posts/:id/like", authenticate, async (req: any, res) => {
   const postId = Number(req.params.id);
 
   try {
-    const [posts]: any = await db.query("SELECT * FROM posts WHERE id = ?", [postId]);
+    const [posts] = await db.query("SELECT * FROM posts WHERE id = ?", [postId]);
     if (!posts || posts.length === 0) {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
 
     const post = posts[0];
 
-    const [existingLikes]: any = await db.query(
+    const [existingLikes] = await db.query(
       "SELECT * FROM post_likes WHERE post_id = ? AND user_id = ?",
       [postId, userId]
     );
@@ -753,7 +753,7 @@ router.post("/posts/:id/comment", authenticate, async (req: any, res) => {
   }
 
   try {
-    const [posts]: any = await db.query("SELECT * FROM posts WHERE id = ?", [postId]);
+    const [posts] = await db.query("SELECT * FROM posts WHERE id = ?", [postId]);
     if (!posts || posts.length === 0) {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
@@ -788,7 +788,7 @@ router.get("/posts/:id/comments", authenticate, async (req: any, res) => {
   const postId = Number(req.params.id);
 
   try {
-    const [comments]: any = await db.query(
+    const [comments] = await db.query(
       `
       SELECT 
         c.*,
@@ -840,7 +840,7 @@ router.post("/posts/:id/bookmark", authenticate, async (req: any, res) => {
   const postId = Number(req.params.id);
 
   try {
-    const [existing]: any = await db.query(
+    const [existing] = await db.query(
       "SELECT * FROM post_bookmarks WHERE post_id = ? AND user_id = ?",
       [postId, userId]
     );
@@ -869,7 +869,7 @@ router.post("/users/:id/follow", authenticate, async (req: any, res) => {
   }
 
   try {
-    const [existing]: any = await db.query(
+    const [existing] = await db.query(
       "SELECT * FROM user_follows WHERE follower_id = ? AND following_id = ?",
       [currentUserId, targetCreatorId]
     );
@@ -900,7 +900,7 @@ router.get("/creator/analytics", authenticate, async (req: any, res) => {
   const userId = req.user.userId;
 
   try {
-    const [posts]: any = await db.query(
+    const [posts] = await db.query(
       `
       SELECT 
         COUNT(id) as total_posts,
@@ -913,12 +913,12 @@ router.get("/creator/analytics", authenticate, async (req: any, res) => {
       [userId]
     );
 
-    const [follows]: any = await db.query(
+    const [follows] = await db.query(
       "SELECT COUNT(id) as followers FROM user_follows WHERE following_id = ?",
       [userId]
     );
 
-    const [transactions]: any = await db.query(
+    const [transactions] = await db.query(
       `
       SELECT IFNULL(SUM(amount), 0) as earned_xp 
       FROM xp_transactions 
@@ -955,7 +955,7 @@ router.get("/creator/analytics", authenticate, async (req: any, res) => {
  */
 router.get("/leaderboard", authenticate, async (req: any, res) => {
   try {
-    const [leaders]: any = await db.query(`
+    const [leaders] = await db.query(`
       SELECT 
         u.id, u.email, u.xp_balance,
         sp.full_name, sp.profile_photo_url, sp.headline,

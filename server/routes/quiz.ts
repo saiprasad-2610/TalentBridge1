@@ -20,7 +20,7 @@ router.post("/generate", async (req, res) => {
     // Check dynamic XP cost (per question cost * amount of questions)
     const perQuestionCost = await XPService.getConfigValue('QUIZ_QUESTION_COST', 5);
     const cost = perQuestionCost * parseInt(amount.toString());
-    const [users]: any = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
+    const [users] = await db.query("SELECT xp_balance FROM users WHERE id = ?", [userId]);
     const xpBalance = users[0]?.xp_balance || 0;
     if (xpBalance < cost) {
       return res.status(403).json({ success: false, message: `Insufficient XP. Attempting this ${amount}-question quiz requires ${cost} XP (${perQuestionCost} XP per question).` });
@@ -30,7 +30,7 @@ router.post("/generate", async (req, res) => {
     await XPService.deductXP(userId, cost, 'QUIZ_ATTEMPT', `AI Custom Quiz Assessment Session: ${role} (${amount} Qs)`);
 
     // Insert initial record
-    const [result]: any = await db.query(`
+    const [result] = await db.query(`
       INSERT INTO quizzes (user_id, quiz_type, role, skills, difficulty, total_questions, status)
       VALUES (?, ?, ?, ?, ?, ?, 'GENERATING')
     `, [userId, type, role, JSON.stringify(skills || []), difficulty, amount]);
@@ -71,7 +71,7 @@ Format:
 `;
 
     const aiResult = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: { responseMimeType: "application/json" }
     });
@@ -102,10 +102,10 @@ Format:
 router.get("/session/:id", async (req, res) => {
   const quizId = req.params.id;
   try {
-    const [quizRows]: any = await db.query("SELECT * FROM quizzes WHERE id = ?", [quizId]);
+    const [quizRows] = await db.query("SELECT * FROM quizzes WHERE id = ?", [quizId]);
     if (quizRows.length === 0) return res.status(404).json({ success: false, message: "Quiz not found" });
 
-    const [questions]: any = await db.query("SELECT id, question, options_json FROM quiz_questions WHERE quiz_id = ?", [quizId]);
+    const [questions] = await db.query("SELECT id, question, options_json FROM quiz_questions WHERE quiz_id = ?", [quizId]);
     
     res.json({ 
       success: true, 
@@ -130,7 +130,7 @@ router.post("/submit", async (req, res) => {
     let score = 0;
     
     for (const ans of answers) {
-      const [qRow]: any = await db.query("SELECT correct_answer FROM quiz_questions WHERE id = ?", [ans.questionId]);
+      const [qRow] = await db.query("SELECT correct_answer FROM quiz_questions WHERE id = ?", [ans.questionId]);
       if (qRow.length > 0) {
         const correct = qRow[0].correct_answer === ans.userAnswer;
         if (correct) score++;
@@ -143,7 +143,7 @@ router.post("/submit", async (req, res) => {
       }
     }
 
-    const [quizRows]: any = await db.query("SELECT total_questions FROM quizzes WHERE id = ?", [quizId]);
+    const [quizRows] = await db.query("SELECT total_questions FROM quizzes WHERE id = ?", [quizId]);
     const total = quizRows[0]?.total_questions || answers.length;
     const percentage = (score / total) * 100;
 
@@ -157,7 +157,7 @@ router.post("/submit", async (req, res) => {
     let xpEarned = 0;
     
     // Fetch user id (kept for returning correctness or if future analytics needs it)
-    const [qRow]: any = await db.query("SELECT user_id FROM quizzes WHERE id = ?", [quizId]);
+    const [qRow] = await db.query("SELECT user_id FROM quizzes WHERE id = ?", [quizId]);
     const studentUserId = qRow.length > 0 ? qRow[0].user_id : null;
 
     // Give some AI Feedback if needed
@@ -173,10 +173,10 @@ router.post("/submit", async (req, res) => {
 router.get("/result/:id", async (req, res) => {
   const quizId = req.params.id;
   try {
-    const [quizRows]: any = await db.query("SELECT * FROM quizzes WHERE id = ?", [quizId]);
+    const [quizRows] = await db.query("SELECT * FROM quizzes WHERE id = ?", [quizId]);
     if (quizRows.length === 0) return res.status(404).json({ success: false, message: "Quiz not found" });
 
-    const [questions]: any = await db.query("SELECT id, question, options_json, correct_answer, explanation, user_answer, is_correct FROM quiz_questions WHERE quiz_id = ?", [quizId]);
+    const [questions] = await db.query("SELECT id, question, options_json, correct_answer, explanation, user_answer, is_correct FROM quiz_questions WHERE quiz_id = ?", [quizId]);
     
     res.json({ 
       success: true, 
@@ -195,7 +195,7 @@ router.get("/result/:id", async (req, res) => {
 router.get("/history/:userId", async (req, res) => {
   const userId = req.params.userId;
   try {
-    const [quizzes]: any = await db.query("SELECT * FROM quizzes WHERE user_id = ? ORDER BY created_at DESC", [userId]);
+    const [quizzes] = await db.query("SELECT * FROM quizzes WHERE user_id = ? ORDER BY created_at DESC", [userId]);
     res.json({ success: true, quizzes });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error fetching quiz history" });

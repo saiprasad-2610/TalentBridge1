@@ -35,23 +35,23 @@ router.get("/student/:userId", async (req, res) => {
     // Recalculate score on fetch to ensure dynamic updates for the user
     await calculateTalentScore(Number(userId));
 
-    const [stats]: any = await db.query(`
+    const [stats] = await db.query(`
       SELECT sps.*, u.xp_balance, u.total_earned_xp, u.login_streak 
       FROM users u
       LEFT JOIN student_performance_stats sps ON sps.user_id = u.id
       WHERE u.id = ?
     `, [userId]);
-    const [talent]: any = await db.query("SELECT * FROM talent_scores WHERE user_id = ?", [userId]);
-    const [tasks]: any = await db.query("SELECT * FROM daily_tasks WHERE user_id = ? AND task_date = CURRENT_DATE", [userId]);
-    const [badges]: any = await db.query("SELECT * FROM user_badges WHERE user_id = ?", [userId]);
-    const [views]: any = await db.query(`
+    const [talent] = await db.query("SELECT * FROM talent_scores WHERE user_id = ?", [userId]);
+    const [tasks] = await db.query("SELECT * FROM daily_tasks WHERE user_id = ? AND task_date = CURRENT_DATE", [userId]);
+    const [badges] = await db.query("SELECT * FROM user_badges WHERE user_id = ?", [userId]);
+    const [views] = await db.query(`
       SELECT COUNT(*) as view_count 
       FROM profile_views pv 
       JOIN student_profiles sp ON pv.student_id = sp.id 
       WHERE sp.user_id = ?
     `, [userId]);
 
-    const [interviewHistory]: any = await db.query(`
+    const [interviewHistory] = await db.query(`
       SELECT score, created_at 
       FROM interview_history ih
       JOIN student_profiles sp ON ih.student_id = sp.id
@@ -85,26 +85,13 @@ router.get("/student/:userId", async (req, res) => {
 router.get("/student/:userId/applications", async (req, res) => {
   const { userId } = req.params;
   try {
-    const [apps]: any = await db.query(`
+    const [apps] = await db.query(`
       SELECT 
-        ja.id as application_id,
-        ja.id as id,
-        ja.status as current_status,
-        ja.status as status,
-        ja.applied_at as applied_at,
-        ja.applied_at as status_updated_at,
-        j.title as job_title,
-        j.id as job_id,
-        j.deadline as deadline,
-        j.job_type as job_type,
-        j.location as location,
-        j.salary_range as salary,
-        cp.id as company_id,
-        cp.company_name as company_name,
-        cp.logo_url as company_logo,
+        ja.id, ja.status, ja.applied_at,
+        j.title as job_title, j.id as job_id, j.deadline, j.job_type,
+        cp.company_name,
         js.stage_name as current_stage_name,
-        js.stage_name as application_stage,
-        js.stage_type as stage_type
+        js.stage_type
       FROM job_applications ja
       JOIN jobs j ON ja.job_id = j.id
       JOIN company_profiles cp ON j.company_id = cp.id
@@ -114,43 +101,7 @@ router.get("/student/:userId/applications", async (req, res) => {
       ORDER BY ja.applied_at DESC
     `, [userId]);
 
-    // Enhance response rows to inject derived fields such as work_mode, company_notes, and next_action
-    const enrichedApps = apps.map((app: any) => {
-      // Determine work mode based on location or job type
-      let work_mode = "On-site";
-      if (app.location && app.location.toLowerCase().includes("remote")) {
-        work_mode = "Remote";
-      } else if (app.location && app.location.toLowerCase().includes("hybrid")) {
-        work_mode = "Hybrid";
-      }
-
-      // Map dynamic next action labels based on status
-      let next_action = "Awaiting feedback";
-      if (app.current_status === "APPLIED") {
-        next_action = "Under Initial Review";
-      } else if (app.current_status === "SHORTLISTED") {
-        next_action = "Schedule Video Screening";
-      } else if (app.current_status === "ASSESSMENT") {
-        next_action = "Complete Aptitude Test";
-      } else if (app.current_status === "INTERVIEW") {
-        next_action = "Attend Scheduled Interview";
-      } else if (app.current_status === "OFFER") {
-        next_action = "Review Offer Letter";
-      } else if (app.current_status === "SELECTED") {
-        next_action = "Onboarding Started";
-      } else if (app.current_status === "REJECTED") {
-        next_action = "Archived";
-      }
-
-      return {
-        ...app,
-        work_mode,
-        company_notes: "Thank you for applying. We are actively reviewing your academic scores, coding, and resume details.",
-        next_action
-      };
-    });
-
-    res.json({ success: true, data: enrichedApps });
+    res.json({ success: true, data: apps });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Error fetching applications" });
@@ -161,7 +112,7 @@ router.get("/student/:userId/applications", async (req, res) => {
 router.get("/student/:userId/check-ins", async (req, res) => {
   const { userId } = req.params;
   try {
-    const [checkins]: any = await db.query(`
+    const [checkins] = await db.query(`
       SELECT task_date 
       FROM daily_tasks 
       WHERE user_id = ? AND is_check_in_completed = 1
@@ -177,7 +128,7 @@ router.get("/student/:userId/check-ins", async (req, res) => {
 router.get("/employer/:companyUserId", async (req, res) => {
   const { companyUserId } = req.params;
   try {
-    const [company]: any = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [companyUserId]);
+    const [company] = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [companyUserId]);
     if (!company[0]) {
       return res.json({
         success: true,
@@ -191,10 +142,10 @@ router.get("/employer/:companyUserId", async (req, res) => {
     const companyId = company[0].id;
 
     // Get stats
-    const [jobsCount]: any = await db.query("SELECT COUNT(*) as totalJobs FROM jobs WHERE company_id = ?", [companyId]);
-    const [appsCount]: any = await db.query("SELECT COUNT(*) as totalApps FROM job_applications a JOIN jobs j ON a.job_id = j.id WHERE j.company_id = ?", [companyId]);
-    const [hiresCount]: any = await db.query("SELECT COUNT(*) as totalHires FROM job_applications a JOIN jobs j ON a.job_id = j.id WHERE j.company_id = ? AND a.status = 'SELECTED'", [companyId]);
-    const [viewsCount]: any = await db.query("SELECT COUNT(*) as totalViews FROM profile_views WHERE company_id = ?", [companyId]);
+    const [jobsCount] = await db.query("SELECT COUNT(*) as totalJobs FROM jobs WHERE company_id = ?", [companyId]);
+    const [appsCount] = await db.query("SELECT COUNT(*) as totalApps FROM job_applications a JOIN jobs j ON a.job_id = j.id WHERE j.company_id = ?", [companyId]);
+    const [hiresCount] = await db.query("SELECT COUNT(*) as totalHires FROM job_applications a JOIN jobs j ON a.job_id = j.id WHERE j.company_id = ? AND a.status = 'SELECTED'", [companyId]);
+    const [viewsCount] = await db.query("SELECT COUNT(*) as totalViews FROM profile_views WHERE company_id = ?", [companyId]);
 
     const totalJobs = jobsCount[0]?.totalJobs || 0;
     const totalApps = appsCount[0]?.totalApps || 0;
@@ -202,7 +153,7 @@ router.get("/employer/:companyUserId", async (req, res) => {
     const totalViews = viewsCount[0]?.totalViews || 0;
 
     // Get candidates applied to this company's jobs
-    const [applicants]: any = await db.query(`
+    const [applicants] = await db.query(`
       SELECT 
         sp.*, 
         sp.id as student_id,
@@ -248,10 +199,10 @@ router.get("/employer/:companyUserId", async (req, res) => {
       ORDER BY date(a.applied_at) ASC
     `;
 
-    const [trend]: any = await db.query(trendQuery, [companyId]);
+    const [trend] = await db.query(trendQuery, [companyId]);
 
     // Get Funnel Data
-    const [funnel]: any = await db.query(`
+    const [funnel] = await db.query(`
       SELECT 
         a.status as name,
         COUNT(*) as value
@@ -275,7 +226,7 @@ router.get("/employer/:companyUserId", async (req, res) => {
     }));
 
     // Get Top Skills in Demand (from company's own jobs)
-    const [jobs]: any = await db.query("SELECT skills_json FROM jobs WHERE company_id = ?", [companyId]);
+    const [jobs] = await db.query("SELECT skills_json FROM jobs WHERE company_id = ?", [companyId]);
     const skillCounts: any = {};
     jobs.forEach((j: any) => {
       try {
@@ -291,7 +242,7 @@ router.get("/employer/:companyUserId", async (req, res) => {
       .slice(0, 5);
 
     // Get Actual Rejections
-    const [rejections]: any = await db.query(`
+    const [rejections] = await db.query(`
       SELECT 
         COALESCE(ah.notes, 'Other') as reason,
         COUNT(*) as count
@@ -360,7 +311,7 @@ router.post("/profile-view", async (req, res) => {
 router.get("/employer/:companyUserId/interviews", async (req, res) => {
   const { companyUserId } = req.params;
   try {
-    const [company]: any = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [companyUserId]);
+    const [company] = await db.query("SELECT id FROM company_profiles WHERE user_id = ?", [companyUserId]);
     if (!company[0]) {
       return res.json({ success: true, data: [] });
     }
@@ -400,7 +351,7 @@ router.get("/employer/:companyUserId/interviews", async (req, res) => {
       ORDER BY i.scheduled_at ASC
     `;
 
-    const [interviews]: any = await db.query(interviewQuery, [companyId]);
+    const [interviews] = await db.query(interviewQuery, [companyId]);
     
     // Compute status in JS
     const now = new Date();
@@ -423,16 +374,16 @@ router.get("/employer/:companyUserId/interviews", async (req, res) => {
     // GET Admin Analytics
 router.get("/admin/metrics", async (req, res) => {
   try {
-    const [studentsResult]: any = await db.query("SELECT COUNT(*) as students FROM users WHERE role = 'STUDENT'");
-    const [companiesResult]: any = await db.query("SELECT COUNT(*) as companies FROM users WHERE role = 'COMPANY'");
-    const [appsResult]: any = await db.query("SELECT COUNT(*) as applications FROM job_applications");
-    const [jobsResult]: any = await db.query("SELECT COUNT(*) as totalJobs FROM jobs");
-    const [shortlistedResult]: any = await db.query("SELECT COUNT(*) as count FROM job_applications WHERE status IN ('SHORTLISTED', 'TESTING', 'INTERVIEW', 'SELECTED')");
+    const [studentsResult] = await db.query("SELECT COUNT(*) as students FROM users WHERE role = 'STUDENT'");
+    const [companiesResult] = await db.query("SELECT COUNT(*) as companies FROM users WHERE role = 'COMPANY'");
+    const [appsResult] = await db.query("SELECT COUNT(*) as applications FROM job_applications");
+    const [jobsResult] = await db.query("SELECT COUNT(*) as totalJobs FROM jobs");
+    const [shortlistedResult] = await db.query("SELECT COUNT(*) as count FROM job_applications WHERE status IN ('SHORTLISTED', 'TESTING', 'INTERVIEW', 'SELECTED')");
     
     // Check pending company verifications using some logic (maybe company_profiles where some field is not verified, but since we don't have is_verified, assume 0 or count companies without jobs)
-    const [pendingResult]: any = await db.query("SELECT COUNT(*) as count FROM company_profiles cp LEFT JOIN jobs j ON cp.id = j.company_id WHERE j.id IS NULL");
+    const [pendingResult] = await db.query("SELECT COUNT(*) as count FROM company_profiles cp LEFT JOIN jobs j ON cp.id = j.company_id WHERE j.id IS NULL");
     
-    const [talentResult]: any = await db.query("SELECT AVG(overall_score) as avg FROM talent_scores");
+    const [talentResult] = await db.query("SELECT AVG(overall_score) as avg FROM talent_scores");
     
     const students = studentsResult[0]?.students || 0;
     const companies = companiesResult[0]?.companies || 0;
@@ -460,10 +411,10 @@ router.get("/admin/metrics", async (req, res) => {
       GROUP BY date(applied_at)
       ORDER BY date(applied_at) ASC
     `;
-    const [trendResult]: any = await db.query(trendQuery);
+    const [trendResult] = await db.query(trendQuery);
 
     // Calculate Interview to Offer Conversion Rate
-    const [conversionResult]: any = await db.query(`
+    const [conversionResult] = await db.query(`
       SELECT 
         SUM(CASE WHEN status = 'SELECTED' THEN 1 ELSE 0 END) as offers,
         SUM(CASE WHEN status IN ('INTERVIEW', 'SELECTED') THEN 1 ELSE 0 END) as interviews

@@ -58,7 +58,7 @@ export function Navbar() {
     if (!user?.id) return;
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 20000); // 20s polling interval to reduce server traffic in multi-tab use cases
+    }, 45000);
     return () => clearInterval(interval);
   }, [user?.id]);
 
@@ -82,12 +82,8 @@ export function Navbar() {
         const unreads = (data.data || []).filter((n: any) => !n.is_read).length;
         setUnreadCount(unreads);
       }
-    } catch (e: any) {
-      if (e?.response?.status === 429) {
-        console.warn("Notification polling throttled by secure rate limits (429).");
-      } else {
-        console.warn("Temporary notification synchronization suspension:", e?.message || e);
-      }
+    } catch (e) {
+      console.error("Failed to fetch notifications", e);
     } finally {
       setLoadingNotifications(false);
     }

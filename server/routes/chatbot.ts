@@ -63,7 +63,7 @@ Rules:
     // Seed the history if available before sending the message
     // Actually the new @google/genai chat create takes history as parameter
     const chatWithHistory = ai.chats.create({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       config: {
         systemInstruction: enrichedSystemPrompt,
         temperature: 0.7,

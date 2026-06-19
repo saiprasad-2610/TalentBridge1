@@ -81,18 +81,18 @@ router.post("/upload-resume/:userId", (req, res) => {
       const { uploadToCloudBucket } = await import("../services/storageService.ts");
       const resumeUrl = await uploadToCloudBucket(req.file.path, req.file.originalname, req.file.mimetype);
       
-      const [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+      const [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
       if (profiles.length === 0) return res.status(404).json({ success: false, message: "Profile not found" });
       const studentId = profiles[0].id;
 
       await db.query("UPDATE student_profiles SET resume_url = ? WHERE id = ?", [resumeUrl, studentId]);
 
       // Recalculate Completeness Score
-      const [finalProfile]: any = await db.query("SELECT * FROM student_profiles WHERE id = ?", [studentId]);
-      const [finalEdu]: any = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
-      const [finalProj]: any = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
-      const [finalExp]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
-      const [finalCert]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
+      const [finalProfile] = await db.query("SELECT * FROM student_profiles WHERE id = ?", [studentId]);
+      const [finalEdu] = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
+      const [finalProj] = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
+      const [finalExp] = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
+      const [finalCert] = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
       
       let score = 0;
       const p = finalProfile[0];
@@ -119,7 +119,7 @@ router.post("/upload-resume/:userId", (req, res) => {
       if (p.bio && p.bio.length > 40) score += 10;
       if (p.resume_url) score += 15;
       
-      const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
+      const [finalExtra] = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
       let extraCount = finalExp.length + finalCert.length + finalExtra.length;
       if (extraCount === 0) {
          const hasExpJson = p.experience_json && p.experience_json !== "[]" && p.experience_json !== "null";
@@ -187,18 +187,18 @@ router.post("/upload-avatar/:userId", (req, res) => {
       const { uploadToCloudBucket } = await import("../services/storageService.ts");
       const avatarUrl = await uploadToCloudBucket(req.file.path, req.file.originalname, req.file.mimetype);
       
-      const [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+      const [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
       if (profiles.length === 0) return res.status(404).json({ success: false, message: "Profile not found" });
       const studentId = profiles[0].id;
 
       await db.query("UPDATE student_profiles SET profile_photo_url = ? WHERE id = ?", [avatarUrl, studentId]);
       
       // Recalculate Completeness Score
-      const [finalProfile]: any = await db.query("SELECT * FROM student_profiles WHERE id = ?", [studentId]);
-      const [finalEdu]: any = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
-      const [finalProj]: any = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
-      const [finalExp]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
-      const [finalCert]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
+      const [finalProfile] = await db.query("SELECT * FROM student_profiles WHERE id = ?", [studentId]);
+      const [finalEdu] = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
+      const [finalProj] = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
+      const [finalExp] = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
+      const [finalCert] = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
       
       let score = 0;
       const p = finalProfile[0];
@@ -225,7 +225,7 @@ router.post("/upload-avatar/:userId", (req, res) => {
       if (p.bio && p.bio.length > 40) score += 10;
       if (p.resume_url) score += 15;
       
-      const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
+      const [finalExtra] = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
       let extraCount = finalExp.length + finalCert.length + finalExtra.length;
       if (extraCount === 0) {
          const hasExpJson = p.experience_json && p.experience_json !== "[]" && p.experience_json !== "null";
@@ -300,24 +300,24 @@ router.post("/upload-certificate/:userId", (req, res) => {
 
 async function getStudentMetrics(userId: number) {
   let talentScore = 60;
-  const [talRows]: any = await db.query("SELECT overall_score FROM talent_scores WHERE user_id = ?", [userId]);
+  const [talRows] = await db.query("SELECT overall_score FROM talent_scores WHERE user_id = ?", [userId]);
   if (talRows && talRows.length > 0) {
     talentScore = talRows[0].overall_score;
   }
 
   let codingScore = 55;
-  const [codRows]: any = await db.query("SELECT coding_score FROM coding_analysis WHERE user_id = ?", [userId]);
+  const [codRows] = await db.query("SELECT coding_score FROM coding_analysis WHERE user_id = ?", [userId]);
   if (codRows && codRows.length > 0) {
     codingScore = codRows[0].coding_score;
   }
 
   let interviewScore = 0;
-  const [perfRows]: any = await db.query("SELECT avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
+  const [perfRows] = await db.query("SELECT avg_interview_score FROM student_performance_stats WHERE user_id = ?", [userId]);
   if (perfRows && perfRows.length > 0 && perfRows[0].avg_interview_score) {
     interviewScore = Math.round(perfRows[0].avg_interview_score);
   }
   if (interviewScore === 0) {
-    const [histRows]: any = await db.query("SELECT AVG(score) as avg_score FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
+    const [histRows] = await db.query("SELECT AVG(score) as avg_score FROM interview_history WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = ?)", [userId]);
     if (histRows && histRows[0] && histRows[0].avg_score) {
       interviewScore = Math.round(histRows[0].avg_score);
     }
@@ -327,7 +327,7 @@ async function getStudentMetrics(userId: number) {
   }
 
   let quizScore = 0;
-  const [quizRows]: any = await db.query(
+  const [quizRows] = await db.query(
     "SELECT AVG(percentage) as avg_score FROM quizzes WHERE user_id = ? AND status = 'COMPLETED'",
     [userId]
   );
@@ -339,7 +339,7 @@ async function getStudentMetrics(userId: number) {
   }
 
   let psychometricScore = 50;
-  const [psyRows]: any = await db.query("SELECT overall_score FROM psychometric_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [userId]);
+  const [psyRows] = await db.query("SELECT overall_score FROM psychometric_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [userId]);
   if (psyRows && psyRows.length > 0) {
     psychometricScore = psyRows[0].overall_score || 50;
   }
@@ -358,14 +358,14 @@ router.get("/profile/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
     await updateLoginStreak(Number(userId));
-    const [profiles]: any = await db.query("SELECT sp.*, cm.college_name FROM student_profiles sp LEFT JOIN college_master cm ON sp.college_id = cm.id WHERE sp.user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT sp.*, cm.college_name FROM student_profiles sp LEFT JOIN college_master cm ON sp.college_id = cm.id WHERE sp.user_id = ?", [userId]);
     if (profiles.length === 0) {
       // Fallback: Create profile if missing
-      const [users]: any = await db.query("SELECT id FROM users WHERE id = ? AND role = 'STUDENT'", [userId]);
+      const [users] = await db.query("SELECT id FROM users WHERE id = ? AND role = 'STUDENT'", [userId]);
       if (users.length > 0) {
         const tbId = `TB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
         await db.query("INSERT INTO student_profiles (user_id, tb_id, profile_visibility) VALUES (?, ?, 'PUBLIC')", [userId, tbId]);
-        const [newProfiles]: any = await db.query("SELECT sp.*, cm.college_name FROM student_profiles sp LEFT JOIN college_master cm ON sp.college_id = cm.id WHERE sp.user_id = ?", [userId]);
+        const [newProfiles] = await db.query("SELECT sp.*, cm.college_name FROM student_profiles sp LEFT JOIN college_master cm ON sp.college_id = cm.id WHERE sp.user_id = ?", [userId]);
         profiles.push(newProfiles[0]);
       } else {
         return res.json({ success: true, data: null });
@@ -382,17 +382,17 @@ router.get("/profile/:userId", async (req, res) => {
       await db.query("UPDATE student_profiles SET profile_visibility = 'PUBLIC' WHERE id = ?", [profile.id]);
       profile.profile_visibility = 'PUBLIC';
     }
-    const [visRows]: any = await db.query("SELECT * FROM student_visibility WHERE student_id = ?", [profile.id]);
+    const [visRows] = await db.query("SELECT * FROM student_visibility WHERE student_id = ?", [profile.id]);
     if (visRows.length === 0) {
       await db.query("INSERT INTO student_visibility (student_id, visibility) VALUES (?, 'PUBLIC')", [profile.id]);
     }
 
     // Fetch related data
-    const [education]: any = await db.query("SELECT * FROM student_education WHERE student_id = ? ORDER BY start_date DESC", [profile.id]);
-    const [projects]: any = await db.query("SELECT * FROM student_projects WHERE student_id = ? ORDER BY created_at DESC", [profile.id]);
-    const [experience]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ? ORDER BY start_date DESC", [profile.id]);
-    const [certifications]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ? ORDER BY created_at DESC", [profile.id]);
-    const [extracurriculars]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC, id DESC", [userId]);
+    const [education] = await db.query("SELECT * FROM student_education WHERE student_id = ? ORDER BY start_date DESC", [profile.id]);
+    const [projects] = await db.query("SELECT * FROM student_projects WHERE student_id = ? ORDER BY created_at DESC", [profile.id]);
+    const [experience] = await db.query("SELECT * FROM student_experience WHERE student_id = ? ORDER BY start_date DESC", [profile.id]);
+    const [certifications] = await db.query("SELECT * FROM student_certifications WHERE student_id = ? ORDER BY created_at DESC", [profile.id]);
+    const [extracurriculars] = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ? ORDER BY activity_date DESC, id DESC", [userId]);
 
     let score = 0;
     if (profile.full_name && profile.contact && profile.location && profile.profile_photo_url) score += 15;
@@ -435,34 +435,14 @@ router.get("/profile/:userId", async (req, res) => {
 
     const metrics = await getStudentMetrics(Number(userId));
 
-    const mappedProjects = (projects || []).map((p: any) => ({
-      ...p,
-      techStack: p.tech_stack,
-      githubLink: p.github_link,
-    }));
-
-    const mappedExperience = (experience || []).map((e: any) => ({
-      ...e,
-      isCurrent: e.is_current === 1 || e.is_current === true,
-    }));
-
-    const mappedCertifications = (certifications || []).map((c: any) => ({
-      ...c,
-      issuingOrganization: c.issuing_organization,
-      issueDate: c.issue_date,
-      expiryDate: c.expiry_date,
-      credentialId: c.credential_id,
-      credentialUrl: c.credential_url,
-    }));
-
     res.json({ 
       success: true, 
       data: { 
         ...profile, 
         education, 
-        projects: mappedProjects, 
-        experience: mappedExperience, 
-        certifications: mappedCertifications,
+        projects, 
+        experience, 
+        certifications,
         extracurriculars,
         metrics
       } 
@@ -473,121 +453,13 @@ router.get("/profile/:userId", async (req, res) => {
   }
 });
 
-/**
- * POST /api/students/dev/autofill-dummy-profile
- * Temporary development-only route for autocompleting student profile for interview testing.
- */
-router.post("/dev/autofill-dummy-profile", authenticate, async (req: any, res) => {
-  // 1. Double check environment conditions
-  if (process.env.NODE_ENV === "production" || process.env.ENABLE_TEST_STUDENT_DUMMY_PROFILE !== "true") {
-    return res.status(403).json({ 
-      success: false, 
-      message: "Development-only dummy profile autofill is disabled or in production environment." 
-    });
-  }
-
-  // 2. Double check student role
-  if (!req.user || req.user.role !== "STUDENT") {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied: This endpoint is restricted only to Student accounts."
-    });
-  }
-
-  const userId = req.user.userId;
-
-  try {
-    // 3. Find or create the student profile
-    let [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
-    let studentId;
-    if (profiles.length === 0) {
-      await db.query(
-        "INSERT INTO student_profiles (user_id, full_name, profile_visibility) VALUES (?, 'Test Student', 'PUBLIC')",
-        [userId]
-      );
-      const [newProfiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
-      studentId = newProfiles[0]?.id;
-    } else {
-      studentId = profiles[0].id;
-    }
-
-    // 4. Update the student_profiles table
-    const dummyEduJson = [
-      {
-        institution: "Test Engineering College",
-        degree: "B.Tech",
-        field_of_study: "Computer Science",
-        start_date: "2022-08-01",
-        end_date: "2026-06-01",
-        grade: "8.5 CGPA",
-        description: "Temporary test education history."
-      }
-    ];
-
-    const dummySkills = ["JavaScript", "React", "Node.js", "TypeScript", "MySQL"];
-
-    await db.query(`
-      UPDATE student_profiles 
-      SET full_name = ?, 
-          contact = ?, 
-          location = ?, 
-          preferred_job_role = ?, 
-          preferred_location = ?, 
-          skills_json = ?, 
-          bio = ?, 
-          onboarding_completed = 1, 
-          completeness_score = 85,
-          profile_visibility = 'PUBLIC',
-          education_json = ?,
-          onboarding_industry = 'Technology',
-          onboarding_status = 'actively_looking',
-          onboarding_source = 'Other',
-          onboarding_help_actions = '[]'
-      WHERE id = ?
-    `, [
-      "Test Student",
-      "9876543210",
-      "Solapur, Maharashtra",
-      "Full Stack Developer",
-      "Pune",
-      JSON.stringify(dummySkills),
-      "Temporary test profile created only for video interview testing.",
-      JSON.stringify(dummyEduJson),
-      studentId
-    ]);
-
-    // 5. Also update student_education table for total system compliance/consistency
-    await db.query("DELETE FROM student_education WHERE student_id = ?", [studentId]);
-    await db.query(`
-      INSERT INTO student_education (student_id, institution, degree, field_of_study, start_date, end_date, grade, description)
-      VALUES (?, 'Test Engineering College', 'B.Tech', 'Computer Science', '2022-08-01', '2026-06-01', '8.5 CGPA', 'Temporary test education history.')
-    `, [studentId]);
-
-    console.log(`[DEV ONLY] Dummy student profile auto-completed for user ID ${userId} (${req.user.email})`);
-
-    // Return success response with updated profile
-    const [finalProfile]: any = await db.query("SELECT * FROM student_profiles WHERE id = ?", [studentId]);
-    return res.json({
-      success: true,
-      message: "Temporary test profile filled for interview testing.",
-      data: finalProfile[0]
-    });
-  } catch (err: any) {
-    console.error("[DEV ONLY] Error autofilling dummy Student profile:", err);
-    return res.status(500).json({ 
-      success: false, 
-      message: "Server error occurred while preparing dummy test profile." 
-    });
-  }
-});
-
 // Update Profile Section
 router.put("/profile/:userId/section/:section", async (req, res) => {
   const { userId, section } = req.params;
   const data = req.body;
 
   try {
-    const [profiles]: any = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT id FROM student_profiles WHERE user_id = ?", [userId]);
     if (profiles.length === 0) return res.status(404).json({ success: false, message: "Profile not found" });
     const studentId = profiles[0].id;
 
@@ -674,7 +546,7 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
         // Try dynamically matching institutional names with colleges registered in college_master
         if (primaryEdu) {
           const instName = primaryEdu.institution.trim().toLowerCase();
-          const [collegesList]: any = await db.query("SELECT id, college_name FROM college_master WHERE status = 'ACTIVE'");
+          const [collegesList] = await db.query("SELECT id, college_name FROM college_master WHERE status = 'ACTIVE'");
           
           const matched = collegesList.find((c: any) => {
             const name = c.college_name.toLowerCase();
@@ -760,12 +632,12 @@ const parseDate = (d: any) => d ? String(d).split('T')[0] : null;
     }
 
     // Recalculate Completeness Score
-    const [finalProfile]: any = await db.query("SELECT * FROM student_profiles WHERE id = ?", [studentId]);
-    const [finalEdu]: any = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
-    const [finalProj]: any = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
-    const [finalExp]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
-    const [finalCert]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
-    const [finalExtra]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
+    const [finalProfile] = await db.query("SELECT * FROM student_profiles WHERE id = ?", [studentId]);
+    const [finalEdu] = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
+    const [finalProj] = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
+    const [finalExp] = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
+    const [finalCert] = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
+    const [finalExtra] = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
     
     let score = 0;
     const p = finalProfile[0];
@@ -864,7 +736,7 @@ router.post("/notifications/read-all/:userId", async (req, res) => {
 router.get("/privacy/:userId", async (req: express.Request, res: express.Response) => {
   try {
     const { userId } = req.params;
-    const [profiles]: any = await db.query("SELECT onboarding_help_actions FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT onboarding_help_actions FROM student_profiles WHERE user_id = ?", [userId]);
     
     if (profiles.length === 0) {
       return res.status(404).json({ success: false, message: "Profile not found" });
@@ -906,7 +778,7 @@ router.post("/privacy/:userId", async (req: express.Request, res: express.Respon
       return res.status(400).json({ success: false, message: "Consents config missing in body" });
     }
     
-    const [profiles]: any = await db.query("SELECT id, onboarding_help_actions FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT id, onboarding_help_actions FROM student_profiles WHERE user_id = ?", [userId]);
     if (profiles.length === 0) {
       return res.status(404).json({ success: false, message: "Profile not found" });
     }
@@ -936,13 +808,13 @@ router.get("/privacy/:userId/export", async (req: express.Request, res: express.
     const { userId } = req.params;
     
     // 1. Fetch user root info
-    const [users]: any = await db.query("SELECT id, email, role, status, xp_balance, free_mock_count, login_streak, total_earned_xp, created_at FROM users WHERE id = ?", [userId]);
+    const [users] = await db.query("SELECT id, email, role, status, xp_balance, free_mock_count, login_streak, total_earned_xp, created_at FROM users WHERE id = ?", [userId]);
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: "User account not found." });
     }
     
     // 2. Fetch student profile
-    const [profiles]: any = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
+    const [profiles] = await db.query("SELECT * FROM student_profiles WHERE user_id = ?", [userId]);
     if (profiles.length === 0) {
       return res.status(404).json({ success: false, message: "Student profile record not found." });
     }
@@ -950,12 +822,12 @@ router.get("/privacy/:userId/export", async (req: express.Request, res: express.
     const studentId = profiles[0].id;
     
     // Fetch related tables
-    const [education]: any = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
-    const [experience]: any = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
-    const [projects]: any = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
-    const [certifications]: any = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
-    const [extracurriculars]: any = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
-    const [interviewAttempts]: any = await db.query("SELECT * FROM interview_history WHERE student_id = ?", [studentId]);
+    const [education] = await db.query("SELECT * FROM student_education WHERE student_id = ?", [studentId]);
+    const [experience] = await db.query("SELECT * FROM student_experience WHERE student_id = ?", [studentId]);
+    const [projects] = await db.query("SELECT * FROM student_projects WHERE student_id = ?", [studentId]);
+    const [certifications] = await db.query("SELECT * FROM student_certifications WHERE student_id = ?", [studentId]);
+    const [extracurriculars] = await db.query("SELECT * FROM extracurricular_activities WHERE user_id = ?", [userId]);
+    const [interviewAttempts] = await db.query("SELECT * FROM interview_history WHERE student_id = ?", [studentId]);
     
     // Package into neat high-compliance export wrapper
     const exportedData = {
@@ -990,7 +862,7 @@ router.delete("/privacy/:userId/delete-account", async (req: express.Request, re
   try {
     const { userId } = req.params;
     
-    const [users]: any = await db.query("SELECT id FROM users WHERE id = ?", [userId]);
+    const [users] = await db.query("SELECT id FROM users WHERE id = ?", [userId]);
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: "User account does not exist or has already been anonymous-deleted." });
     }
@@ -1046,26 +918,11 @@ Example format:
 ]
 `;
 
-    let aiResult;
-    try {
-      aiResult = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-    } catch (err: any) {
-      console.warn("[Graceful Fallback] gemini-3.5-flash experiencing high demand (503/UNAVAILABLE). Retrying with gemini-3.1-flash-lite...");
-      try {
-        aiResult = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
-          contents: prompt,
-          config: { responseMimeType: "application/json" }
-        });
-      } catch (fallbackErr: any) {
-        console.warn("[Graceful Fallback] gemini-3.1-flash-lite also experiencing high demand / unavailable. Invoking local database fallback dataset.");
-        throw new Error("All Gemini models temporarily overloaded. Relying on offline dataset.");
-      }
-    }
+    const aiResult = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
 
     const rawText = aiResult.text || "[]";
     const cleanedJson = rawText.replace(/```json\n?|```/gi, "").trim();
@@ -1079,10 +936,9 @@ Example format:
     institutionCache[cacheKey] = suggestions;
 
     res.json({ success: true, suggestions });
-  } catch (error: any) {
-    // Return a safe matching fallback list if AI fails (e.g. key/rate/503 issues)
-    // We log as a warning or informational prompt to avoid triggering testing framework error state
-    console.log("[INFO] Served fallback list of institutions. Reason: " + (error.message || error));
+  } catch (error) {
+    console.error("Institution suggestion error:", error);
+    // Return a safe matching fallback list if AI fails (e.g. key/rate issues)
     const fallbackList = instType === 'school' ? [
       "Central Board of Secondary Education (CBSE)",
       "Indian Certificate of Secondary Education (ICSE)",

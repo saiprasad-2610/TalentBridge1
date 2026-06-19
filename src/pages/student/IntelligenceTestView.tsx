@@ -1,291 +1,233 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Loader2, AlertCircle, ArrowLeft, ArrowRight, ShieldAlert, Timer, CheckCircle } from "lucide-react";
-import api from "../../services/api.ts";
-import { motion, AnimatePresence } from "motion/react";
-
-interface Option {
-  text: string;
-  value?: number;
-}
-
-interface Question {
-  id: number;
-  question: string;
-  options_json: Option[];
-}
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import api from '../../services/api';
+import AntiCheatWrapper from '../../components/intelligence/AntiCheatWrapper';
+import { Timer, AlertCircle } from 'lucide-react';
 
 export default function IntelligenceTestView() {
-  const { type } = useParams<{ type: string }>();
+  const { type } = useParams(); // pq, iq, eq, sq
   const navigate = useNavigate();
-  
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
-  
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [answers, setAnswers] = useState<any[]>([]);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [started, setStarted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Countdown timer: 5 minutes = 300 seconds
-  const [timeLeft, setTimeLeft] = useState(300);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const timeSpentRef = useRef(0);
 
   useEffect(() => {
     const fetchQuestions = async () => {
-      if (!type) return;
       try {
-        setLoading(true);
-        const res = await api.get(`/intelligence/questions/${type}`);
-        if (res.data?.success && res.data?.questions) {
-          setQuestions(res.data.questions);
+        const { data } = await api.get(`/intelligence/questions/${type}`);
+        if (data.success && data.questions.length > 0) {
+          setQuestions(data.questions);
+          // Set timer based on type. Example: IQ = 20 mins, others = 15 mins
+          setTimeLeft(type === 'iq' ? 20 * 60 : 15 * 60);
         } else {
-          setError("Failed to retrieve assessment data.");
+          alert('No questions available for this test yet. Contact Admin.');
+          navigate('/student/intelligence');
         }
-      } catch (err: any) {
-        console.error("Error retrieving assessment questions:", err);
-        setError("Unable to launch the live assessment server. Please check your network connection.");
+      } catch (e) {
+        console.error(e);
+        navigate('/student/intelligence');
       } finally {
         setLoading(false);
       }
     };
-
     fetchQuestions();
+  }, [type, navigate]);
 
-    // Start timer countdown
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        timeSpentRef.current += 1;
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          handleAutoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [type]);
-
-  const handleSelectOption = (questionId: number, optionText: string) => {
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [questionId]: optionText,
-    }));
-  };
-
-  const formatTime = (seconds: number) => {
-    const min = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-    return `${min}:${sec < 10 ? "0" : ""}${sec}`;
-  };
-
-  const buildPayload = () => {
-    return Object.entries(selectedAnswers).map(([qId, ansText]) => ({
-      questionId: Number(qId),
-      selectedOption: ansText,
-    }));
-  };
-
-  const handleAutoSubmit = async () => {
-    console.log("Time limit reached. Auto-submitting answers...");
-    submitAnswers(true);
-  };
-
-  const submitAnswers = async (isAuto = false) => {
-    if (submitting) return;
-    setSubmitting(true);
-    try {
-      const payloadAnswers = buildPayload();
-      const res = await api.post(`/intelligence/submit/${type}`, {
-        answers: payloadAnswers,
-        timeTaken: timeSpentRef.current,
-      });
-
-      if (res.data?.success) {
-        alert(`Assessment completed successfully! Your calculated score is: ${res.data.score || 0}%`);
-        navigate("/student/intelligence");
-      } else {
-        setError("Error logging assessment completion.");
-      }
-    } catch (err) {
-      console.error("Submission error:", err);
-      setError("Unable to catalog your answers. Please ensure you answered at least 1 question.");
-    } finally {
-      setSubmitting(false);
+  useEffect(() => {
+    let timer: any;
+    if (started && timeLeft > 0 && !submitting) {
+      timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    } else if (timeLeft === 0 && started && !submitting) {
+      handleSubmit();
     }
+    return () => clearInterval(timer);
+  }, [started, timeLeft, submitting]);
+
+  const handleStart = async () => {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch(e) {
+      console.warn("Fullscreen permission denied or not supported");
+    }
+    setStarted(true);
+  };
+
+  const handleSelectOption = (text: string) => {
+    const newAnswers = [...answers];
+    const existingIdx = newAnswers.findIndex(a => a.questionId === questions[currentIdx].id);
+    if (existingIdx >= 0) {
+      newAnswers[existingIdx].selectedOption = text;
+    } else {
+      newAnswers.push({ questionId: questions[currentIdx].id, selectedOption: text });
+    }
+    setAnswers(newAnswers);
   };
 
   const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
+    if (currentIdx < questions.length - 1) setCurrentIdx(prev => prev + 1);
+  };
+
+  const handlePrev = () => {
+    if (currentIdx > 0) setCurrentIdx(prev => prev - 1);
+  };
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    
+    // Exit full screen if active
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch(e) {}
+    }
+
+    try {
+      const { data } = await api.post(`/intelligence/submit/${type}`, {
+        answers,
+        timeTaken: (type === 'iq' ? 1200 : 900) - timeLeft
+      });
+      if (data.success) {
+        navigate('/student/intelligence');
+      }
+    } catch(e) {
+      console.error(e);
+      alert('Error submitting test. Please contact support.');
+      navigate('/student/intelligence');
     }
   };
 
-  const handleBack = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-    }
+  const handleViolation = () => {
+    // handled inside AntiCheatWrapper (shows warning)
   };
 
-  if (loading) {
+  const handleMaxViolations = () => {
+    alert("Test automatically submitted due to multiple severe security violations.");
+    handleSubmit();
+  };
+
+  if (loading) return <div className="p-10 flex justify-center mt-20 font-mono text-slate-500">Initializing Assessment Protocol...</div>;
+  if (!questions.length) return null;
+
+  if (!started) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50 p-6 space-y-4">
-        <Loader2 className="animate-spin text-blue-600" size={36} />
-        <p className="text-xs text-slate-500 font-black uppercase tracking-wider">Provisioning live test sandbox session...</p>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white font-sans selection:bg-indigo-500">
+        <div className="max-w-xl w-full bg-slate-800 p-10 rounded-3xl border border-slate-700 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 via-amber-500 to-indigo-500"></div>
+          <AlertCircle className="w-16 h-16 text-indigo-400 mb-6" />
+          <h1 className="text-3xl font-black mb-4 uppercase tracking-tight">Security Protocol</h1>
+          <div className="space-y-4 text-slate-300 mb-10 leading-relaxed font-medium">
+            <p>You are about to start a monitored intelligence assessment.</p>
+            <ul className="list-disc pl-5 space-y-2 text-sm">
+              <li>You MUST remain in full-screen mode.</li>
+              <li>Switching tabs or minimizing the window is prohibited.</li>
+              <li>Copy-pasting or right-clicking is disabled.</li>
+              <li className="text-red-400 font-bold">Multiple violations will auto-submit the exam and penalize your score.</li>
+            </ul>
+          </div>
+          <button 
+            onClick={handleStart}
+            className="w-full py-4 bg-indigo-500 hover:bg-indigo-600 text-white font-black rounded-xl uppercase tracking-widest text-sm transition-all shadow-lg shadow-indigo-500/20"
+          >
+            I Understand, Start Assessment
+          </button>
+        </div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="max-w-xl mx-auto mt-20 p-6 bg-white border border-slate-100 rounded-3xl shadow-sm text-center space-y-4">
-        <AlertCircle size={44} className="text-red-500 mx-auto" />
-        <h3 className="font-black text-slate-900 text-base uppercase tracking-tight">System Outage Detected</h3>
-        <p className="text-xs text-slate-500 font-semibold leading-relaxed">{error}</p>
-        <button
-          onClick={() => navigate("/student/intelligence")}
-          className="px-6 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-850 text-xs font-black uppercase tracking-wider cursor-pointer"
-        >
-          Return to Dashboard
-        </button>
-      </div>
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="max-w-xl mx-auto mt-20 p-6 bg-white border border-slate-100 rounded-3xl shadow-sm text-center space-y-4">
-        <ShieldAlert size={44} className="text-blue-500 mx-auto" />
-        <h3 className="font-white text-slate-900 text-base uppercase tracking-tight font-black">Assessment Unprepared</h3>
-        <p className="text-xs text-slate-500 font-semibold leading-relaxed">No active questions have been seeded for this test type yet.</p>
-        <button
-          onClick={() => navigate("/student/intelligence")}
-          className="px-6 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-850 text-xs font-black uppercase tracking-wider cursor-pointer"
-        >
-          Return to Panel
-        </button>
-      </div>
-    );
-  }
-
-  const currentQuestion = questions[currentIndex];
-  const isLastQuestion = currentIndex === questions.length - 1;
-  const progressPercent = Math.round(((currentIndex + 1) / questions.length) * 100);
+  const currentQ = questions[currentIdx];
+  const answeredCurrent = answers.find(a => a.questionId === currentQ.id);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12 space-y-8 min-h-screen">
-      {/* Test Header */}
-      <div className="flex justify-between items-center bg-white border border-slate-100 p-5 rounded-3xl shadow-sm">
-        <button
-          onClick={() => {
-            if (window.confirm("Are you sure you want to exit the assessment mid-way? Your progress will be discarded.")) {
-              navigate("/student/intelligence");
-            }
-          }}
-          className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-slate-700 uppercase tracking-widest cursor-pointer"
-        >
-          <ArrowLeft size={14} /> Exit Sandbox
-        </button>
-
-        <div className="flex items-center gap-2 bg-red-50 text-red-600 font-mono font-bold px-4 py-2 rounded-2xl border border-red-100 text-xs">
-          <Timer size={14} className="animate-pulse" /> {formatTime(timeLeft)}
-        </div>
-      </div>
-
-      {/* Progress indicators wrapper */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-black text-slate-400 uppercase tracking-widest">
-          <span>Question {currentIndex + 1} of {questions.length}</span>
-          <span>{progressPercent}% Complete</span>
-        </div>
-        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-          <div className="bg-blue-600 h-full rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
-        </div>
-      </div>
-
-      {/* Question Card Box */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          className="bg-white border border-slate-100 rounded-3xl p-6 md:p-8 shadow-sm space-y-6 text-left"
-        >
-          <h2 className="text-base font-bold text-slate-900 leading-normal font-black">
-            {currentIndex + 1}. {currentQuestion.question}
-          </h2>
-
-          <div className="space-y-3 pt-2">
-            {currentQuestion.options_json.map((opt, index) => {
-              const isSelected = selectedAnswers[currentQuestion.id] === opt.text;
-              return (
-                <button
-                  key={index}
-                  onClick={() => handleSelectOption(currentQuestion.id, opt.text)}
-                  className={`w-full p-4.5 rounded-2xl text-left font-bold text-xs transition-all border outline-none flex items-center justify-between cursor-pointer ${
-                    isSelected
-                      ? "bg-blue-50/50 border-blue-500 text-slate-900 shadow-sm"
-                      : "bg-white border-slate-100 text-slate-700 hover:border-blue-300"
-                  }`}
-                >
-                  <span>{opt.text}</span>
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                    isSelected ? "border-blue-500 bg-blue-500" : "border-slate-300"
-                  }`}>
-                    {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white animate-scaleUp" />}
-                  </div>
-                </button>
-              );
-            })}
+    <AntiCheatWrapper onViolation={handleViolation} onMaxViolations={handleMaxViolations} maxViolations={3}>
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+        
+        {/* Header */}
+        <header className="bg-white border-b border-slate-200 py-4 px-8 flex items-center justify-between shadow-sm sticky top-0 z-10 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-black">
+              {type?.toUpperCase()}
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Intelligence Assessment</h2>
+              <p className="text-xs text-slate-500 font-medium">Question {currentIdx + 1} of {questions.length}</p>
+            </div>
           </div>
-        </motion.div>
-      </AnimatePresence>
+          <div className="flex items-center gap-3 bg-red-50 px-4 py-2 rounded-xl text-red-600 border border-red-100 font-mono font-bold">
+            <Timer className="w-5 h-5" />
+            <span>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+          </div>
+        </header>
 
-      {/* Footer controls */}
-      <div className="flex justify-between items-center gap-4">
-        <button
-          onClick={handleBack}
-          disabled={currentIndex === 0}
-          className={`px-5 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all ${
-            currentIndex === 0
-              ? "bg-slate-100 text-slate-400 border border-slate-150 cursor-not-allowed shadow-none"
-              : "bg-white border border-slate-100 text-slate-500 hover:border-slate-300 active:scale-95"
-          }`}
-        >
-          <ArrowLeft size={12} /> Back
-        </button>
+        {/* Question Area */}
+        <div className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-10 flex flex-col">
+          <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-100 flex-1 flex flex-col mb-6">
+            <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-4 block">Question {currentIdx + 1}</span>
+            <h3 className="text-2xl md:text-3xl font-medium text-slate-800 leading-relaxed tracking-tight mb-10">
+              {currentQ.question || currentQ.question_text}
+            </h3>
 
-        {isLastQuestion ? (
-          <button
-            onClick={() => submitAnswers()}
-            disabled={submitting}
-            className="px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="animate-spin" size={12} /> Submitting...
-              </>
+            <div className="space-y-4 mt-auto">
+              {(currentQ.options_json || []).map((opt: any, idx: number) => {
+                const optText = opt.text || opt.title || opt; // fallback depending on how admin stores it
+                const isSelected = answeredCurrent?.selectedOption === optText;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleSelectOption(optText)}
+                    className={`w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 ${
+                      isSelected 
+                        ? 'border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-100/50' 
+                        : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${isSelected ? 'border-indigo-500' : 'border-slate-300'}`}>
+                      {isSelected && <div className="w-3 h-3 bg-indigo-500 rounded-full" />}
+                    </div>
+                    <span className={`text-lg ${isSelected ? 'text-indigo-900 font-medium' : 'text-slate-600'}`}>{optText}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={handlePrev}
+              disabled={currentIdx === 0}
+              className="px-6 py-3 font-bold text-slate-500 uppercase tracking-widest text-xs hover:text-slate-800 disabled:opacity-30 transition-colors"
+            >
+              Previous
+            </button>
+            
+            {currentIdx === questions.length - 1 ? (
+              <button 
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="px-8 py-4 bg-teal-500 hover:bg-teal-600 text-white font-black rounded-xl uppercase tracking-widest text-sm shadow-xl shadow-teal-500/20 transition-all disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Submit Assessment'}
+              </button>
             ) : (
-              <>
-                <CheckCircle size={14} /> Submit Assessment
-              </>
+              <button 
+                onClick={handleNext}
+                className="px-8 py-4 bg-indigo-900 hover:bg-indigo-800 text-white font-black rounded-xl uppercase tracking-widest text-sm shadow-xl shadow-indigo-900/20 transition-all"
+              >
+                Next Question
+              </button>
             )}
-          </button>
-        ) : (
-          <button
-            onClick={handleNext}
-            className="px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
-          >
-            Next <ArrowRight size={12} />
-          </button>
-        )}
+          </div>
+        </div>
+
       </div>
-    </div>
+    </AntiCheatWrapper>
   );
 }
