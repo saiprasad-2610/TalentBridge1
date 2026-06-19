@@ -366,7 +366,12 @@ export const DynamicText: React.FC<{ text: string | undefined | null }> = ({ tex
     }
     
     const cacheKey = `trans_${language}_${text}`;
-    const cached = localStorage.getItem(cacheKey);
+    let cached = null;
+    try {
+      cached = localStorage.getItem(cacheKey);
+    } catch (e) {
+      console.warn("Storage access is blocked:", e);
+    }
     if (cached) {
       setTranslated(cached);
       return;
@@ -383,7 +388,11 @@ export const DynamicText: React.FC<{ text: string | undefined | null }> = ({ tex
     .then(data => {
       if (data.success && data.translatedText) {
         setTranslated(data.translatedText);
-        localStorage.setItem(cacheKey, data.translatedText);
+        try {
+          localStorage.setItem(cacheKey, data.translatedText);
+        } catch (e) {
+          console.warn("Storage access is blocked:", e);
+        }
       }
     })
     .catch(console.error);

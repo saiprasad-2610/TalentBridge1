@@ -554,12 +554,52 @@ export function VideoInterviewRoom() {
     if (!pc) return;
 
     try {
-      if (signal.sdp) {
+      // Parse / Normalize SDP Init Object
+      let sdpInit: RTCSessionDescriptionInit | null = null;
+      if (signal.type === "offer" || signal.type === "answer" || signal.type === "pranswer" || signal.type === "rollback") {
+        sdpInit = { type: signal.type, sdp: signal.sdp };
+      } else if (signal.sdp && (signal.sdp.type === "offer" || signal.sdp.type === "answer" || signal.sdp.type === "pranswer" || signal.sdp.type === "rollback")) {
+        sdpInit = { type: signal.sdp.type, sdp: signal.sdp.sdp };
+      } else if (signal.sdp && typeof signal.sdp === "string") {
+        sdpInit = {
+          type: (signal.type || "offer") as RTCSdpType,
+          sdp: signal.sdp
+        };
+      }
+
+      // Parse / Normalize ICE Candidate Init Object
+      let iceInit: RTCIceCandidateInit | null = null;
+      if (signal.candidate) {
+        if (typeof signal.candidate === "object" && signal.candidate !== null) {
+          iceInit = {
+            candidate: signal.candidate.candidate ?? "",
+            sdpMid: signal.candidate.sdpMid ?? null,
+            sdpMLineIndex: signal.candidate.sdpMLineIndex ?? null,
+            usernameFragment: signal.candidate.usernameFragment ?? null
+          };
+        } else if (typeof signal.candidate === "string") {
+          iceInit = {
+            candidate: signal.candidate,
+            sdpMid: signal.sdpMid ?? null,
+            sdpMLineIndex: signal.sdpMLineIndex ?? null,
+            usernameFragment: signal.usernameFragment ?? null
+          };
+        }
+      } else if (signal.sdpMid !== undefined || signal.sdpMLineIndex !== undefined) {
+        iceInit = {
+          candidate: signal.candidate ?? "",
+          sdpMid: signal.sdpMid ?? null,
+          sdpMLineIndex: signal.sdpMLineIndex ?? null,
+          usernameFragment: signal.usernameFragment ?? null
+        };
+      }
+
+      if (sdpInit) {
         console.log("[WebRTC] Loading Remote SDP configuration...");
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        await pc.setRemoteDescription(new RTCSessionDescription(sdpInit));
         remoteDescriptionSetRef.current = true;
 
-        if (signal.sdp.type === "offer") {
+        if (sdpInit.type === "offer") {
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           
@@ -586,13 +626,13 @@ export function VideoInterviewRoom() {
             }
           }
         }
-      } else if (signal.candidate) {
+      } else if (iceInit) {
         if (!remoteDescriptionSetRef.current) {
           console.log("[WebRTC] Buffering ICE candidate before remote description is loaded.");
-          bufferedCandidatesRef.current.push(signal.candidate);
+          bufferedCandidatesRef.current.push(iceInit);
         } else {
           try {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            await pc.addIceCandidate(new RTCIceCandidate(iceInit));
           } catch (err) {
             console.error("[WebRTC] Offline candidate addition error:", err);
           }

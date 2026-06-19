@@ -87,11 +87,24 @@ router.get("/student/:userId/applications", async (req, res) => {
   try {
     const [apps]: any = await db.query(`
       SELECT 
-        ja.id, ja.status, ja.applied_at,
-        j.title as job_title, j.id as job_id, j.deadline, j.job_type,
-        cp.company_name,
+        ja.id as application_id,
+        ja.id as id,
+        ja.status as current_status,
+        ja.status as status,
+        ja.applied_at as applied_at,
+        ja.applied_at as status_updated_at,
+        j.title as job_title,
+        j.id as job_id,
+        j.deadline as deadline,
+        j.job_type as job_type,
+        j.location as location,
+        j.salary_range as salary,
+        cp.id as company_id,
+        cp.company_name as company_name,
+        cp.logo_url as company_logo,
         js.stage_name as current_stage_name,
-        js.stage_type
+        js.stage_name as application_stage,
+        js.stage_type as stage_type
       FROM job_applications ja
       JOIN jobs j ON ja.job_id = j.id
       JOIN company_profiles cp ON j.company_id = cp.id
@@ -101,7 +114,43 @@ router.get("/student/:userId/applications", async (req, res) => {
       ORDER BY ja.applied_at DESC
     `, [userId]);
 
-    res.json({ success: true, data: apps });
+    // Enhance response rows to inject derived fields such as work_mode, company_notes, and next_action
+    const enrichedApps = apps.map((app: any) => {
+      // Determine work mode based on location or job type
+      let work_mode = "On-site";
+      if (app.location && app.location.toLowerCase().includes("remote")) {
+        work_mode = "Remote";
+      } else if (app.location && app.location.toLowerCase().includes("hybrid")) {
+        work_mode = "Hybrid";
+      }
+
+      // Map dynamic next action labels based on status
+      let next_action = "Awaiting feedback";
+      if (app.current_status === "APPLIED") {
+        next_action = "Under Initial Review";
+      } else if (app.current_status === "SHORTLISTED") {
+        next_action = "Schedule Video Screening";
+      } else if (app.current_status === "ASSESSMENT") {
+        next_action = "Complete Aptitude Test";
+      } else if (app.current_status === "INTERVIEW") {
+        next_action = "Attend Scheduled Interview";
+      } else if (app.current_status === "OFFER") {
+        next_action = "Review Offer Letter";
+      } else if (app.current_status === "SELECTED") {
+        next_action = "Onboarding Started";
+      } else if (app.current_status === "REJECTED") {
+        next_action = "Archived";
+      }
+
+      return {
+        ...app,
+        work_mode,
+        company_notes: "Thank you for applying. We are actively reviewing your academic scores, coding, and resume details.",
+        next_action
+      };
+    });
+
+    res.json({ success: true, data: enrichedApps });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Error fetching applications" });
