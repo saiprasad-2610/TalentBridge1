@@ -1,5 +1,5 @@
-# Software Requirements Specification (SRS): Interactive Video Interview Module
-## System Design, APIs, Real-Time Data Flows, and Security Controls
+# TalentBridge Video Interview Module SRS
+## Software Requirements Specification (SRS) • Premium Real-Time video Recruitment Engine
 
 ---
 

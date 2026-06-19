@@ -785,6 +785,39 @@ router.get("/student/:studentId", async (req, res) => {
   }
 });
 
+// Get all jobs for a specific company (recruiter user_id)
+router.get("/company/:companyUserId", async (req, res) => {
+  try {
+    const [companies]: any = await db.query(
+      "SELECT id FROM company_profiles WHERE user_id = ?",
+      [req.params.companyUserId]
+    );
+    if (!companies || companies.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    const companyId = companies[0].id;
+
+    const [jobs]: any = await db.query(`
+      SELECT J.*, 
+        (SELECT COUNT(*) FROM job_applications WHERE job_id = J.id) as applicant_count
+      FROM jobs J
+      WHERE J.company_id = ?
+      ORDER BY J.created_at DESC
+    `, [companyId]);
+
+    // Handle snake_case to camelCase conversion or general mapping safely if required by frontend
+    const sanitizedJobs = jobs.map((job: any) => ({
+      ...job,
+      skills: job.skills_json ? (typeof job.skills_json === 'string' ? JSON.parse(job.skills_json) : job.skills_json) : []
+    }));
+
+    res.json({ success: true, data: sanitizedJobs });
+  } catch (error) {
+    console.error("Error fetching company jobs:", error);
+    res.status(500).json({ success: false, message: "Error fetching company jobs" });
+  }
+});
+
 // Get single job details including stages
 router.get("/:id", async (req, res) => {
   try {

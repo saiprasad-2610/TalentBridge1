@@ -40,6 +40,7 @@ const JobPostingPage = lazy(() => import("./pages/company/JobPostingPage.tsx").t
 const JobTrackingDashboard = lazy(() => import("./pages/company/JobTrackingDashboard.tsx").then(module => ({ default: module.JobTrackingDashboard })));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile.tsx").then(module => ({ default: module.CompanyProfile })));
 const CompanySettingsPage = lazy(() => import("./pages/company/CompanySettingsPage.tsx").then(module => ({ default: module.CompanySettingsPage })));
+const AssessmentsPage = lazy(() => import("./pages/company/AssessmentsPage.tsx").then(module => ({ default: module.AssessmentsPage })));
 
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout.tsx").then(module => ({ default: module.AdminLayout })));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.tsx").then(module => ({ default: module.AdminDashboard })));
@@ -284,6 +285,7 @@ export default function App() {
               <Route path="jobs/tracking/:jobId" element={<JobTrackingDashboard />} />
               <Route path="applicants" element={<ApplicantsPage />} />
               <Route path="pipeline" element={<PipelineBoard />} />
+              <Route path="assessments" element={<AssessmentsPage />} />
               <Route path="analytics" element={<AnalyticsDashboard />} />
               <Route path="interviews" element={<InterviewCenter />} />
             </Route>
