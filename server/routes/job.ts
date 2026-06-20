@@ -292,7 +292,7 @@ router.post("/schedule-test-bulk", async (req, res) => {
     // Auto-Move selected applicants to TESTING stage if they aren't there yet
     for (const appId of applicationIds) {
       await db.query("INSERT INTO application_history (application_id, stage_id, action, notes) VALUES (?, ?, ?, ?)", [
-        appId, stageId, 'INFO', \`Bulk Test Scheduled: \${durationMinutes} mins at \${scheduledAt.replace('T', ' ')}\`
+        appId, stageId, 'INFO', `Bulk Test Scheduled: ${durationMinutes} mins at ${scheduledAt.replace('T', ' ')}`
       ]);
     }
 
