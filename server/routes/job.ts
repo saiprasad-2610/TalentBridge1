@@ -481,7 +481,14 @@ router.post("/applications/schedule-interview", async (req, res) => {
         }
      }
 
-     const formattedScheduledAt = new Date(scheduledAt).toISOString().slice(0, 19).replace('T', ' ');
+     let formattedScheduledAt = null;
+     if (scheduledAt) {
+        try {
+           formattedScheduledAt = new Date(scheduledAt).toISOString().slice(0, 19).replace('T', ' ');
+        } catch (e) {
+           return res.status(400).json({ success: false, message: "Invalid scheduled date format" });
+        }
+     }
 
      const [existing]: any = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [appId, stgId]);
      
