@@ -3,18 +3,39 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Briefcase, Calendar, ChevronRight, Clock, MapPin, Search, Check, Star, ArrowRight, Zap, 
   Target, BookOpen, AlertTriangle, Maximize2, CheckCircle, AlertCircle, CheckCircle2, X,
-  ChevronLeft, Sparkles, TrendingUp, Award, Compass, UserCheck, Coins, ShieldAlert, ListIcon
+  ChevronLeft, Sparkles, TrendingUp, Award, Compass, UserCheck, Coins, ShieldAlert, ListIcon, Video
 } from 'lucide-react';
 import api from '../../services/api.ts';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { HiringTimeline } from '../../components/HiringTimeline.tsx';
 import { toast } from 'react-hot-toast';
 
+const parseLocalDatetime = (dateStr: string | Date | null | undefined): Date => {
+  if (!dateStr) return new Date();
+  if (dateStr instanceof Date) return dateStr;
+  
+  try {
+    if (String(dateStr).includes('Z')) {
+      const parsed = new Date(dateStr);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    const normalized = String(dateStr).replace(' ', 'T');
+    const parsed = new Date(normalized);
+    if (!isNaN(parsed.getTime())) return parsed;
+    return new Date(dateStr);
+  } catch (err) {
+    console.warn("Failed to parse datetime:", err);
+    return new Date(dateStr);
+  }
+};
+
 export function AppliedJobsPage() {
   const { user, profile: authProfile } = useAuth();
+  const navigate = useNavigate();
   const [applications, setApplications] = useState<any[]>([]);
   const [activeTests, setActiveTests] = useState<any[]>([]);
+  const [studentInterviews, setStudentInterviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showTestEngine, setShowTestEngine] = useState<any>(null);
@@ -50,8 +71,20 @@ export function AppliedJobsPage() {
      if (studentId) {
         fetchApplications(studentId);
         fetchActiveTests(studentId);
+        fetchStudentInterviews();
      }
   }, [studentId]);
+
+  const fetchStudentInterviews = async () => {
+     try {
+        const res = await api.get('/interviews/student');
+        if (res.data.success) {
+           setStudentInterviews(res.data.data || []);
+        }
+     } catch (e) {
+        console.error("Error loading student interviews:", e);
+     }
+  };
 
   const fetchApplications = async (studentId: number) => {
      try {
@@ -422,6 +455,72 @@ export function AppliedJobsPage() {
                          </div>
 
                          {/* Active Scheduled Assessment Section (if scheduled) */}
+                         {/* Active Scheduled Live Interview Section (if scheduled) */}
+                         {(() => {
+                            const interview = studentInterviews.find(i => Number(i.application_id) === Number(selectedApp.id));
+                            if (!interview || interview.status === 'COMPLETED') return null;
+
+                            const isOnline = interview.type === 'INTERVIEW_ONLINE';
+
+                            return (
+                               <motion.div 
+                                  initial={{ scale: 0.98, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  className="p-6 bg-gradient-to-br from-indigo-700 to-blue-900 border border-indigo-650 rounded-[24px] text-white relative overflow-hidden shadow-xl mb-6"
+                               >
+                                  {/* Pulsing subtle ambient halo */}
+                                  <div className="absolute top-0 right-0 w-36 h-36 bg-blue-400/20 blur-3xl -mr-10 -mt-10 pointer-events-none animate-pulse" />
+
+                                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                                     <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0 border border-white/10">
+                                           <Video size={22} className="text-blue-300 animate-pulse" />
+                                        </div>
+                                        <div>
+                                           <div className="flex items-center gap-2">
+                                              <span className="text-[9px] font-black tracking-widest text-[#93c5fd] uppercase bg-blue-950/80 border border-blue-900/60 px-2.5 py-0.5 rounded">
+                                                 Interview Scheduled
+                                              </span>
+                                              {interview.status === 'LIVE' && (
+                                                 <span className="text-[9px] font-black tracking-widest text-emerald-400 uppercase bg-emerald-950/80 border border-emerald-900/60 px-2.5 py-0.5 rounded animate-pulse">
+                                                    ● Live Session Active
+                                                 </span>
+                                              )}
+                                           </div>
+                                           <h4 className="text-lg font-extrabold text-white tracking-tight mt-1.5 uppercase">
+                                              Live {isOnline ? 'Video' : 'In-Person'} Recruiter Discussion
+                                           </h4>
+                                           <p className="text-xs font-semibold text-indigo-200 tracking-tight mt-1 flex items-center gap-1.5">
+                                              <Calendar size={13} className="text-blue-305" />
+                                              {parseLocalDatetime(interview.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                           </p>
+                                        </div>
+                                     </div>
+
+                                     {isOnline ? (
+                                        <button 
+                                           onClick={() => navigate(`/interview/live/${interview.id}`)}
+                                           className="w-full md:w-auto px-7 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-emerald-500/25 active:scale-95"
+                                        >
+                                           Join Live Workspace
+                                        </button>
+                                     ) : (
+                                        <span className="w-full md:w-auto px-5 py-3 bg-white/10 border border-white/11 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-205 text-center">
+                                           In-Person Meeting
+                                        </span>
+                                     )}
+                                  </div>
+
+                                  {interview.notes && (
+                                     <p className="text-xs font-medium text-blue-105 mt-4 flex flex-col gap-1 border-t border-white/10 pt-3">
+                                        <span className="text-[9px] uppercase font-black tracking-widest text-[#93c5fd] block">Interviewer Instructions & Notes:</span>
+                                        <span className="italic block bg-black/10 p-2.5 rounded-lg border border-white/5">{interview.notes}</span>
+                                     </p>
+                                  )}
+                               </motion.div>
+                            );
+                         })()}
+
                          {selectedApp.activeTest && selectedApp.status !== 'REJECTED' && selectedApp.status !== 'SELECTED' && (() => {
                             const scheduledTime = new Date(selectedApp.activeTest.scheduled_at).getTime();
                             const currentTime = new Date().getTime();

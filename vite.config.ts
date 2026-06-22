@@ -13,4 +13,19 @@ export default defineConfig({
   define: {
     'process.env': {},
   },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'lucide-react',
+      'socket.io-client',
+      'motion',
+      'recharts',
+      'axios',
+      'react-hot-toast',
+      'html2canvas',
+      'jspdf'
+    ]
+  },
 });
