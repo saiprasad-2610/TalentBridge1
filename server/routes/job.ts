@@ -451,9 +451,34 @@ router.post("/applications/submit-test", async (req, res) => {
 
 // Schedule Interview
 router.post("/applications/schedule-interview", async (req, res) => {
-  const { applicationId, stageId, interviewType, locationOrLink, scheduledAt, notes } = req.body;
+  let { applicationId, stageId, interviewType, locationOrLink, scheduledAt, notes } = req.body;
   try {
-     // Use MySQL compatible REPLACE or manual check
+     // Verify the application exists and get its job_id
+     const [apps]: any = await db.query("SELECT job_id, current_stage_id FROM job_applications WHERE id = ?", [applicationId]);
+     if (apps.length === 0) {
+        return res.status(404).json({ success: false, message: "Application not found" });
+     }
+     const jobId = apps[0].job_id;
+
+     // Ensure stageId is valid
+     const [stages]: any = await db.query("SELECT id FROM job_stages WHERE id = ?", [stageId]);
+     if (stages.length === 0) {
+        // Find any existing stage for this job
+        const [jobStages]: any = await db.query("SELECT id FROM job_stages WHERE job_id = ? ORDER BY stage_order ASC LIMIT 1", [jobId]);
+        if (jobStages.length > 0) {
+           stageId = jobStages[0].id;
+        } else {
+           // Create a default stage
+           const [newStage]: any = await db.query(
+             "INSERT INTO job_stages (job_id, stage_name, stage_type, stage_order) VALUES (?, 'Interview', 'INTERVIEW', 1)",
+             [jobId]
+           );
+           stageId = (newStage.insertId !== undefined) ? newStage.insertId : newStage[0]?.insertId;
+           // Update application to this stage
+           await db.query("UPDATE job_applications SET current_stage_id = ? WHERE id = ?", [stageId, applicationId]);
+        }
+     }
+
      const [existing]: any = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [applicationId, stageId]);
      
      if (existing.length > 0) {
@@ -471,7 +496,8 @@ router.post("/applications/schedule-interview", async (req, res) => {
 
      res.json({ success: true, message: "Interview scheduled" });
   } catch (error) {
-     res.status(500).json({ success: false, message: "Failed to schedule interview" });
+     console.error("Schedule error:", error);
+     res.status(500).json({ success: false, message: "Failed to schedule interview", error: (error as Error).message });
   }
 });
 
