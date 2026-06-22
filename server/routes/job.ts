@@ -452,46 +452,48 @@ router.post("/applications/submit-test", async (req, res) => {
 // Schedule Interview
 router.post("/applications/schedule-interview", async (req, res) => {
   let { applicationId, stageId, interviewType, locationOrLink, scheduledAt, notes } = req.body;
+  const appId = Number(applicationId);
+  let stgId = Number(stageId);
   try {
      // Verify the application exists and get its job_id
-     const [apps]: any = await db.query("SELECT job_id, current_stage_id FROM job_applications WHERE id = ?", [applicationId]);
+     const [apps]: any = await db.query("SELECT job_id, current_stage_id FROM job_applications WHERE id = ?", [appId]);
      if (apps.length === 0) {
         return res.status(404).json({ success: false, message: "Application not found" });
      }
      const jobId = apps[0].job_id;
 
      // Ensure stageId is valid
-     const [stages]: any = await db.query("SELECT id FROM job_stages WHERE id = ?", [stageId]);
+     const [stages]: any = await db.query("SELECT id FROM job_stages WHERE id = ?", [stgId]);
      if (stages.length === 0) {
         // Find any existing stage for this job
         const [jobStages]: any = await db.query("SELECT id FROM job_stages WHERE job_id = ? ORDER BY stage_order ASC LIMIT 1", [jobId]);
         if (jobStages.length > 0) {
-           stageId = jobStages[0].id;
+           stgId = Number(jobStages[0].id);
         } else {
            // Create a default stage
            const [newStage]: any = await db.query(
              "INSERT INTO job_stages (job_id, stage_name, stage_type, stage_order) VALUES (?, 'Interview', 'INTERVIEW', 1)",
              [jobId]
            );
-           stageId = (newStage.insertId !== undefined) ? newStage.insertId : newStage[0]?.insertId;
+           stgId = Number((newStage.insertId !== undefined) ? newStage.insertId : newStage[0]?.insertId);
            // Update application to this stage
-           await db.query("UPDATE job_applications SET current_stage_id = ? WHERE id = ?", [stageId, applicationId]);
+           await db.query("UPDATE job_applications SET current_stage_id = ? WHERE id = ?", [stgId, appId]);
         }
      }
 
-     const [existing]: any = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [applicationId, stageId]);
+     const [existing]: any = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [appId, stgId]);
      
      if (existing.length > 0) {
         await db.query(`
           UPDATE interview_schedules 
           SET interview_type = ?, location_or_link = ?, scheduled_at = ?, notes = ?
           WHERE application_id = ? AND stage_id = ?
-        `, [interviewType, locationOrLink, scheduledAt, notes, applicationId, stageId]);
+        `, [interviewType, locationOrLink, scheduledAt, notes, appId, stgId]);
      } else {
         await db.query(`
           INSERT INTO interview_schedules (application_id, stage_id, interview_type, location_or_link, scheduled_at, notes)
           VALUES (?, ?, ?, ?, ?, ?)
-        `, [applicationId, stageId, interviewType, locationOrLink, scheduledAt, notes]);
+        `, [appId, stgId, interviewType, locationOrLink, scheduledAt, notes]);
      }
 
      res.json({ success: true, message: "Interview scheduled" });
