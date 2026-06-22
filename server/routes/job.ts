@@ -481,6 +481,8 @@ router.post("/applications/schedule-interview", async (req, res) => {
         }
      }
 
+     const formattedScheduledAt = new Date(scheduledAt).toISOString().slice(0, 19).replace('T', ' ');
+
      const [existing]: any = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [appId, stgId]);
      
      if (existing.length > 0) {
@@ -488,12 +490,12 @@ router.post("/applications/schedule-interview", async (req, res) => {
           UPDATE interview_schedules 
           SET interview_type = ?, location_or_link = ?, scheduled_at = ?, notes = ?
           WHERE application_id = ? AND stage_id = ?
-        `, [interviewType, locationOrLink, scheduledAt, notes, appId, stgId]);
+        `, [interviewType, locationOrLink, formattedScheduledAt, notes, appId, stgId]);
      } else {
         await db.query(`
           INSERT INTO interview_schedules (application_id, stage_id, interview_type, location_or_link, scheduled_at, notes)
           VALUES (?, ?, ?, ?, ?, ?)
-        `, [appId, stgId, interviewType, locationOrLink, scheduledAt, notes]);
+        `, [appId, stgId, interviewType, locationOrLink, formattedScheduledAt, notes]);
      }
 
      res.json({ success: true, message: "Interview scheduled" });

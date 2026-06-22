@@ -15,10 +15,11 @@ async function setup() {
 
   try {
      console.log("Trying to insert with string values format...");
+     const ds = new Date('2023-01-01T00:00:00.000Z').toISOString().slice(0, 19).replace('T', ' ');
      await db.query(`
           INSERT INTO interview_schedules (application_id, stage_id, interview_type, location_or_link, scheduled_at, notes)
           VALUES (?, ?, ?, ?, ?, ?)
-        `, [String(aId), String(sId), 'INTERVIEW_ONLINE', 'Link', '2023-01-01', '']);
+        `, [aId, sId, 'INTERVIEW_ONLINE', 'Link', ds, '']);
      console.log("Success with strings!");
   } catch(e) {
      console.error("Failed with strings:", e);
