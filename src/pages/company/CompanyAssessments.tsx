@@ -224,11 +224,9 @@ export default function CompanyAssessments() {
   };
 
   const deleteAssessment = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this assessment?')) {
-      const updated = assessments.filter(a => a.id !== id);
-      saveAssessmentsList(updated);
-      toast.success('Assessment deleted successfully');
-    }
+    const updated = assessments.filter(a => a.id !== id);
+    saveAssessmentsList(updated);
+    toast.success('Assessment deleted successfully');
   };
 
   const addQuestionField = (type: 'MCQ' | 'CODING') => {

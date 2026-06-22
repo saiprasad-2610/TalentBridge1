@@ -2,6 +2,8 @@ import React from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { CompanySidebar } from './CompanySidebar.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
+import api from '../../services/api.ts';
+import { CandidateDetailModal } from './CandidateDetailModal.tsx';
 import { 
   Bell, 
   Search, 
@@ -20,6 +22,32 @@ export function CompanyLayout() {
   const [showNotifications, setShowNotifications] = React.useState(false);
   const location = useLocation();
 
+  // Real-time search states
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [allJobs, setAllJobs] = React.useState<any[]>([]);
+  const [allApplicants, setAllApplicants] = React.useState<any[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [focusedCandidate, setFocusedCandidate] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (user?.id) {
+      api.get(`/jobs`)
+        .then(res => {
+          const companyJobs = (res.data.data || []).filter((j: any) => j.company_id === profile?.id);
+          setAllJobs(companyJobs);
+        })
+        .catch(err => console.error("Error fetching jobs in layout", err));
+
+      api.get(`/analytics/employer/${user.id}`)
+        .then(res => {
+          if (res.data.success) {
+            setAllApplicants(res.data.data.applicants || []);
+          }
+        })
+        .catch(err => console.error("Error fetching applicants in layout", err));
+    }
+  }, [user?.id, profile?.id]);
+
   if (loading) return null;
   
   if (!user || user.role !== 'COMPANY') {
@@ -31,6 +59,16 @@ export function CompanyLayout() {
   if (!isApproved && location.pathname !== '/company/profile') {
     return <Navigate to="/company/profile" replace />;
   }
+
+  const filteredSearchJobs = allJobs.filter(j => 
+    j.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (j.location && j.location.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredSearchApplicants = allApplicants.filter(a => 
+    a.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.job_title && a.job_title.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <div className="flex bg-[#F8FAFC] min-h-screen font-sans selection:bg-blue-100 selection:text-blue-600">
@@ -46,12 +84,93 @@ export function CompanyLayout() {
                 <input 
                   type="text" 
                   placeholder="Quick search talent, jobs, or market reports..." 
-                  className="w-full bg-transparent border-none rounded-2xl pl-14 pr-6 py-3.5 text-sm font-black uppercase tracking-widest outline-none transition-all relative z-10 placeholder:text-slate-300"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearching(true)}
+                  className="w-full bg-transparent border-none rounded-2xl pl-14 pr-12 py-3.5 text-sm font-semibold outline-none transition-all relative z-10 placeholder:text-slate-300 text-slate-800"
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10 opacity-0 group-focus-within:opacity-100 transition-opacity">
                    <kbd className="px-1.5 py-0.5 bg-slate-100 text-[10px] font-black text-slate-400 rounded-md border border-slate-200">⌘</kbd>
                    <kbd className="px-1.5 py-0.5 bg-slate-100 text-[10px] font-black text-slate-400 rounded-md border border-slate-200">K</kbd>
                 </div>
+
+                {isSearching && searchQuery.trim() !== '' && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsSearching(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-3 bg-white border border-slate-100/80 rounded-2xl shadow-2xl p-4 z-50 max-h-[380px] overflow-y-auto space-y-4">
+                      {/* Active Jobs Matches */}
+                      <div>
+                        <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2 px-2">
+                          Matches in Positions ({filteredSearchJobs.length})
+                        </div>
+                        {filteredSearchJobs.length === 0 ? (
+                          <div className="text-xs text-slate-400 font-medium py-1 px-2">No matching jobs found</div>
+                        ) : (
+                          <div className="space-y-1">
+                            {filteredSearchJobs.map(job => (
+                              <button
+                                key={job.id}
+                                onClick={() => {
+                                  setSearchQuery('');
+                                  setIsSearching(false);
+                                  window.location.href = `/company/jobs/tracking/${job.id}`;
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-between"
+                              >
+                                <div>
+                                  <span className="text-xs font-bold text-slate-800 block">{job.title}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium block">{job.location || 'Remote'} &bull; {job.job_type}</span>
+                                </div>
+                                <span className="text-[9px] font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded">Track &rarr;</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="h-px bg-slate-100" />
+
+                      {/* Candidates Matches */}
+                      <div>
+                        <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2 px-2">
+                          Matches in Candidates & Talent ({filteredSearchApplicants.length})
+                        </div>
+                        {filteredSearchApplicants.length === 0 ? (
+                          <div className="text-xs text-slate-400 font-medium py-1 px-2">No matching candidates found</div>
+                        ) : (
+                          <div className="space-y-1">
+                            {filteredSearchApplicants.map(applicant => (
+                              <button
+                                key={applicant.id || applicant.student_id}
+                                onClick={() => {
+                                  setSearchQuery('');
+                                  setIsSearching(false);
+                                  setFocusedCandidate(applicant);
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-3"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0">
+                                  {applicant.profile_photo_url ? (
+                                    <img src={applicant.profile_photo_url} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full text-xs font-black bg-indigo-105 bg-indigo-50 text-indigo-600 flex items-center justify-center uppercase">
+                                      {applicant.full_name?.[0] || 'C'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-xs font-bold text-slate-800 block truncate">{applicant.full_name}</span>
+                                  <span className="text-[10px] text-slate-500 font-semibold block truncate">Job: {applicant.job_title} &bull; Score: {applicant.talent_score || 0}%</span>
+                                </div>
+                                <span className="text-[9px] font-extrabold text-emerald-600 uppercase bg-emerald-50 px-2.5 py-0.5 rounded">View Profile</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
              </div>
           </div>
 
@@ -103,6 +222,15 @@ export function CompanyLayout() {
           <Outlet />
         </main>
       </div>
+
+      <AnimatePresence>
+        {focusedCandidate && (
+          <CandidateDetailModal 
+            candidate={focusedCandidate} 
+            onClose={() => setFocusedCandidate(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
