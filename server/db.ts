@@ -593,6 +593,10 @@ export async function initDb() {
           location_or_link TEXT,
           scheduled_at DATETIME,
           notes TEXT,
+          status VARCHAR(50) DEFAULT 'UPCOMING',
+          duration INT DEFAULT 30,
+          interviewer_name VARCHAR(255) DEFAULT NULL,
+          instructions TEXT DEFAULT NULL,
           FOREIGN KEY (application_id) REFERENCES job_applications(id) ON DELETE CASCADE,
           FOREIGN KEY (stage_id) REFERENCES job_stages(id) ON DELETE CASCADE
         );
@@ -1107,6 +1111,27 @@ export async function initDb() {
         } catch (e) {
           console.error(`Error migrating test_submissions column ${col.name}:`, e);
         }
+      }
+
+      // Ensure interview_schedules columns are migrated for MySQL
+      try {
+        const [schedCols]: any = await connection.query("SHOW COLUMNS FROM interview_schedules");
+        const schedColNames = schedCols.map((c: any) => c.Field);
+        const requiredSchedCols = [
+          { name: "status", type: "VARCHAR(50) DEFAULT 'UPCOMING'" },
+          { name: "duration", type: "INT DEFAULT 30" },
+          { name: "interviewer_name", type: "VARCHAR(255) DEFAULT NULL" },
+          { name: "instructions", type: "TEXT DEFAULT NULL" }
+        ];
+
+        for (const col of requiredSchedCols) {
+          if (!schedColNames.includes(col.name)) {
+            console.log(`📡 Adding missing column ${col.name} to interview_schedules...`);
+            await connection.query(`ALTER TABLE interview_schedules ADD COLUMN ${col.name} ${col.type}`);
+          }
+        }
+      } catch (e) {
+        console.error("Error migrating interview_schedules columns:", e);
       }
 
       // --- PSYCHOMETRIC ASSESSMENT TABLES ---
