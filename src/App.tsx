@@ -37,6 +37,7 @@ const JobPostingPage = lazy(() => import("./pages/company/JobPostingPage.tsx").t
 const JobTrackingDashboard = lazy(() => import("./pages/company/JobTrackingDashboard.tsx").then(module => ({ default: module.JobTrackingDashboard })));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile.tsx").then(module => ({ default: module.CompanyProfile })));
 const CompanySettingsPage = lazy(() => import("./pages/company/CompanySettingsPage.tsx").then(module => ({ default: module.CompanySettingsPage })));
+const CompanyAssessments = lazy(() => import("./pages/company/CompanyAssessments.tsx"));
 
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout.tsx").then(module => ({ default: module.AdminLayout })));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.tsx").then(module => ({ default: module.AdminDashboard })));
@@ -251,6 +252,7 @@ export default function App() {
               <Route path="pipeline" element={<PipelineBoard />} />
               <Route path="analytics" element={<AnalyticsDashboard />} />
               <Route path="interviews" element={<InterviewCenter />} />
+              <Route path="assessments" element={<CompanyAssessments />} />
             </Route>
 
             <Route path="/interview/live/:interviewId" element={

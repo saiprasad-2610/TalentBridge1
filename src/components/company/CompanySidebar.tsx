@@ -8,13 +8,7 @@ import {
   ClipboardCheck, 
   MessageSquare, 
   BarChart3, 
-  Sparkles,
-  Search,
-  GraduationCap,
-  MessageCircle,
-  FileText,
   Settings,
-  MoreVertical,
   Lock,
   LogOut
 } from 'lucide-react';
@@ -25,7 +19,16 @@ export function CompanySidebar() {
   const { user, profile, logout } = useAuth();
   const isApproved = profile?.status === 'APPROVED';
 
-  const navItems = [
+  interface NavItem {
+    to: string;
+    icon: React.ComponentType<{ className?: string; size?: number }>;
+    label: string;
+    end?: boolean;
+    isNew?: boolean;
+    badgeCount?: number;
+  }
+
+  const navItems: NavItem[] = [
     { to: '/company', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { to: '/company/jobs', icon: Briefcase, label: 'Jobs' },
     { to: '/company/applicants', icon: Users, label: 'Applicants' },
@@ -33,11 +36,6 @@ export function CompanySidebar() {
     { to: '/company/interviews', icon: MessageSquare, label: 'Interviews' },
     { to: '/company/assessments', icon: ClipboardCheck, label: 'Assessments' },
     { to: '/company/analytics', icon: BarChart3, label: 'Analytics' },
-    { to: '/company/ai-recruiter', icon: Sparkles, label: 'AI Recruiter', isNew: true },
-    { to: '/company/talent-search', icon: Search, label: 'Talent Search' },
-    { to: '/company/campus', icon: GraduationCap, label: 'Campus Hiring' },
-    { to: '/company/messages', icon: MessageCircle, label: 'Messages', badgeCount: 8 },
-    { to: '/company/reports', icon: FileText, label: 'Reports' },
     { to: '/company/settings', icon: Settings, label: 'Settings' },
   ];
 

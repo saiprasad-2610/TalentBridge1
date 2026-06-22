@@ -190,6 +190,23 @@ export function Navbar() {
     setIsMobileMenuOpen(false);
   };
 
+  const hideNavbarPaths = [
+    '/company', 
+    '/student', 
+    '/admin', 
+    '/tpo', 
+    '/jobs', 
+    '/applied-jobs', 
+    '/community', 
+    '/profile', 
+    '/test/', 
+    '/interview/live'
+  ];
+  const shouldHideNavbar = hideNavbarPaths.some(p => location.pathname.startsWith(p));
+  if (shouldHideNavbar) {
+    return null;
+  }
+
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm">
       <div className={`${user && user.role === "STUDENT" ? "w-full px-6 lg:px-8" : "max-w-7xl mx-auto px-4"} h-20 flex items-center justify-between`}>
