@@ -364,12 +364,33 @@ export function LiveInterviewRoom() {
         });
 
         pc.ontrack = (event) => {
-          console.log("🔔 Incoming secure media track arrived!", event.streams);
-          const newStream = new MediaStream(event.streams[0].getTracks());
-          setRemoteStream(newStream);
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = newStream;
-          }
+          console.log("🔔 Incoming secure media track arrived!", event.track.kind);
+          
+          setRemoteStream(prevStream => {
+             let baseStream = prevStream;
+             
+             if (!baseStream && event.streams && event.streams[0]) {
+               baseStream = event.streams[0];
+             }
+             if (!baseStream) {
+               baseStream = new MediaStream();
+             }
+             
+             // Create a new MediaStream instance so React state updates and triggers re-render
+             const newStream = new MediaStream(baseStream.getTracks());
+             
+             if (!newStream.getTracks().find(t => t.id === event.track.id)) {
+                newStream.addTrack(event.track);
+             }
+             
+             if (remoteVideoRef.current) {
+               remoteVideoRef.current.srcObject = newStream;
+               remoteVideoRef.current.play().catch(e => console.warn("Remote play err", e));
+             }
+             
+             return newStream;
+          });
+          
           setConnectionStatus("connected");
         };
 
@@ -561,7 +582,9 @@ export function LiveInterviewRoom() {
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream && connectionStatus === "connected") {
-      remoteVideoRef.current.srcObject = remoteStream;
+      if (remoteVideoRef.current.srcObject !== remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
       
       // Ensure play is called to bypass some browser autoplay policies silently failing
       remoteVideoRef.current.play().then(() => {
