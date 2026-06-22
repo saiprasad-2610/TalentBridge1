@@ -308,6 +308,79 @@ function WelcomeBanner({ profile, applications }: { profile: any, applications: 
   );
 }
 
+function ActiveInterviewsBanner({ interviews }: { interviews: any[] }) {
+  const navigate = useNavigate();
+  const active = interviews.filter(i => i.status !== 'COMPLETED');
+  if (active.length === 0) return null;
+
+  return (
+    <div className="col-span-1 md:col-span-12 space-y-3 mb-1">
+      {active.map(interview => {
+        const parsedTime = new Date(interview.time);
+        const isOnline = interview.type === 'INTERVIEW_ONLINE' || 
+          interview.location_or_link === 'WebRTC Live Call Room' ||
+          interview.location_or_link === 'Online Interview' ||
+          (interview.location_or_link && interview.location_or_link.toLowerCase().includes('online')) ||
+          (interview.location_or_link && interview.location_or_link.toLowerCase().includes('webrtc'));
+
+        return (
+          <motion.div 
+            key={interview.id}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative overflow-hidden bg-gradient-to-r from-slate-900 to-indigo-950 border border-slate-800 rounded-3xl p-5 md:p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6"
+          >
+            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex items-start gap-4 z-10">
+              <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-indigo-405 shrink-0 border border-white/10">
+                <Calendar size={22} className="animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[9px] font-black tracking-widest text-[#93c5fd] uppercase bg-indigo-950/80 border border-indigo-900/60 px-2.5 py-0.5 rounded">
+                    Interview Schedule
+                  </span>
+                  {interview.status === 'LIVE' && (
+                    <span className="text-[9px] font-black tracking-widest text-emerald-400 bg-emerald-950/80 border border-emerald-900/60 px-2.5 py-0.5 rounded animate-pulse">
+                      ● Active Live Call
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-base font-black tracking-tight mt-1.5 uppercase text-white">
+                  Join Recruiter Discussion: <span className="text-cyan-400 font-extrabold">{interview.company}</span>
+                </h4>
+                <p className="text-xs font-semibold text-indigo-200 mt-1 flex items-center gap-1.5">
+                  <Clock size={13} className="text-indigo-400" />
+                  {isNaN(parsedTime.getTime()) ? 'Upcoming slot' : parsedTime.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                </p>
+              </div>
+            </div>
+
+            <div className="z-10 w-full md:w-auto self-center">
+              {isOnline ? (
+                <button 
+                  onClick={() => {
+                    toast.success("Ready to connect...");
+                    navigate(`/interview/live/${interview.id}`);
+                  }}
+                  className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 font-black uppercase text-[10px] tracking-widest rounded-xl text-white transition-all shadow-md shrink-0 cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  Join Live Room
+                </button>
+              ) : (
+                <div className="w-full md:w-auto px-4 py-2 bg-white/10 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-300 text-center">
+                  Location: {interview.location_or_link || 'In-Person'}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ProfileCompactCard({ profile }: { profile: any }) {
   const { t } = useLanguage();
   const score = profile?.completeness_score || 0;
@@ -1521,6 +1594,7 @@ export function StudentDashboard() {
   const [profile, setProfile] = useState(initialProfile);
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState<any[]>([]);
+  const [interviews, setInterviews] = useState<any[]>([]);
   const [psychometric, setPsychometric] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -1534,6 +1608,7 @@ export function StudentDashboard() {
           fetchProfile(),
           fetchAnalytics(),
           fetchApplications(),
+          fetchInterviews(),
           fetchPsychometric()
         ]);
         setRefreshing(false);
@@ -1569,6 +1644,13 @@ export function StudentDashboard() {
       const { data } = await api.get(`/analytics/student/${user?.id}/applications`);
       if (data.success) setApplications(data.data);
     } catch (e) { console.error(e); }
+  };
+
+  const fetchInterviews = async () => {
+    try {
+      const res = await api.get('/interviews/student');
+      if (res.data.success) setInterviews(res.data.data || []);
+    } catch (e) { console.error("Error loading student interviews in dashboard:", e); }
   };
 
   const handleCheckIn = async () => {
@@ -1618,6 +1700,8 @@ export function StudentDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-6 auto-rows-min">
           
           <WelcomeBanner profile={profile} applications={applications} />
+
+          <ActiveInterviewsBanner interviews={interviews} />
 
           {/* Row 1: Profile (3), AI Mentor (5), Talent Score (4) */}
           <div className="col-span-1 md:col-span-4 lg:col-span-3">

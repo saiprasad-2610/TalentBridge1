@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   FileText, 
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import api from '../../services/api.ts';
 
 interface Interview {
   id: string;
@@ -31,6 +32,8 @@ interface Interview {
   type: 'Placement' | 'Mock Evaluator';
   status: 'Scheduled' | 'Completed' | 'Pending Decision' | 'No Show';
   interviewerName: string;
+  isOnline?: boolean;
+  notes?: string;
   grades?: {
     technical: number;
     communication: number;
@@ -42,61 +45,107 @@ interface Interview {
 export function StudentInterviews() {
   const navigate = useNavigate();
   const [activeSegment, setActiveSegment] = useState<'upcoming' | 'history'>('upcoming');
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [interviews] = useState<Interview[]>([
-    {
-      id: 'int-1',
-      companyName: 'Stripe Co.',
-      roleTitle: 'Frontend Development Internship',
-      date: '2026-06-21',
-      time: '3:00 PM - 4:00 PM',
-      type: 'Placement',
-      status: 'Scheduled',
-      interviewerName: 'Sarah Jenkins (Engineering Manager)'
-    },
-    {
-      id: 'int-2',
-      companyName: 'TalentBridge Academy',
-      roleTitle: 'Mock Technical Interview & Resume Sweep',
-      date: '2026-06-25',
-      time: '11:00 AM - 11:45 AM',
-      type: 'Mock Evaluator',
-      status: 'Scheduled',
-      interviewerName: 'Prof. Manish Dixit (Alumni Panelist)'
-    },
-    {
-      id: 'int-3',
-      companyName: 'Google Cloud Platform Solutions',
-      roleTitle: 'Associate Software Dev (Fresher Pool)',
-      date: '2026-05-18',
-      time: '10:00 AM - 11:00 AM',
-      type: 'Placement',
-      status: 'Completed',
-      interviewerName: 'Devon Lee (Senior Staff Architect)',
-      grades: {
-        technical: 5,
-        communication: 4,
-        culture: 5,
-        comments: 'Excellent demonstration of algorithmic design. Aaditya solved both problems with zero prompt warnings, wrote modular code and benchmarked time complexities with absolute clarity.'
+  useEffect(() => {
+    const fetchInterviews = async () => {
+      try {
+        const res = await api.get('/interviews/student');
+        if (res.data.success && res.data.data) {
+          const mappedList = res.data.data.map((item: any) => {
+            const parsedTime = new Date(item.time);
+            const dateStr = !isNaN(parsedTime.getTime()) 
+              ? parsedTime.toLocaleDateString([], { dateStyle: 'medium' })
+              : 'Upcoming';
+            const timeStr = !isNaN(parsedTime.getTime())
+              ? parsedTime.toLocaleTimeString([], { timeStyle: 'short' })
+              : 'Scheduled';
+            const isOnline = item.type === 'INTERVIEW_ONLINE' || 
+                             item.location_or_link === 'WebRTC Live Call Room' ||
+                             item.location_or_link === 'Online Interview' ||
+                             (item.location_or_link && item.location_or_link.toLowerCase().includes('online')) ||
+                             (item.location_or_link && item.location_or_link.toLowerCase().includes('webrtc'));
+            
+            return {
+              id: item.id.toString(),
+              companyName: item.company || 'Selected Partner',
+              roleTitle: item.role || 'Placement Evaluation',
+              date: dateStr,
+              time: timeStr,
+              type: 'Placement',
+              status: item.status === 'COMPLETED' ? 'Completed' : 'Scheduled',
+              interviewerName: item.interviewerName || 'Panel Specialist Partner',
+              isOnline,
+              notes: item.notes
+            };
+          });
+
+          const defaultMocks: Interview[] = [
+            {
+              id: 'int-1',
+              companyName: 'Stripe Co.',
+              roleTitle: 'Frontend Development Internship',
+              date: '2026-06-21',
+              time: '3:00 PM - 4:00 PM',
+              type: 'Placement',
+              status: 'Scheduled',
+              interviewerName: 'Sarah Jenkins (Engineering Manager)'
+            },
+            {
+              id: 'int-2',
+              companyName: 'TalentBridge Academy',
+              roleTitle: 'Mock Technical Interview & Resume Sweep',
+              date: '2026-06-25',
+              time: '11:00 AM - 11:45 AM',
+              type: 'Mock Evaluator',
+              status: 'Scheduled',
+              interviewerName: 'Prof. Manish Dixit (Alumni Panelist)'
+            },
+            {
+              id: 'int-3',
+              companyName: 'Google Cloud Platform Solutions',
+              roleTitle: 'Associate Software Dev (Fresher Pool)',
+              date: '2026-05-18',
+              time: '10:00 AM - 11:00 AM',
+              type: 'Placement',
+              status: 'Completed',
+              interviewerName: 'Devon Lee (Senior Staff Architect)',
+              grades: {
+                technical: 5,
+                communication: 4,
+                culture: 5,
+                comments: 'Excellent demonstration of algorithmic design. Aaditya solved both problems with zero prompt warnings, wrote modular code and benchmarked time complexities with absolute clarity.'
+              }
+            },
+            {
+              id: 'int-4',
+              companyName: 'Fintech Spark Inc.',
+              roleTitle: 'Backend API Developer Internship',
+              date: '2026-05-10',
+              time: '4:00 PM - 4:45 PM',
+              type: 'Placement',
+              status: 'Completed',
+              interviewerName: 'Vikas Rao (Tech Lead)',
+              grades: {
+                technical: 3,
+                communication: 5,
+                culture: 4,
+                comments: 'Good understanding of general RESTful APIs, but was slightly stuck on relational database normalizations for tracking locks. Communication is exceptionally strong!'
+              }
+            }
+          ];
+
+          setInterviews([...mappedList, ...defaultMocks]);
+        }
+      } catch (e) {
+        console.error("Failed to load interview list:", e);
+      } finally {
+        setLoading(false);
       }
-    },
-    {
-      id: 'int-4',
-      companyName: 'Fintech Spark Inc.',
-      roleTitle: 'Backend API Developer Internship',
-      date: '2026-05-10',
-      time: '4:00 PM - 4:45 PM',
-      type: 'Placement',
-      status: 'Completed',
-      interviewerName: 'Vikas Rao (Tech Lead)',
-      grades: {
-        technical: 3,
-        communication: 5,
-        culture: 4,
-        comments: 'Good understanding of general RESTful APIs, but was slightly stuck on relational database normalizations for tracking locks. Communication is exceptionally strong!'
-      }
-    }
-  ]);
+    };
+    fetchInterviews();
+  }, []);
 
   const handleJoinRoom = (id: string) => {
     toast.success('Initializing live secure WebRTC channels...');

@@ -76,6 +76,7 @@ const StudentProfile = lazy(() => import("./pages/StudentProfile.tsx").then(modu
 const JobStageActionPage = lazy(() => import("./pages/JobStageActionPage.tsx").then(module => ({ default: module.JobStageActionPage })));
 const AllJobsPage = lazy(() => import("./pages/student/AllJobsPage.tsx").then(module => ({ default: module.AllJobsPage })));
 const AppliedJobsPage = lazy(() => import("./pages/student/AppliedJobsPage.tsx").then(module => ({ default: module.AppliedJobsPage })));
+const StudentInterviews = lazy(() => import("./pages/student/StudentInterviews.tsx").then(module => ({ default: module.StudentInterviews })));
 const MockHistoryPage = lazy(() => import("./pages/student/MockHistoryPage.tsx").then(module => ({ default: module.MockHistoryPage })));
 const PsychometricTest = lazy(() => import("./pages/psychometric/PsychometricTest.tsx").then(module => ({ default: module.PsychometricTest })));
 const IntelligenceDashboard = lazy(() => import("./pages/student/IntelligenceDashboard.tsx"));
@@ -229,6 +230,7 @@ export default function App() {
               <Route path="/student/application/:appId" element={<JobStageActionPage />} />
               <Route path="/jobs" element={<AllJobsPage />} />
               <Route path="/applied-jobs" element={<AppliedJobsPage />} />
+              <Route path="/student/interviews" element={<StudentInterviews />} />
               <Route path="/community" element={<Community />} />
             </Route>
 
