@@ -8,87 +8,111 @@ import {
   ClipboardCheck, 
   MessageSquare, 
   BarChart3, 
-  Building2, 
-  Settings,
-  LogOut,
   Sparkles,
-  Lock
+  Search,
+  GraduationCap,
+  MessageCircle,
+  FileText,
+  Settings,
+  MoreVertical,
+  Lock,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'motion/react';
 
 export function CompanySidebar() {
-  const { logout, profile } = useAuth();
+  const { user, profile, logout } = useAuth();
   const isApproved = profile?.status === 'APPROVED';
 
   const navItems = [
     { to: '/company', icon: LayoutDashboard, label: 'Dashboard', end: true },
-    { to: '/company/jobs', icon: Briefcase, label: 'Active Jobs' },
+    { to: '/company/jobs', icon: Briefcase, label: 'Jobs' },
     { to: '/company/applicants', icon: Users, label: 'Applicants' },
-    { to: '/company/pipeline', icon: GitBranch, label: 'Hiring Pipeline' },
-    { to: '/company/assessments', icon: ClipboardCheck, label: 'Assessments' },
+    { to: '/company/pipeline', icon: GitBranch, label: 'Pipeline' },
     { to: '/company/interviews', icon: MessageSquare, label: 'Interviews' },
+    { to: '/company/assessments', icon: ClipboardCheck, label: 'Assessments' },
     { to: '/company/analytics', icon: BarChart3, label: 'Analytics' },
-  ];
-
-  const secondaryNav = [
-    { to: '/company/profile', icon: Building2, label: 'Company Profile' },
+    { to: '/company/ai-recruiter', icon: Sparkles, label: 'AI Recruiter', isNew: true },
+    { to: '/company/talent-search', icon: Search, label: 'Talent Search' },
+    { to: '/company/campus', icon: GraduationCap, label: 'Campus Hiring' },
+    { to: '/company/messages', icon: MessageCircle, label: 'Messages', badgeCount: 8 },
+    { to: '/company/reports', icon: FileText, label: 'Reports' },
     { to: '/company/settings', icon: Settings, label: 'Settings' },
   ];
 
   return (
-    <div className="w-72 bg-white min-h-screen flex flex-col fixed left-0 top-0 border-r border-slate-100/80 z-40 shadow-[1px_0_20px_rgba(0,0,0,0.02)]">
-      <div className="p-8 pb-10">
-        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 ring-4 ring-blue-50">
-            <div className="w-5 h-5 bg-white rounded-md rotate-45" />
+    <div className="w-72 bg-[#090b21] text-white min-h-screen flex flex-col fixed left-0 top-0 border-r border-[#151939] z-40 shadow-[4px_0_30px_rgba(0,0,0,0.3)]">
+      {/* Dynamic Branding Header */}
+      <div className="p-6 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-tr from-blue-700 via-indigo-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/15">
+            <span className="font-sans font-black text-white text-xl tracking-tight">T</span>
           </div>
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">Talent<span className="text-blue-600">Bridge</span></span>
-        </h1>
-        <div className="mt-4 flex items-center gap-2 px-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Recruiter HQ • Online</p>
+          <div>
+            <span className="text-xl font-bold tracking-tight text-white block">
+              Talent<span className="text-indigo-400 font-extrabold">Bridge</span>
+            </span>
+          </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-5 space-y-1.5 overflow-y-auto scrollbar-hide">
-        <div className="px-4 mb-4">
-           <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Main Navigation</p>
-        </div>
+      {/* Navigation list */}
+      <nav className="flex-1 px-4 py-3 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
         {navItems.map((item) => {
-          if (!isApproved) {
+          const IconComponent = item.icon;
+          if (!isApproved && item.to !== '/company/profile') {
             return (
               <div
                 key={item.to}
-                className="flex items-center gap-3.5 px-4 py-4 rounded-[22px] text-[11px] font-black uppercase tracking-widest text-slate-400 cursor-not-allowed group relative bg-slate-50/50 border border-slate-100 opacity-60"
-                title="Account verification required. Complete your profile to unlock."
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 cursor-not-allowed text-[13px] font-semibold opacity-50 bg-[#0e1131]/20 border border-[#161a3e]/30"
+                title="Account verification required."
               >
-                <item.icon size={19} className="text-slate-450" />
+                <IconComponent size={18} className="shrink-0" />
                 <span className="flex-1 text-left">{item.label}</span>
-                <Lock size={13} className="text-slate-400" />
+                <Lock size={12} />
               </div>
             );
           }
+
           return (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) => `
-                flex items-center gap-3.5 px-4 py-4 rounded-[22px] text-[13px] font-black uppercase tracking-widest transition-all group relative
+                flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all group relative
                 ${isActive 
-                  ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/25 border-b-2 border-blue-700' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/10 font-bold' 
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'}
               `}
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={19} className={`transition-all duration-300 ${isActive ? 'text-white scale-110' : 'text-slate-400 group-hover:text-slate-900 group-hover:scale-110'}`} />
-                  {item.label}
+                  <IconComponent 
+                    size={18} 
+                    className={`shrink-0 transition-transform group-hover:scale-105 duration-200 ${
+                      isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'
+                    }`} 
+                  />
+                  <span className="flex-1">{item.label}</span>
+                  
+                  {item.isNew && (
+                    <span className="px-2 py-0.5 text-[9px] font-black tracking-wider text-white bg-indigo-550 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-md shadow-sm shadow-indigo-500/30">
+                      New
+                    </span>
+                  )}
+                  
+                  {item.badgeCount && (
+                    <span className="w-5 h-5 flex items-center justify-center text-[10px] font-black text-rose-100 bg-[#3519c1] rounded-full">
+                      {item.badgeCount}
+                    </span>
+                  )}
+
                   {isActive && (
                     <motion.div 
-                      layoutId="sidebar-active"
-                      className="ml-auto w-2 h-2 rounded-full bg-white shadow-sm"
+                      layoutId="company-sidebar-active"
+                      className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white/80"
                     />
                   )}
                 </>
@@ -96,64 +120,73 @@ export function CompanySidebar() {
             </NavLink>
           );
         })}
-
-        <div className="px-4 mt-12 mb-4">
-           <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Administration</p>
-        </div>
-        {secondaryNav.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => `
-              flex items-center gap-3.5 px-4 py-4 rounded-[22px] text-[13px] font-black uppercase tracking-widest transition-all group
-              ${isActive 
-                ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20 border-b-2 border-slate-950' 
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
-            `}
-          >
-            {({ isActive }) => (
-              <>
-                <item.icon size={19} className={`transition-all duration-300 ${isActive ? 'text-white scale-110' : 'text-slate-400 group-hover:text-slate-900 group-hover:scale-110'}`} />
-                {item.label}
-              </>
-            )}
-          </NavLink>
-        ))}
       </nav>
 
-      {isApproved && (
-        <div className="px-6 py-8">
-          <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-800 rounded-[32px] border border-slate-700 relative overflow-hidden group shadow-2xl">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform duration-700" />
-             <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                   <div className="w-9 h-9 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-blue-400 shadow-inner">
-                      <Sparkles size={18} />
-                   </div>
-                   <span className="text-[10px] font-black text-white uppercase tracking-widest">AI Intelligence</span>
-                </div>
-                <p className="text-[11px] text-slate-300 font-bold leading-relaxed">
-                  <span className="text-white">12 new matches</span> found for your high-priority roles.
-                </p>
-                <button className="mt-4 w-full py-2.5 bg-white text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-50 transition-colors">
-                  View Insights
-                </button>
-             </div>
+      {/* Floating AI Hiring Copilot Widgets Area */}
+      <div className="px-4 py-4 border-t border-[#161a3e]">
+        <div className="relative bg-gradient-to-b from-[#14183e] to-[#0c0e2a] border border-[#23295c] rounded-2xl p-4 overflow-hidden group shadow-xl">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-black tracking-wide text-white uppercase flex items-center gap-1">
+              AI Hiring Copilot
+            </span>
+            <span className="text-[9px] font-black px-1.5 py-0.5 bg-indigo-600 text-white rounded uppercase tracking-wider">
+              Beta
+            </span>
+          </div>
+          
+          <p className="text-[11px] text-slate-305 text-slate-300 font-medium leading-relaxed mb-3">
+            Find, assess and hire the best talent with the power of AI.
+          </p>
+
+          <button className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-[10px] font-extrabold uppercase tracking-widest transition-all duration-300 shadow-md flex items-center justify-center gap-1">
+            Start Copilot <span className="font-serif">→</span>
+          </button>
+          
+          {/* Neon Bot Drawing element */}
+          <div className="absolute -bottom-6 -right-6 w-16 h-16 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-400 w-full h-full">
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="8" cy="12" r="1" />
+              <path d="M12 2v4M8 5h8M9 15h.01M15 15h.01" />
+            </svg>
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="px-6 pb-8">
+      {/* Bottom Profile Block */}
+      <div className="p-4 bg-[#07081a] border-t border-[#121636] flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-slate-850 flex items-center justify-center border-2 border-indigo-500/30 overflow-hidden flex-shrink-0">
+            {profile?.logo_url ? (
+              <img src={profile.logo_url} className="w-full h-full object-cover" alt="Company Logo" referrerPolicy="no-referrer" />
+            ) : (
+              <img 
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120"
+                className="w-full h-full object-cover" 
+                alt="Profile Avatar"
+                referrerPolicy="no-referrer"
+              />
+            )}
+          </div>
+          <div className="text-left overflow-hidden min-w-0">
+            <h5 className="text-xs font-black text-white truncate leading-none">
+              Saiprasad G
+            </h5>
+            <span className="text-[10px] text-slate-400 block truncate font-medium mt-1">
+              Recruiter Admin
+            </span>
+          </div>
+        </div>
         <button 
           onClick={logout}
-          className="w-full flex items-center gap-3 px-4 py-4 rounded-[22px] text-[13px] font-black uppercase tracking-widest text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all group"
+          title="Logout"
+          className="text-slate-400 hover:text-rose-500 p-2 hover:bg-white/5 rounded-lg transition-colors"
         >
-          <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors shadow-sm">
-            <LogOut size={20} className="group-hover:text-red-600" />
-          </div>
-          Logout
+          <LogOut size={16} />
         </button>
       </div>
     </div>
   );
- }
+}
