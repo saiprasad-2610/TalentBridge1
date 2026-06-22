@@ -192,13 +192,8 @@ export function Navbar() {
 
   const hideNavbarPaths = [
     '/company', 
-    '/student', 
     '/admin', 
     '/tpo', 
-    '/jobs', 
-    '/applied-jobs', 
-    '/community', 
-    '/profile', 
     '/test/', 
     '/interview/live'
   ];
