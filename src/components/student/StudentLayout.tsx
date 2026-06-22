@@ -24,7 +24,7 @@ export function StudentLayout() {
   }
 
   return (
-    <div className="flex bg-[#F8FAFC] min-h-screen">
+    <div className="flex bg-[#F8FAFC] min-h-screen pt-20">
       <StudentSidebar />
       <main className={`flex-1 p-4 lg:p-6 pb-12 overflow-x-hidden transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Outlet />
