@@ -32,6 +32,7 @@ import chatbotRoutes from "./server/routes/chatbot.ts";
 import intelligenceRoutes from "./server/routes/intelligence.ts";
 import communityRoutes from "./server/routes/community.ts";
 import careerGapRoutes from "./server/routes/careerGap.ts";
+import interviewRoutes from "./server/routes/interview.ts";
 
 async function startServer() {
   const app = express();
@@ -113,10 +114,15 @@ async function startServer() {
   app.use("/api/intelligence", intelligenceRoutes);
   app.use("/api/community", communityRoutes);
   app.use("/api/career-gap", careerGapRoutes);
+  app.use("/api/interviews", interviewRoutes);
 
   // WebSocket for AI Mock Interview
   const { setupInterviewSocket } = await import("./server/sockets/interview.ts");
   setupInterviewSocket(io);
+
+  // WebSocket for WebRTC Live Interview
+  const { setupWebRTCInterviewSocket } = await import("./server/sockets/webrtc-interview.ts");
+  setupWebRTCInterviewSocket(io);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
