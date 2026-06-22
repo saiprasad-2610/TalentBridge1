@@ -116,6 +116,7 @@ export function LiveInterviewRoom() {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
+  const iceCandidatesQueueRef = useRef<any[]>([]);
 
   // Dynamic Countdown trigger
   useEffect(() => {
@@ -189,15 +190,24 @@ export function LiveInterviewRoom() {
   const handleDestroyRoom = () => {
     console.log("Releasing camera, audio, real-time socket and SpeechRecognition handles.");
     if (peerRef.current) {
-      peerRef.current.close();
+      try {
+        peerRef.current.close();
+      } catch (e) {}
       peerRef.current = null;
     }
+    iceCandidatesQueueRef.current = [];
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (e) {}
+      });
       localStreamRef.current = null;
     }
     if (socketRef.current) {
-      socketRef.current.disconnect();
+      try {
+        socketRef.current.disconnect();
+      } catch (e) {}
       socketRef.current = null;
     }
     if (recognitionRef.current) {
@@ -206,6 +216,35 @@ export function LiveInterviewRoom() {
       } catch (e) {}
     }
   };
+
+  // Ensure local video element stays mounted and linked to localStream state
+  useEffect(() => {
+    if (localStream && localVideoRef.current) {
+      console.log("Syncing localStream object with HTML5 Local Video Element");
+      if (localVideoRef.current.srcObject !== localStream) {
+        localVideoRef.current.srcObject = localStream;
+      }
+    }
+  }, [localStream, videoOn]);
+
+  // Ensure remote video element stays mounted and plays remoteStream automatically
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      console.log("Syncing remoteStream object with HTML5 Remote Video Element:", remoteStream.id);
+      if (remoteVideoRef.current.srcObject !== remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+      remoteVideoRef.current.play()
+        .then(() => {
+          console.log("Successfully played remote element video feed");
+          setRemoteAudioBlocked(false);
+        })
+        .catch((e) => {
+          console.warn("Autoplay blocked remote audio/video, prompt required:", e);
+          setRemoteAudioBlocked(true);
+        });
+    }
+  }, [remoteStream, peerVideoOn]);
 
   // Socket and WebRTC Core Setup
   useEffect(() => {
@@ -251,7 +290,7 @@ export function LiveInterviewRoom() {
         socket.on("interview:ready", async () => {
           setConnectionStatus("connecting");
           // Initialize peer connection on ready signal
-          const pc = createPeerConnection(mediaStream, socket);
+          const pc = getOrCreatePeerConnection(mediaStream, socket);
           
           // Initiator role (candidate offers first to resolve WebRTC race conditions)
           if (!isCompany) {
@@ -275,6 +314,9 @@ export function LiveInterviewRoom() {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             socket.emit("rtc:answer", { answer });
+            
+            // Unqueue queued remote ice candidates
+            await processQueuedIceCandidates(pc);
           } catch (err) {
             console.error("Failed to process WebRTC offer:", err);
           }
@@ -285,6 +327,9 @@ export function LiveInterviewRoom() {
           const pc = getOrCreatePeerConnection(mediaStream, socket);
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            
+            // Unqueue queued remote ice candidates
+            await processQueuedIceCandidates(pc);
           } catch (err) {
             console.error("Failed to commit WebRTC answer:", err);
           }
@@ -292,10 +337,15 @@ export function LiveInterviewRoom() {
 
         socket.on("rtc:ice-candidate", async ({ candidate }) => {
           const pc = getOrCreatePeerConnection(mediaStream, socket);
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-          } catch (err) {
-            console.warn("Failed to add ICE candidate:", err);
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+              console.warn("Failed to add ICE candidate:", err);
+            }
+          } else {
+            console.log("Remote description is not yet set. Queueing ICE candidate.");
+            iceCandidatesQueueRef.current.push(candidate);
           }
         });
 
@@ -350,6 +400,13 @@ export function LiveInterviewRoom() {
         });
 
         socket.on("interview:user-left", () => {
+          if (peerRef.current) {
+            try {
+              peerRef.current.close();
+            } catch (e) {}
+            peerRef.current = null;
+          }
+          iceCandidatesQueueRef.current = [];
           setRemoteStream(null);
           setConnectionStatus("waiting");
           toast.error("Peer disconnected or left the meeting room.");
@@ -378,22 +435,33 @@ export function LiveInterviewRoom() {
     return createPeerConnection(stream, socket);
   };
 
+  const processQueuedIceCandidates = async (pc: RTCPeerConnection) => {
+    console.log(`Draining ${iceCandidatesQueueRef.current.length} queued ICE candidates...`);
+    while (iceCandidatesQueueRef.current.length > 0) {
+      const candidate = iceCandidatesQueueRef.current.shift();
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn("Failed to add queued ICE candidate:", err);
+      }
+    }
+  };
+
   const createPeerConnection = (stream: MediaStream, socket: Socket) => {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" }
+      ]
     });
 
     pc.ontrack = (event) => {
       console.log("Receiving remote media stream successfully!");
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-          remoteVideoRef.current.play().catch(e => {
-            console.warn("Autoplay blocked, offering click unmute.");
-            setRemoteAudioBlocked(true);
-          });
-        }
       }
       setConnectionStatus("connected");
     };
