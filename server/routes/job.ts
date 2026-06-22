@@ -490,19 +490,35 @@ router.post("/applications/schedule-interview", async (req, res) => {
         }
      }
 
+     const durationVal = req.body.duration ? Number(req.body.duration) : 30;
+     const interviewerNameVal = req.body.interviewerName || "Staff Recruiter";
+     const instructionsVal = req.body.instructions || notes || "Please join the room on time.";
+
      const [existing]: any = await db.query("SELECT id FROM interview_schedules WHERE application_id = ? AND stage_id = ?", [appId, stgId]);
      
      if (existing.length > 0) {
         await db.query(`
           UPDATE interview_schedules 
-          SET interview_type = ?, location_or_link = ?, scheduled_at = ?, notes = ?
+          SET interview_type = ?, location_or_link = ?, scheduled_at = ?, notes = ?, duration = ?, interviewer_name = ?, instructions = ?
           WHERE application_id = ? AND stage_id = ?
-        `, [interviewType, locationOrLink, formattedScheduledAt, notes, appId, stgId]);
+        `, [interviewType, locationOrLink, formattedScheduledAt, notes, durationVal, interviewerNameVal, instructionsVal, appId, stgId]);
      } else {
         await db.query(`
-          INSERT INTO interview_schedules (application_id, stage_id, interview_type, location_or_link, scheduled_at, notes)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [appId, stgId, interviewType, locationOrLink, formattedScheduledAt, notes]);
+          INSERT INTO interview_schedules (application_id, stage_id, interview_type, location_or_link, scheduled_at, notes, duration, interviewer_name, instructions)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [appId, stgId, interviewType, locationOrLink, formattedScheduledAt, notes, durationVal, interviewerNameVal, instructionsVal]);
+     }
+
+     // Automatically send Notification / In-App notification / Alert
+     try {
+        const [studentInfo]: any = await db.query("SELECT user_id, full_name FROM student_profiles WHERE id = (SELECT student_id FROM job_applications WHERE id = ?)", [appId]);
+        if (studentInfo && studentInfo.length > 0) {
+           const studentUserId = studentInfo[0].user_id;
+           const notificationMsg = `An interview of type: ${interviewType} has been scheduled for ${scheduledAt} with duration ${durationVal} mins. Interviewer: ${interviewerNameVal}. Instructions: ${instructionsVal}`;
+           await db.query("INSERT INTO notifications (user_id, title, message, is_read) VALUES (?, 'Interview Scheduled', ?, 0)", [studentUserId, notificationMsg]);
+        }
+     } catch (e) {
+        console.warn("Failed to notify student of scheduled interview:", e);
      }
 
      res.json({ success: true, message: "Interview scheduled" });

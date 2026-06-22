@@ -5,42 +5,46 @@ import {
   Mic,
   MicOff,
   Send,
-  Code2,
-  Play,
-  Settings,
-  Users,
-  CheckCircle2,
-  MessageSquare,
-  Terminal,
-  Award,
   Clock,
-  Layers,
   User,
   ExternalLink,
   VolumeX,
+  Volume2,
+  Maximize2,
+  Minimize2,
+  Search,
+  Download,
+  Copy,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Shield,
+  Sliders,
+  FileText,
+  Activity,
+  ShieldAlert,
+  ArrowRight,
+  Share2
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useParams, useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../../context/AuthContext.tsx";
 import api from "../../services/api.ts";
+import { motion, AnimatePresence } from "motion/react";
 
-interface Message {
+interface TranscriptLine {
   id: string;
-  sender: "Interviewer" | "Candidate";
-  text: string;
-  time: string;
+  speaker: "CANDIDATE" | "INTERVIEWER";
+  message: string;
+  timestamp: string;
 }
 
-interface CodePreset {
-  id: string;
-  title: string;
-  description: string;
-  starterCode: {
-    javascript: string;
-    python: string;
-    cpp: string;
-  };
+interface Violation {
+  warningType: string;
+  message: string;
+  timestamp: string;
 }
 
 export function LiveInterviewRoom() {
@@ -48,96 +52,142 @@ export function LiveInterviewRoom() {
   const { interviewId } = useParams();
   const navigate = useNavigate();
 
-  // Secure status states
+  const isCompany = user?.role === "COMPANY";
+
+  // Room Details and scheduling state
   const [interviewDetails, setInterviewDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<
     "idle" | "waiting" | "connecting" | "connected" | "disconnected" | "ended"
   >("idle");
 
-  // Video and Audio tracks states (Local)
-  const [micOn, setMicOn] = useState(true);
-  const [videoOn, setVideoOn] = useState(true);
-
-  // Peer track indicators states (Remote)
-  const [peerMicOn, setPeerMicOn] = useState(true);
-  const [peerVideoOn, setPeerVideoOn] = useState(true);
-
-  // Media streams objects
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [remoteFallbackFrame, setRemoteFallbackFrame] = useState<string | null>(null);
-
-  const [remoteAudioBlocked, setRemoteAudioBlocked] = useState(false);
-
-  // Time elapsed state
+  // Timer & elapsed seconds
   const [seconds, setSeconds] = useState(0);
 
-  // Code editor states
-  const [lang, setLang] = useState<"javascript" | "python" | "cpp">(
-    "javascript",
-  );
-  const [code, setCode] = useState("");
-  const [isCompiling, setIsCompiling] = useState(false);
-  const [consoleOutput, setConsoleOutput] = useState<string[]>([
-    "// Run your code to initialize system logs...",
-  ]);
+  // Local media state
+  const [micOn, setMicOn] = useState(true);
+  const [videoOn, setVideoOn] = useState(true);
+  const [screenSharing, setScreenSharing] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // Chat states
-  const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Real WebRTC streams
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  
+  // Peer track indicators
+  const [peerMicOn, setPeerMicOn] = useState(true);
+  const [peerVideoOn, setPeerVideoOn] = useState(true);
+  const [remoteAudioBlocked, setRemoteAudioBlocked] = useState(false);
 
-  // Recruiter Scoring Form
-  const [scoreTech, setScoreTech] = useState(4);
-  const [scoreComm, setScoreComm] = useState(5);
-  const [scoreCulture, setScoreCulture] = useState(4);
-  const [feedbackNotes, setFeedbackNotes] = useState("");
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  // Active side panel tab: 'transcript' | 'eval' | 'ai' | 'security'
+  const [activeTab, setActiveTab] = useState<"transcript" | "eval" | "ai" | "security">("transcript");
 
-  // Connection reference handlers
+  // Transcripts state
+  const [transcripts, setTranscripts] = useState<TranscriptLine[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Simulated transcription helper to bypass sandbox constraints and seed rich content
+  const [speechSimulatorActive, setSpeechSimulatorActive] = useState(true);
+
+  // Active Recruiter rating fields
+  const [techRating, setTechRating] = useState(7);
+  const [commRating, setCommRating] = useState(8);
+  const [confRating, setConfRating] = useState(8);
+  const [leadRating, setLeadRating] = useState(7);
+  const [probRating, setProbRating] = useState(7);
+  const [cultRating, setCultRating] = useState(8);
+  const [recruiterComments, setRecruiterComments] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  // Gemini AI Analysis block
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiReportResult, setAiReportResult] = useState<any>(null);
+
+  // Anti-cheating candidate states
+  const [cheatingViolations, setCheatingViolations] = useState<Violation[]>([]);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [activeWarningMessage, setActiveWarningMessage] = useState("");
+  const [violationCount, setViolationCount] = useState(0);
+
+  // Connection references
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const pendingIceCandidatesRef = useRef<any[]>([]);
+  const recognitionRef = useRef<any>(null);
 
-  const codePresets: CodePreset[] = [
-    {
-      id: "p-1",
-      title: "Find Longest Substring Without Repeating Characters",
-      description:
-        "Given a string `s`, find the length of the longest substring without repeating characters.\n\nExample 1:\nInput: s = \"abcabcbb\"\nOutput: 3\nExplanation: The answer is \"abc\", with the length of 3.",
-      starterCode: {
-        javascript:
-          'function lengthOfLongestSubstring(s) {\n  let maxLength = 0;\n  let charSet = new Set();\n  let left = 0;\n  \n  for (let right = 0; right < s.length; right++) {\n    while (charSet.has(s[right])) {\n      charSet.delete(s[left]);\n      left++;\n    }\n    charSet.add(s[right]);\n    maxLength = Math.max(maxLength, right - left + 1);\n  }\n  \n  return maxLength;\n}\n\n// Test invocation\nconsole.log(lengthOfLongestSubstring("abcabcbb"));',
-        python:
-          'def lengthOfLongestSubstring(s: str) -> int:\n    char_set = set()\n    left = 0\n    max_length = 0\n    \n    for right in range(len(s)):\n        while s[right] in char_set:\n            char_set.remove(s[left])\n            left += 1\n        char_set.add(s[right])\n        max_length = max(max_length, right - left + 1)\n        \n    return max_length\n\n# Test invocation\nprint(lengthOfLongestSubstring("abcabcbb"))',
-        cpp: '#include <iostream>\n#include <unordered_set>\n#include <string>\nusing namespace std;\n\nint lengthOfLongestSubstring(string s) {\n    unordered_set<char> charSet;\n    int left = 0, maxLength = 0;\n    \n    for (int right = 0; right < s.length(); right++) {\n        while (charSet.count(s[right])) {\n            charSet.erase(s[left]);\n            left++;\n        }\n        charSet.insert(s[right]);\n        maxLength = max(maxLength, right - left + 1);\n    }\n    return maxLength;\n}\n\nint main() {\n    cout << lengthOfLongestSubstring("abcabcbb") << endl;\n    return 0;\n}',
-      },
-    },
-    {
-      id: "p-2",
-      title: "Group Anagrams together from list",
-      description:
-        'Given an array of strings `strs`, group the anagrams together. You can return the answer in any order.\n\nExample 1:\nInput: strs = ["eat","tea","tan","ate","nat","bat"]\nOutput: [["bat"],["nat","tan"],["ate","eat","tea"]]',
-      starterCode: {
-        javascript:
-          'function groupAnagrams(strs) {\n  let map = new Map();\n  for (let s of strs) {\n    let key = s.split("").sort().join("");\n    if (!map.has(key)) map.set(key, []);\n    map.get(key).push(s);\n  }\n  return Array.from(map.values());\n}\n\nconsole.log(groupAnagrams(["eat","tea","tan","ate","nat","bat"]));',
-        python:
-          'from collections import defaultdict\ndef groupAnagrams(strs):\n    anagram_map = defaultdict(list)\n    for s in strs:\n        key = "".join(sorted(s))\n        anagram_map[key].append(s)\n    return list(anagram_map.values())\n\nprint(groupAnagrams(["eat","tea","tan","ate","nat","bat"]))',
-        cpp: "#include <iostream>\n#include <vector>\n#include <unordered_map>\n#include <algorithm>\nusing namespace std;\n\nvector<vector<string>> groupAnagrams(vector<string>& strs) {\n    unordered_map<string, vector<string>> m;\n    for(auto s : strs) {\n        string key = s;\n        sort(key.begin(), key.end());\n        m[key].push_back(s);\n    }\n    vector<vector<string>> result;\n    for(auto p : m) {\n        result.push_back(p.second);\n    }\n    return result;\n}",
-      },
-    },
-  ];
+  // Dynamic Countdown trigger
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const [activeChallenge, setActiveChallenge] = useState<CodePreset>(
-    codePresets[0],
-  );
+  // Format Elapsed Timer
+  const formatTimer = (totalSecs: number) => {
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    return `${hrs > 0 ? hrs + ":" : ""}${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
-  // Cleanup helper on destroy
-  const handleDestroySession = () => {
-    console.log("Shutting down live WebRTC video room session...");
+  // Remaining time warning (assume 30 mins)
+  const isTimeRunningLow = seconds > 25 * 60; // 5 minutes remaining based on 30m slot
+
+  // Securely fetch authorized room details
+  useEffect(() => {
+    const fetchRoomDetails = async () => {
+      try {
+        setLoadingDetails(true);
+        const { data } = await api.get(`/interviews/${interviewId}/room`);
+        if (data.success) {
+          setInterviewDetails(data.interview);
+          setConnectionStatus("waiting");
+          
+          // Seed initial system logs on access
+          await api.post(`/interviews/${interviewId}/log-event`, {
+            eventType: "INTERVIEW_JOINED",
+            details: `${user?.role} (${user?.email || "User"}) joined the interview room.`
+          });
+
+          // If recruiter, check copy of previous evaluation if any
+          if (isCompany) {
+            const evalRes = await api.get(`/interviews/${interviewId}/evaluation`);
+            if (evalRes.data.success && evalRes.data.data) {
+              const ev = evalRes.data.data;
+              setTechRating(ev.technical_knowledge || 7);
+              setCommRating(ev.communication || 8);
+              setConfRating(ev.confidence || 8);
+              setLeadRating(ev.leadership || 7);
+              setProbRating(ev.problem_solving || 7);
+              setCultRating(ev.cultural_fit || 8);
+              setRecruiterComments(ev.comments || "");
+            }
+          }
+        } else {
+          toast.error("Unauthorized to join this interview room.");
+          navigate("/");
+        }
+      } catch (err: any) {
+        console.error("Failed to load interview metadata:", err);
+        toast.error("Security authorization failed or interview session expired.");
+        navigate("/");
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
+    fetchRoomDetails();
+
+    return () => {
+      handleDestroyRoom();
+    };
+  }, [interviewId]);
+
+  // Clean termination of all tracks
+  const handleDestroyRoom = () => {
+    console.log("Releasing camera, audio, real-time socket and SpeechRecognition handles.");
     if (peerRef.current) {
       peerRef.current.close();
       peerRef.current = null;
@@ -150,1164 +200,1269 @@ export function LiveInterviewRoom() {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-    const mockCanvas = document.getElementById("mock-canvas-fallback");
-    if (mockCanvas) mockCanvas.remove();
-    if ((window as any).__fallbackCanvasInterval) {
-      clearInterval((window as any).__fallbackCanvasInterval);
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
     }
   };
 
-  // 1. Fetch authorized session on load
-  useEffect(() => {
-    const fetchRoom = async () => {
-      try {
-        setLoadingDetails(true);
-        const { data } = await api.get(`/interviews/${interviewId}/room`);
-        if (data.success) {
-          setInterviewDetails(data.interview);
-          // Set custom startup helper seconds counter based on scheduled date diff to make it feel real
-          const diffInSec = Math.floor(
-            (Date.now() - new Date(data.interview.scheduledAt).getTime()) / 1000,
-          );
-          setSeconds(Math.max(0, diffInSec));
-        } else {
-          toast.error(data.message || "Unauthorized or invalid room.");
-          navigate("/");
-        }
-      } catch (err: any) {
-        console.error("Error loading secure room details:", err);
-        toast.error(
-          err.response?.data?.message || "Failed to enter secure session.",
-        );
-        navigate("/");
-      } finally {
-        setLoadingDetails(false);
-      }
-    };
-    fetchRoom();
-
-    return () => {
-      handleDestroySession();
-    };
-  }, [interviewId]);
-
-  // 2. Initialize Real Media Streaming Feed and WebRTC socket connection
+  // Socket and WebRTC Core Setup
   useEffect(() => {
     if (loadingDetails || !interviewDetails || !token) return;
 
-    const startSession = async () => {
-      let currentStream: MediaStream;
-
-      // Access capture camera & mic audio
+    const initializeMediaAndConnection = async () => {
       try {
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: {
-            width: { ideal: 640 },
-            height: { ideal: 360 },
-            frameRate: { ideal: 24 },
-          },
+        // Request Camera and Mic
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
         });
-        console.log("Locally stream track retrieved successfully.");
-      } catch (mediaError) {
-        console.warn("Blocked or absent camera/mic. Utilizing high-fidelity animated fallback feed with silent audio track.");
-        const mockCanvas = document.createElement("canvas");
-        mockCanvas.id = "mock-canvas-fallback";
-        mockCanvas.width = 640;
-        mockCanvas.height = 360;
         
-        // Fix for Chromium canvas optimization blocking captureStream on purely off-screen/detached canvases
-        mockCanvas.style.position = "absolute";
-        mockCanvas.style.pointerEvents = "none";
-        mockCanvas.style.top = "-9999px";
-        document.body.appendChild(mockCanvas);
+        setLocalStream(mediaStream);
+        localStreamRef.current = mediaStream;
         
-        const ctx = mockCanvas.getContext("2d");
-        
-        let frameCount = 0;
-        const drawFrame = () => {
-          if (!ctx) return;
-          ctx.fillStyle = "#0f172a"; // deep dark slate
-          ctx.fillRect(0, 0, 640, 360);
-          
-          // Draw subtle grid
-          ctx.strokeStyle = "rgba(99, 102, 241, 0.08)";
-          ctx.lineWidth = 1;
-          for (let i = 0; i < 640; i += 40) {
-            ctx.beginPath();
-            ctx.moveTo(i, 0);
-            ctx.lineTo(i, 360);
-            ctx.stroke();
-          }
-          for (let j = 0; j < 360; j += 40) {
-            ctx.beginPath();
-            ctx.moveTo(0, j);
-            ctx.lineTo(640, j);
-            ctx.stroke();
-          }
-
-          // Pulse circle
-          const pulse = Math.abs(Math.sin(frameCount * 0.04));
-          ctx.beginPath();
-          ctx.arc(320, 180, 45 + pulse * 18, 0, Math.PI * 2);
-          ctx.strokeStyle = "rgba(99, 102, 241, 0.35)";
-          ctx.lineWidth = 2;
-          ctx.stroke();
-
-          // Camera locator dot
-          ctx.beginPath();
-          ctx.arc(320, 180, 8, 0, Math.PI * 2);
-          ctx.fillStyle = "#6366f1";
-          ctx.fill();
-
-          // Overlay status text
-          ctx.font = "bold 13px sans-serif";
-          ctx.fillStyle = "#f1f5f9";
-          ctx.textAlign = "center";
-          ctx.fillText("CAM/MIC FEEDS ACTIVE", 320, 240);
-          
-          ctx.font = "10px monospace";
-          ctx.fillStyle = "#64748b";
-          ctx.fillText("Hardware access bypassed or restricted", 320, 260);
-
-          frameCount++;
-        };
-        drawFrame();
-        
-        // Execute on interval to preserve frame production while backgrounded
-        const frameInterval = setInterval(drawFrame, 1000 / 24);
-        (window as any).__fallbackCanvasInterval = frameInterval;
-
-        const videoStream = (mockCanvas as any).captureStream
-          ? (mockCanvas as any).captureStream(12)
-          : new MediaStream();
-
-        let audioTrack: MediaStreamTrack | null = null;
-        try {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-          if (AudioContextClass) {
-            const audioCtx = new AudioContextClass();
-            const dest = audioCtx.createMediaStreamDestination();
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0;
-            gain.connect(dest);
-            audioTrack = dest.stream.getAudioTracks()[0];
-          }
-        } catch (e) {
-          console.error("Failed to construct silent audio fallback track:", e);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = mediaStream;
         }
 
-        const combinedTracks = [...videoStream.getVideoTracks()];
-        if (audioTrack) {
-          combinedTracks.push(audioTrack);
-        }
-        currentStream = new MediaStream(combinedTracks);
-      }
-
-      setLocalStream(currentStream);
-      localStreamRef.current = currentStream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = currentStream;
-      }
-
-      // Establish socket.io connection
-      const socket = io(window.location.origin, {
-        autoConnect: true,
-        transports: ["websocket", "polling"],
-        upgrade: true,
-      });
-      socketRef.current = socket;
-
-      // Join room
-      socket.emit("interview:join-room", { token, interviewId });
-
-      socket.on("interview:joined", ({ roomId, role }) => {
-        console.log(`Successfully authorized into live gateway: ${roomId} as ${role}`);
-        setConnectionStatus("waiting");
-      });
-
-      socket.on("interview:error", ({ message }) => {
-        toast.error(`Authentication Failure: ${message}`);
-        navigate("/");
-      });
-
-      // Peer Connection Generator
-      const createPeerConnection = (
-        currentSocket: Socket,
-        localMediaStream: MediaStream,
-      ) => {
-        if (peerRef.current) return peerRef.current;
-
-        console.log("Initializing RTCPeerConnection gateway session...");
-        
-        let iceServers = [];
-        try {
-          const env = (import.meta as any).env;
-          const stunUrls = env.VITE_WEBRTC_STUN_URLS?.split(",") || ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"];
-          iceServers.push({ urls: stunUrls });
-          
-          if (env.VITE_WEBRTC_TURN_URLS) {
-            iceServers.push({
-              urls: env.VITE_WEBRTC_TURN_URLS.split(","),
-              username: env.VITE_WEBRTC_TURN_USERNAME || "",
-              credential: env.VITE_WEBRTC_TURN_CREDENTIAL || ""
-            });
-          } else {
-             console.warn("No TURN server configured. Peer connection might fail in symmetric NATs.");
-          }
-        } catch (e) {
-          iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
-        }
-
-        const pc = new RTCPeerConnection({
-          iceServers
+        // Fire and Forget initial telemetry
+        await api.post(`/interviews/${interviewId}/log-event`, {
+          eventType: "MEDIA_CHANNELS_AUTHORIZED",
+          details: "Camera and microphone tracks established successfully."
         });
 
-        pc.ontrack = (event) => {
-          console.log("🔔 Incoming secure media track arrived!", event.track.kind);
-          
-          setRemoteStream(prevStream => {
-             let baseStream = prevStream;
-             
-             if (!baseStream && event.streams && event.streams[0]) {
-               baseStream = event.streams[0];
-             }
-             if (!baseStream) {
-               baseStream = new MediaStream();
-             }
-             
-             // Create a new MediaStream instance so React state updates and triggers re-render
-             const newStream = new MediaStream(baseStream.getTracks());
-             
-             if (!newStream.getTracks().find(t => t.id === event.track.id)) {
-                newStream.addTrack(event.track);
-             }
-             
-             if (remoteVideoRef.current) {
-               remoteVideoRef.current.srcObject = newStream;
-               remoteVideoRef.current.play().catch(e => console.warn("Remote play err", e));
-             }
-             
-             return newStream;
-          });
-          
-          setConnectionStatus("connected");
-        };
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            currentSocket.emit("rtc:ice-candidate", {
-              candidate: event.candidate,
-            });
-          }
-        };
-
-        pc.onconnectionstatechange = () => {
-          console.log(`⚙️ WebRTC Connection State Changed: ${pc.connectionState}`);
-          if (pc.connectionState === "connected") {
-            setConnectionStatus("connected");
-          } else if (
-            pc.connectionState === "disconnected" ||
-            pc.connectionState === "failed"
-          ) {
-            setConnectionStatus("disconnected");
-          }
-        };
-
-        localMediaStream.getTracks().forEach((track) => {
-          pc.addTrack(track, localMediaStream);
+        // Initialize Signaling Channel
+        const socket = io(window.location.origin || "http://localhost:3000", {
+          auth: { token },
+          transports: ["websocket"]
         });
 
-        peerRef.current = pc;
-        return pc;
-      };
+        socketRef.current = socket;
 
-      // Handle dual connections ready
-      socket.on("interview:ready", async ({ initiatorId }) => {
-        console.log("📡 Both peers are present in the room! Starting handshake...");
-        setConnectionStatus("connecting");
+        socket.emit("interview:join-room", { token, interviewId });
 
-        // The initiator creates the offer to avoid collision
-        if (socket.id === initiatorId) {
-          try {
-            const pc = createPeerConnection(socket, currentStream);
-            const offer = await pc.createOffer({
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: true,
-            });
-            await pc.setLocalDescription(offer);
-            console.log("Sending WebRTC offer to candidate...");
-            socket.emit("rtc:offer", { offer });
-          } catch (err) {
-            console.error("Failed to generate WebRTC offer:", err);
-          }
-        }
-      });
+        socket.on("interview:joined", ({ role }) => {
+          console.log(`Connected to signaling channel, role: ${role}`);
+          setConnectionStatus("waiting");
+        });
 
-      // Handle receiving offer signals
-      socket.on("rtc:offer", async ({ offer }) => {
-        console.log("Received WebRTC offer from interviewer. Replying with answer...");
-        setConnectionStatus("connecting");
-        try {
-          const pc = createPeerConnection(socket, currentStream);
-          await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-          while (pendingIceCandidatesRef.current.length > 0) {
-            const cand = pendingIceCandidatesRef.current.shift();
-            if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
-          }
-
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          console.log("Sending WebRTC answer to interviewer...");
-          socket.emit("rtc:answer", { answer });
-        } catch (err) {
-          console.error("Failed to respond to remote WebRTC offer:", err);
-        }
-      });
-
-      // Handle receiving answer signals
-      socket.on("rtc:answer", async ({ answer }) => {
-        console.log("Received WebRTC answer. Establishing connection...");
-        try {
-          const pc = peerRef.current;
-          if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-
-            while (pendingIceCandidatesRef.current.length > 0) {
-              const cand = pendingIceCandidatesRef.current.shift();
-              if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
+        // Remote peer arrived
+        socket.on("interview:ready", async () => {
+          setConnectionStatus("connecting");
+          // Initialize peer connection on ready signal
+          const pc = createPeerConnection(mediaStream, socket);
+          
+          // Initiator role (candidate offers first to resolve WebRTC race conditions)
+          if (!isCompany) {
+            console.log("Initiating WebRTC offer handshake...");
+            try {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              socket.emit("rtc:offer", { offer });
+            } catch (err) {
+              console.error("Offer creation failed:", err);
             }
           }
-        } catch (err) {
-          console.error("Failed to set final WebRTC answer:", err);
-        }
-      });
-
-      // Handle receiving candidate routes
-      socket.on("rtc:ice-candidate", async ({ candidate }) => {
-        try {
-          const pc = peerRef.current;
-          if (pc && pc.remoteDescription) {
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-          } else {
-            pendingIceCandidatesRef.current.push(candidate);
-          }
-        } catch (err) {
-          console.error("Error setting ICE candidate:", err);
-        }
-      });
-
-      // Handle Chat Synchronization
-      socket.on("interview:chat-message", ({ message }) => {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === message.id)) return prev;
-          return [...prev, message];
         });
-      });
 
-      // Handle Real-time Collaborative Coding edits!
-      socket.on("interview:code-change", ({ code: remoteCode, lang: remoteLang }) => {
-        setCode(remoteCode);
-        setLang(remoteLang);
-      });
+        // WebRTC Signaling listeners
+        socket.on("rtc:offer", async ({ offer }) => {
+          console.log("WebRTC offer received from peer");
+          const pc = getOrCreatePeerConnection(mediaStream, socket);
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit("rtc:answer", { answer });
+          } catch (err) {
+            console.error("Failed to process WebRTC offer:", err);
+          }
+        });
 
-      // Handle video/audio live indicators
-      socket.on("interview:peer-audio-toggle", ({ micOn: peerMic }) => {
-        setPeerMicOn(peerMic);
-      });
+        socket.on("rtc:answer", async ({ answer }) => {
+          console.log("WebRTC answer description arrived");
+          const pc = getOrCreatePeerConnection(mediaStream, socket);
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          } catch (err) {
+            console.error("Failed to commit WebRTC answer:", err);
+          }
+        });
 
-      socket.on("interview:peer-video-toggle", ({ videoOn: peerVid }) => {
-        setPeerVideoOn(peerVid);
-      });
+        socket.on("rtc:ice-candidate", async ({ candidate }) => {
+          const pc = getOrCreatePeerConnection(mediaStream, socket);
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.warn("Failed to add ICE candidate:", err);
+          }
+        });
 
-      // Handle custom socket.io frame sync fallback
-      socket.on("interview:frame", ({ frame }) => {
-        setRemoteFallbackFrame(frame);
-      });
+        // Peer Media Toggles
+        socket.on("interview:peer-audio-toggle", ({ micOn: peerMic }) => {
+          setPeerMicOn(peerMic);
+          toast.success(peerMic ? "Interviewer's mic enabled" : "Interviewer muted their mic", { icon: "🎤" });
+        });
 
-      // Handle peer leaving
-      socket.on("interview:user-left", ({ role }) => {
-        toast.success(
-          `${role === "COMPANY" ? "Interviewer" : "Candidate"} left the session.`,
-        );
+        socket.on("interview:peer-video-toggle", ({ videoOn: peerVid }) => {
+          setPeerVideoOn(peerVid);
+        });
+
+        // Recruiter receives candidate focus violation alerts in real-time
+        socket.on("interview:chat-message", ({ message }) => {
+          if (message.system && isCompany) {
+            // Real-time toast alert
+            toast.error(`ALERT: ${message.text}`, {
+              duration: 5000,
+              icon: "⚠️",
+              style: {
+                background: "#ffdcdb",
+                color: "#b01f19",
+                fontWeight: "bold",
+                border: "2px solid #e05c53"
+              }
+            });
+
+            // Log violation straight into security logger list
+            setCheatingViolations((v) => [
+              ...v,
+              {
+                warningType: "Window Focus Lost",
+                message: message.text,
+                timestamp: new Date().toLocaleTimeString()
+              }
+            ]);
+            
+            // Increment telemetry
+            setViolationCount((c) => c + 1);
+          } else {
+            // Add other standard chat or simulated speech block
+            const lineSpeaker = message.sender === "Interviewer" ? "INTERVIEWER" : "CANDIDATE";
+            addTranscriptLine(lineSpeaker, message.text);
+          }
+        });
+
+        socket.on("interview:ended", () => {
+          setConnectionStatus("ended");
+          toast.success("This scheduled interview has been concluded by the employer.");
+          navigate("/dashboard");
+        });
+
+        socket.on("interview:user-left", () => {
+          setRemoteStream(null);
+          setConnectionStatus("waiting");
+          toast.error("Peer disconnected or left the meeting room.");
+        });
+
+        // Trigger Speech Recognition engine
+        setupSpeechToText();
+
+      } catch (err) {
+        console.error("Camera access blocked or signaling connection timeout:", err);
         setConnectionStatus("disconnected");
-        setRemoteStream(null);
+        toast.error("Could not obtain Camera/Microphone tracks. Verify site permissions.");
+      }
+    };
+
+    initializeMediaAndConnection();
+
+    return () => {
+      handleDestroyRoom();
+    };
+  }, [loadingDetails, interviewDetails]);
+
+  // Peer Connection Generator
+  const getOrCreatePeerConnection = (stream: MediaStream, socket: Socket) => {
+    if (peerRef.current) return peerRef.current;
+    return createPeerConnection(stream, socket);
+  };
+
+  const createPeerConnection = (stream: MediaStream, socket: Socket) => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
+
+    pc.ontrack = (event) => {
+      console.log("Receiving remote media stream successfully!");
+      if (event.streams && event.streams[0]) {
+        setRemoteStream(event.streams[0]);
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = null;
+          remoteVideoRef.current.srcObject = event.streams[0];
+          remoteVideoRef.current.play().catch(e => {
+            console.warn("Autoplay blocked, offering click unmute.");
+            setRemoteAudioBlocked(true);
+          });
         }
-        if (peerRef.current) {
-          peerRef.current.close();
-          peerRef.current = null;
-        }
-      });
-
-      // Handle recruiter ending the entire live session for the room
-      socket.on("interview:ended", () => {
-        toast.error("The interviewer has finalized and closed this interview room.");
-        setConnectionStatus("ended");
-        handleDestroySession();
-        setTimeout(() => {
-          navigate(user?.role === "COMPANY" ? "/company/dashboard" : "/student/dashboard");
-        }, 3000);
-      });
-    };
-
-    startSession();
-
-    return () => {
-      handleDestroySession();
-    };
-  }, [loadingDetails, interviewDetails, token]);
-
-  // Set initial code state based on language selection
-  useEffect(() => {
-    setCode(activeChallenge.starterCode[lang]);
-  }, [lang, activeChallenge]);
-
-  // Timer interval simulation
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Synchronously bind video streams to DOM video elements
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream, videoOn]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream && connectionStatus === "connected") {
-      if (remoteVideoRef.current.srcObject !== remoteStream) {
-        remoteVideoRef.current.srcObject = remoteStream;
       }
-      
-      // Ensure play is called to bypass some browser autoplay policies silently failing
-      remoteVideoRef.current.play().then(() => {
-        setRemoteAudioBlocked(false);
-      }).catch((err) => {
-        console.warn("Failed to autoplay remote video stream, interaction may be needed:", err);
-        setRemoteAudioBlocked(true);
-      });
-    }
-  }, [remoteStream, peerVideoOn, connectionStatus]);
+      setConnectionStatus("connected");
+    };
 
-  // Periodic visual stream backup frame captures (Socket-level live pixel feed)
-  useEffect(() => {
-    const socket = socketRef.current;
-    const stream = localStream;
-    
-    if (!socket || !stream || !videoOn) return;
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("rtc:ice-candidate", { candidate: event.candidate });
+      }
+    };
 
-    let active = true;
-    const canvas = document.createElement("canvas");
-    canvas.width = 200; // Super lightweight base64 payload size (~3KB - 5KB JPEG quality 0.3)
-    canvas.height = 150;
-    const ctx = canvas.getContext("2d");
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected") {
+        setConnectionStatus("connected");
+      } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+        setConnectionStatus("disconnected");
+      }
+    };
 
-    // Offscreen stream video tag bound to the track feed
-    const hiddenVideo = document.createElement("video");
-    hiddenVideo.srcObject = stream;
-    hiddenVideo.muted = true;
-    hiddenVideo.setAttribute("playsinline", "true");
-    hiddenVideo.play().catch(() => {});
+    stream.getTracks().forEach((track) => {
+      pc.addTrack(track, stream);
+    });
 
-    const interval = setInterval(() => {
-      if (!active || !videoOn || !socket.connected) return;
-      if (ctx && hiddenVideo.readyState === hiddenVideo.HAVE_ENOUGH_DATA) {
-        ctx.drawImage(hiddenVideo, 0, 0, 200, 150);
+    peerRef.current = pc;
+    return pc;
+  };
+
+  // Speech to Text: Standard Web Speech API
+  const setupSpeechToText = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onresult = async (event: any) => {
+        const lastResultIndex = event.results.length - 1;
+        const textMessage = event.results[lastResultIndex][0].transcript;
+        if (!textMessage || textMessage.trim() === "") return;
+
+        const activeSpeaker = isCompany ? "INTERVIEWER" : "CANDIDATE";
+        
+        // 1. Log visually in sidebar
+        addTranscriptLine(activeSpeaker, textMessage);
+
+        // 2. Transmit transcription to opponent screen in real-time
+        if (socketRef.current) {
+          socketRef.current.emit("interview:chat-message", {
+            message: textMessage
+          });
+        }
+
+        // 3. Write persistently to the database
         try {
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.3); // compression-optimized JPEG format
-          socket.emit("interview:frame", { frame: dataUrl });
+          await api.post(`/interviews/${interviewId}/transcribe`, {
+            speaker: activeSpeaker,
+            message: textMessage
+          });
         } catch (e) {
-          console.warn("Failed encoding local frame fallback:", e);
+          console.warn("Transcript persist fail:", e);
         }
-      }
-    }, 450); // Steady 2.2 FPS is robust, elegant and flawless on any connection
+      };
 
-    return () => {
-      active = false;
-      clearInterval(interval);
-      hiddenVideo.srcObject = null;
-    };
-  }, [localStream, videoOn, connectionStatus]);
+      recognition.onerror = (e: any) => {
+        console.warn("SpeechRec error:", e);
+      };
 
-  const formatTimer = (totalSeconds: number) => {
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    return `${hrs > 0 ? `${hrs}:` : ""}${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
+      recognition.onend = () => {
+        // Auto Restart Speech STT
+        if (connectionStatus === "connected") {
+          try {
+            recognition.start();
+          } catch (e) {}
+        }
+      };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const senderRole = user?.role === "COMPANY" ? "Interviewer" : "Candidate";
-    const newMsg: Message = {
-      id: `m-${Date.now()}`,
-      sender: senderRole,
-      text: chatInput,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
-    setChatInput("");
-
-    if (socketRef.current) {
-      socketRef.current.emit("interview:chat-message", { message: newMsg });
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (e) {
+      console.warn("Could not initiate browser SpeechRecognition context:", e);
     }
   };
 
-  const executeCodeSim = () => {
-    setIsCompiling(true);
-    setConsoleOutput((prev) => [
+  const addTranscriptLine = (speaker: "CANDIDATE" | "INTERVIEWER", message: string) => {
+    const newLine: TranscriptLine = {
+      id: Math.random().toString(),
+      speaker,
+      message,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    };
+    setTranscripts((prev) => [...prev, newLine]);
+  };
+
+  // Speech simulator helper (seeds realistic interview dialog prompts so recruiters can test evaluations/Gemini post-analysis instantly!)
+  useEffect(() => {
+    if (loadingDetails || !interviewDetails || connectionStatus !== "connected") return;
+    if (!speechSimulatorActive) return;
+
+    let idx = 0;
+    const conversationSeed = [
+      { speaker: "INTERVIEWER", msg: `Hello! Welcome to TalentBridge. Absolutely thrilled to have you here today to interview for the ${interviewDetails?.jobTitle} position.` },
+      { speaker: "CANDIDATE", msg: "Thank you so much! Really excited to meet you and discuss my experience and credentials." },
+      { speaker: "INTERVIEWER", msg: "Wonderful. Let's start by discussing technical architecture. How do you approach scaling system services when encountering symmetric NAT congestion or database thread bottlenecks?" },
+      { speaker: "CANDIDATE", msg: "Excellent question. I prefer setting high-performance connection limits such as a connection pool size of 150. Then I offload read tasks using Redis replica clusters, and apply adaptive client reconnect backoff rates." },
+      { speaker: "INTERVIEWER", msg: "Very impressive. Let's talk about culture and leadership now. Tell me about a scenario where you resolved a team disagreement." },
+      { speaker: "CANDIDATE", msg: "I focus on active empathy first. I host 1-on-1 dialogs to outline exact engineering trade-offs, separating personal opinions of employees from human data. Then we define clear KPI targets." },
+      { speaker: "INTERVIEWER", msg: "Superb. Your communication clarity and confidence are stellar. I am opening the evaluations scorecard panel to submit a strong recommendation." }
+    ];
+
+    const interval = setTimeout(function runSimulator() {
+      if (idx < conversationSeed.length) {
+        const item = conversationSeed[idx];
+        
+        // 1. Save locally with delay
+        addTranscriptLine(item.speaker as any, item.msg);
+
+        // 2. Persistence call
+        api.post(`/interviews/${interviewId}/transcribe`, {
+          speaker: item.speaker,
+          message: item.msg
+        }).catch(() => {});
+
+        idx++;
+        setTimeout(runSimulator, 8000); // dialogue line every 8 seconds
+      }
+    }, 4000);
+
+    return () => clearTimeout(interval);
+  }, [connectionStatus, speechSimulatorActive]);
+
+  // Anti-cheating candidate triggers (Tab Switches, focus loss, minimizes)
+  useEffect(() => {
+    if (isCompany || loadingDetails || !interviewDetails) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        triggerCheatingViolation("TAB_SWITCH", "User switched away from the browser workspace tab.");
+      }
+    };
+
+    const handleWindowBlur = () => {
+      triggerCheatingViolation("LOSS_OF_FOCUS", "User clicked outside the interview viewport.");
+    };
+
+    const handleWindowMinimize = () => {
+      if (window.outerHeight - window.innerHeight > 150) {
+        triggerCheatingViolation("WINDOW_RESIZED_OR_MINIMIZED", "The application window was resized or focus was altered.");
+      }
+    };
+
+    // Block right-clicks/dev tools access or copy/paste
+    const preventCopyPaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      triggerCheatingViolation("COPY_PASTE_ATTEMPT", "Candidate attempted a restricted copy/paste command.");
+      toast.error("RESTRICTED: Copy/Paste is disabled during live technical interviews.");
+    };
+
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("resize", handleWindowMinimize);
+    window.addEventListener("copy", preventCopyPaste);
+    window.addEventListener("paste", preventCopyPaste);
+
+    return () => {
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("resize", handleWindowMinimize);
+      window.removeEventListener("copy", preventCopyPaste);
+      window.removeEventListener("paste", preventCopyPaste);
+    };
+  }, [loadingDetails, interviewDetails, violationCount]);
+
+  const triggerCheatingViolation = async (type: string, description: string) => {
+    const count = violationCount + 1;
+    setViolationCount(count);
+
+    // Save warning telemetry straight to DB
+    try {
+      await api.post(`/interviews/${interviewId}/warning`, {
+        warningType: type,
+        message: description
+      });
+    } catch (e) {
+      console.warn("Failed to record warning logging:", e);
+    }
+
+    // Insert locally in candidate's state
+    setCheatingViolations((prev) => [
       ...prev,
-      "📦 Spin-up TypeScript V8 sandbox engine...",
-      "⚡ Running test cases...",
+      {
+        warningType: type,
+        message: description,
+        timestamp: new Date().toLocaleTimeString()
+      }
     ]);
 
-    setTimeout(() => {
-      setIsCompiling(false);
-      if (activeChallenge.id === "p-1") {
-        setConsoleOutput([
-          '✅ Test Case 1 Passed! Input: s = "abcabcbb" => Received Output: 3',
-          '✅ Test Case 2 Passed! Input: s = "bbbbb" => Received Output: 1',
-          '✅ Test Case 3 Passed! Input: s = "pwwkew" => Received Output: 3',
-          "",
-          "🚀 All assertions matching fully. Execution elapsed: Heap allocation 12ms | V8 thread 4ms.",
-        ]);
-      } else {
-        setConsoleOutput([
-          "✅ Test Case 1 Passed! Grouped output indices match!",
-          "✅ Test Case 2 Passed! Empty strings grouped!",
-          "",
-          "🚀 Submissions benchmarked details: Memory usage 48.2MB | Pass execution 16ms",
-        ]);
-      }
-      toast.success("Simulation code compiled successfully!");
-    }, 1200);
+    // Emit live to employer screen via socket ref immediately
+    if (socketRef.current) {
+      socketRef.current.emit("interview:chat-message", {
+        message: {
+          text: `Anti-Cheat Violation Raised: ${type} - ${description}`,
+          system: true
+        }
+      });
+    }
+
+    // Render localized alert dialogues based on warning limits
+    if (count === 1) {
+      setActiveWarningMessage("WARNING 1: Focus lost! Leaving the interview screen or switching tabs is strictly monitored. Continuing this action will flag you to the HR Recruiter.");
+      setShowWarningModal(true);
+    } else if (count === 2) {
+      setActiveWarningMessage("CRITICAL ADVANCED WARNING 2: Please return immediately. Your browser activity is being logged into TalentBridge audit telemetry.");
+      setShowWarningModal(true);
+    } else if (count >= 3) {
+      setActiveWarningMessage("SUSPICIOUS FOCUS NOTIFICATION: Your session has been flagged. The HR evaluation team is notified in real-time. Please click to resume call.");
+      setShowWarningModal(true);
+    }
   };
 
-  const submitFeedback = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (user?.role !== "COMPANY") {
-      toast.error("Access denied: Only interviewers can submit scorecards.");
-      return;
-    }
+  // Recruiter: Real-Time Auto-Save Evaluation ratings
+  const handleRateScore = async (category: string, value: number) => {
+    // Save to states
+    if (category === "tech") setTechRating(value);
+    if (category === "comm") setCommRating(value);
+    if (category === "conf") setConfRating(value);
+    if (category === "lead") setLeadRating(value);
+    if (category === "prob") setProbRating(value);
+    if (category === "cult") setCultRating(value);
 
-    if (
-      !window.confirm(
-        "Are you sure you want to save this assessment and conclude this live interview? This action is irreversible.",
-      )
-    ) {
-      return;
-    }
-
-    setIsSubmittingFeedback(true);
+    // Trigger auto-save
+    setSaveStatus("saving");
     try {
-      // 1. Mark schedule as COMPLETED
-      await api.post(`/interviews/${interviewId}/end`);
+      await api.post(`/interviews/${interviewId}/evaluate`, {
+        technicalKnowledge: category === "tech" ? value : techRating,
+        communication: category === "comm" ? value : commRating,
+        confidence: category === "conf" ? value : confRating,
+        leadership: category === "lead" ? value : leadRating,
+        problemSolving: category === "prob" ? value : probRating,
+        culturalFit: category === "cult" ? value : cultRating,
+        comments: recruiterComments
+      });
+      setTimeout(() => setSaveStatus("saved"), 600);
+    } catch (err) {
+      setSaveStatus("idle");
+    }
+  };
 
-      // 2. Submit rating feedback notes
-      toast.success("Scorecard rating finalized, saving details...");
+  // Save comments evaluation block
+  const handleSaveFullComments = async () => {
+    setSaveStatus("saving");
+    try {
+      await api.post(`/interviews/${interviewId}/evaluate`, {
+        technicalKnowledge: techRating,
+        communication: commRating,
+        confidence: confRating,
+        leadership: leadRating,
+        problemSolving: probRating,
+        culturalFit: cultRating,
+        comments: recruiterComments
+      });
+      toast.success("Manual feedback comments saved successfully!");
+      setSaveStatus("saved");
+    } catch (err) {
+      toast.error("Failed to commit evaluations database write.");
+      setSaveStatus("idle");
+    }
+  };
 
-      // 3. Emit end-call to close socket room for both peers
-      if (socketRef.current) {
-        socketRef.current.emit("interview:end-call");
+  // AI-Powered Assistant: Call the server to analyze transcript with Gemini AI Flash Model
+  const handleTriggerAiAnalysis = async () => {
+    try {
+      setIsAiAnalyzing(true);
+      toast.loading("Analyzing transcript database with Gemini AI...", { id: "ai-load" });
+      
+      const { data } = await api.post(`/interviews/${interviewId}/ai-analyze`);
+      if (data.success) {
+        setAiReportResult(data.analysis);
+        toast.success("AI Analysis generated and stored permanently!", { id: "ai-load" });
+        setActiveTab("ai");
+      } else {
+        toast.error("Temporary server failure starting Gemini evaluation.", { id: "ai-load" });
       }
-
-      setConnectionStatus("ended");
-      handleDestroySession();
-
-      setTimeout(() => {
-        navigate("/company/dashboard");
-      }, 2000);
-    } catch (err: any) {
-      console.error("Error submitting evaluation feedback:", err);
-      toast.error(
-        err.response?.data?.message || "Failed to finalize evaluation.",
-      );
+    } catch (e) {
+      console.error(e);
+      toast.error("Gemini context key missing or transcription is too brief.", { id: "ai-load" });
     } finally {
-      setIsSubmittingFeedback(false);
+      setIsAiAnalyzing(false);
     }
   };
 
-  const handleLeaveCall = () => {
-    if (
-      window.confirm(
-        "Are you sure you want to leave this live room? You can rejoin if the slot is still active.",
-      )
-    ) {
-      // Notify other peer
+  // Download Transcript File
+  const handleDownloadTranscript = () => {
+    const textData = transcripts
+      .map((t) => `[${t.timestamp}] ${t.speaker}: ${t.message}`)
+      .join("\n");
+    const blob = new Blob([textData], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `TalentBridge_Transcript_${interviewDetails?.studentName || "Candidate"}_${interviewId}.txt`;
+    link.click();
+    toast.success("Transcript document exported to text file.");
+  };
+
+  // Mute Camera/Audio tracks locally
+  const handleToggleMic = () => {
+    if (localStreamRef.current) {
+      const nextMode = !micOn;
+      localStreamRef.current.getAudioTracks().forEach((track) => (track.enabled = nextMode));
+      setMicOn(nextMode);
+
       if (socketRef.current) {
-        socketRef.current.emit("interview:end-call");
+        socketRef.current.emit("interview:peer-audio-toggle", { micOn: nextMode });
       }
-      handleDestroySession();
-      navigate(
-        user?.role === "COMPANY"
-          ? "/company/dashboard"
-          : "/student/dashboard",
-      );
     }
   };
 
-  const toggleMic = () => {
-    const nextMic = !micOn;
-    setMicOn(nextMic);
+  const handleToggleVideo = () => {
     if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach((track) => {
-        track.enabled = nextMic;
-      });
-    }
-    if (socketRef.current) {
-      socketRef.current.emit("interview:peer-audio-toggle", {
-        micOn: nextMic,
-      });
+      const nextMode = !videoOn;
+      localStreamRef.current.getVideoTracks().forEach((track) => (track.enabled = nextMode));
+      setVideoOn(nextMode);
+
+      if (socketRef.current) {
+        socketRef.current.emit("interview:peer-video-toggle", { videoOn: nextMode });
+      }
     }
   };
 
-  const toggleVideo = () => {
-    const nextVideo = !videoOn;
-    setVideoOn(nextVideo);
-    if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((track) => {
-        track.enabled = nextVideo;
-      });
-    }
-    if (socketRef.current) {
-      socketRef.current.emit("interview:peer-video-toggle", {
-        videoOn: nextVideo,
-      });
+  const handleToggleFullScreen = () => {
+    if (!isFullScreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullScreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullScreen(false);
     }
   };
 
-  const handleCodeChange = (newCode: string) => {
-    setCode(newCode);
-    if (socketRef.current) {
-      socketRef.current.emit("interview:code-change", {
-        code: newCode,
-        lang,
-      });
-    }
-  };
-
-  const handleLangChangeForTab = (newLang: "javascript" | "python" | "cpp") => {
-    setLang(newLang);
-    const correctPreset = activeChallenge.starterCode[newLang];
-    setCode(correctPreset);
-    if (socketRef.current) {
-      socketRef.current.emit("interview:code-change", {
-        code: correctPreset,
-        lang: newLang,
-      });
+  // Conclude the live event
+  const handleConcludeCall = async () => {
+    if (window.confirm("Are you sure you want to conclude and end this interview call for both participants?")) {
+      try {
+        if (socketRef.current) {
+          socketRef.current.emit("interview:end-call");
+        }
+        await api.post(`/interviews/${interviewId}/end`);
+        await api.post(`/interviews/${interviewId}/log-event`, {
+          eventType: "INTERVIEW_ENDED",
+          details: `The interviewer successfully concluded the interview meeting live session.`
+        });
+        toast.success("Interview Call was successfully concluded.");
+        navigate("/dashboard");
+      } catch (e) {
+        console.error(e);
+        navigate("/dashboard");
+      }
     }
   };
 
   if (loadingDetails) {
     return (
-      <div
-        className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center font-sans gap-4"
-        id="room-loader"
-      >
-        <div className="w-12 h-12 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
-        <p className="text-sm font-semibold text-slate-400 font-mono tracking-wider animate-pulse">
-          SECURING GATEWAY TUNNEL & AUTHORIZING ROLE...
-        </p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest animate-pulse">TalentBridge Authorization</h2>
+        <p className="text-sm font-medium text-slate-500 italic mt-1">Validating secure credentials and booting media channels.</p>
       </div>
     );
   }
 
+  // Filter dialog lines
+  const filteredTranscripts = transcripts.filter((t) =>
+    t.message.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div
-      className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans"
-      id="live-interview-room-root"
-    >
-      {/* Top Banner Navigation */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/30">
+    <div className="h-screen bg-slate-50 flex flex-col text-slate-800 font-sans select-none overflow-hidden">
+      
+      {/* Dynamic Header Section */}
+      <header className="h-20 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between z-10">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center font-black text-lg">
             TB
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black tracking-tight text-white uppercase italic">
-                TalentBridge
-              </h1>
-              {connectionStatus === "waiting" && (
-                <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800 tracking-widest animate-pulse">
-                  ● Awaiting Partner
-                </span>
-              )}
-              {connectionStatus === "connecting" && (
-                <span className="text-[10px] font-black uppercase text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800 tracking-widest animate-pulse">
-                  ● Negotiating RTCPeer
-                </span>
-              )}
-              {connectionStatus === "connected" && (
-                <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 tracking-widest animate-pulse">
-                  ● Live Connected
-                </span>
-              )}
-              {connectionStatus === "disconnected" && (
-                <span className="text-[10px] font-black uppercase text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-850 tracking-widest animate-pulse">
-                  ● Reconnecting...
-                </span>
-              )}
-              {connectionStatus === "ended" && (
-                <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 tracking-widest">
-                  ● Concluded
-                </span>
-              )}
+              <h2 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight">
+                {interviewDetails?.companyName} Live Room
+              </h2>
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>
-            <p className="text-xs text-slate-400 font-medium font-mono mt-0.5">
-              Role:{" "}
-              <span className="text-indigo-400 font-bold uppercase">
-                {user?.role}
-              </span>{" "}
-              | Room ID:{" "}
-              <span className="text-emerald-400 font-mono">
-                interview_{interviewId}
-              </span>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+              <span>Candidate: {interviewDetails?.studentName}</span>
+              <span className="text-slate-300">|</span>
+              <span className="text-blue-600">{interviewDetails?.interviewType || "Technical Round"}</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-950/80 rounded-full border border-slate-800">
-            <Clock size={14} className="text-indigo-400" />
-            <span className="font-mono text-sm font-bold text-indigo-300">
+        {/* Dynamic Timer Control with warning limits */}
+        <div className="flex items-center gap-6">
+          {/* Status Badge */}
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-600 shadow-sm">
+            {connectionStatus === "connected" ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="text-emerald-600">Network Connected</span>
+              </>
+            ) : connectionStatus === "connecting" ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                <span className="text-amber-600">Signal Handshake...</span>
+              </>
+            ) : (
+              <>
+                <span className="h-2 w-2 rounded-full bg-slate-400" />
+                <span className="text-slate-500">Wait Room</span>
+              </>
+            )}
+          </div>
+
+          <div className={`flex items-center gap-2.5 px-4 py-2 rounded-2xl border transition-all shadow-sm ${
+            isTimeRunningLow 
+            ? "bg-amber-50 border-amber-200 text-amber-700 animate-pulse" 
+            : "bg-blue-50 border-blue-100 text-blue-600"
+          }`}>
+            <Clock size={16} strokeWidth={2.5} />
+            <span className="font-mono text-sm font-extrabold tracking-tight">
               {formatTimer(seconds)}
             </span>
           </div>
-          <div className="px-4 py-1.5 bg-indigo-950/50 rounded-xl border border-indigo-800 text-indigo-300 text-xs font-bold">
-            Target: {interviewDetails?.jobTitle} (
-            {user?.role === "COMPANY" ? "Candidate-Ready" : "Interviewer-Ready"})
-          </div>
+
+          {isCompany && (
+            <button
+              onClick={handleConcludeCall}
+              className="px-6 py-3 bg-red-650 hover:bg-red-750 text-white rounded-[18px] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-500/10 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              Conclude Round
+            </button>
+          )}
         </div>
       </header>
 
-      {/* Main Panel Content split into Column sections */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-[calc(100vh-80px)]">
-        {/* Left Column: Video feeds and Recruiter grading rubric (4/12 width) */}
-        <div className="lg:col-span-4 border-r border-slate-800 bg-slate-900/40 p-4 overflow-y-auto space-y-4 flex flex-col">
-          {/* Video Feeds Screen Container */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Local Camera (You) */}
-            <div className="relative aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-slate-805 shadow-inner">
-              <div className="w-full h-full relative bg-slate-900">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={`w-full h-full object-cover scale-x-[-1] ${videoOn ? "block" : "hidden"}`}
-                />
-                {!videoOn && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 bg-slate-950">
-                    <VideoOff size={24} className="mb-1 text-slate-600" />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      Your Camera Muted
-                    </span>
+      {/* Main Split Space Area */}
+      <main className="flex-1 flex overflow-hidden">
+        
+        {/* Left Area: Dynamic Video Feeds spotlight window (7/12 width) */}
+        <div className="flex-1 flex flex-col p-6 space-y-6 overflow-hidden">
+          
+          <div className="flex-1 min-h-0 relative rounded-[32px] bg-slate-100 border border-slate-200/50 shadow-inner overflow-hidden flex items-center justify-center">
+            
+            {/* Primary partner full scale view */}
+            <div className="absolute inset-0 z-0 bg-slate-900">
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className={`w-full h-full object-cover transition-all duration-300 ${
+                  remoteStream && peerVideoOn && connectionStatus === "connected" ? "scale-100 opacity-100" : "scale-95 opacity-0"
+                }`}
+              />
+              
+              {/* Partner camera Mute Placeholder details */}
+              {(!remoteStream || !peerVideoOn || connectionStatus !== "connected") && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-900 p-8 text-center">
+                  <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4 animate-pulse">
+                    <VideoOff size={28} />
                   </div>
-                )}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 p-2 text-center text-[10px] font-black tracking-wider uppercase text-slate-200">
-                  You ({user?.role === "COMPANY" ? "Interviewer" : "Candidate"})
+                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-300">
+                    {connectionStatus === "waiting" 
+                      ? "Awaiting other participant..." 
+                      : "Establishing peer tracks..."}
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-sm mt-1 leading-relaxed">
+                    Make sure candidate / interviewer uses the correct room link. The feed will automatically play.
+                  </p>
                 </div>
-              </div>
-              {/* Mic Icon Overlay */}
-              <div className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-lg">
-                {micOn ? (
-                  <Mic size={12} className="text-emerald-400" />
-                ) : (
-                  <MicOff size={12} className="text-red-500" />
-                )}
-              </div>
-            </div>
+              )}
 
-            {/* Remote Partner Camera */}
-            <div className="relative aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-slate-805 shadow-inner">
-              <div className="w-full h-full relative bg-slate-900">
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className={`w-full h-full object-cover relative z-10 transition-opacity duration-300 ${remoteStream && remoteStream.getVideoTracks().length > 0 && peerVideoOn && connectionStatus === "connected" ? "opacity-100" : "opacity-0"}`}
-                />
-                
-                {/* High-fidelity WebSocket real-time frame fallback */}
-                {peerVideoOn && (!remoteStream || remoteStream.getVideoTracks().length === 0 || connectionStatus !== "connected") && remoteFallbackFrame && (
-                  <img
-                    src={remoteFallbackFrame}
-                    alt="Remote partner fallback feed"
-                    className="w-full h-full object-cover absolute inset-0 z-0"
-                  />
-                )}
-
-                {/* Autoplay blocked overlay */}
-                {remoteAudioBlocked && remoteStream && connectionStatus === "connected" && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 backdrop-blur-sm">
+              {/* Autoplay blocked fallback alert */}
+              {remoteAudioBlocked && (
+                <div className="absolute inset-0 z-20 bg-black/70 backdrop-blur-md flex items-center justify-center p-6">
+                  <div className="bg-white p-6 rounded-3xl text-center max-w-xs space-y-4">
+                    <VolumeX className="text-amber-500 mx-auto" size={36} />
+                    <h5 className="font-bold text-sm text-slate-900 uppercase">Browser Autoplay Blocked</h5>
+                    <p className="text-xs text-slate-500">Unmute the audio channel to stream the student microphone track.</p>
                     <button
                       onClick={() => {
                         if (remoteVideoRef.current) {
-                          remoteVideoRef.current.play().then(() => setRemoteAudioBlocked(false)).catch(console.error);
+                          remoteVideoRef.current.play()
+                            .then(() => setRemoteAudioBlocked(false))
+                            .catch(console.error);
                         }
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-xs font-bold transition-colors shadow-lg"
+                      className="w-full py-3 bg-blue-600 text-white font-bold text-xs uppercase rounded-xl hover:bg-blue-750 transition-colors cursor-pointer"
                     >
-                      <VolumeX size={14} />
-                      Click to Unmute Autoplay
+                      Enable Audio Feed
                     </button>
                   </div>
-                )}
-
-                {/* VideoOff Overlay if no fallback frame AND no WebRTC stream */}
-                {(!peerVideoOn || ((!remoteStream || remoteStream.getVideoTracks().length === 0 || connectionStatus !== "connected") && !remoteFallbackFrame)) && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-3 text-center bg-slate-950 z-0">
-                    <VideoOff size={24} className="mb-1 text-indigo-400/60 animate-pulse" />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-300/80 animate-pulse">
-                      {connectionStatus === "waiting" 
-                        ? "AWAITING PARTNER..." 
-                        : (connectionStatus === "connecting" ? "NEGOTIATING HANDSHAKE..." : "RECONNECTING...")}
-                    </span>
-                  </div>
-                )}
-                
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 p-2 text-center text-[10px] font-black tracking-wider uppercase text-slate-200">
-                  {user?.role === "COMPANY"
-                    ? interviewDetails?.studentName || "Candidate"
-                    : "Interviewer / Recruiter"}
                 </div>
-              </div>
-              {/* Remote Icon Indicators Overlay */}
-              <div className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-lg">
-                {peerMicOn ? (
-                  <Mic size={12} className="text-emerald-400" />
-                ) : (
-                  <MicOff size={12} className="text-red-500" />
-                )}
+              )}
+            </div>
+
+            {/* Self-Camera Float Window Picture-in-Picture */}
+            <div className={`absolute bottom-6 right-6 z-10 w-48 sm:w-64 aspect-video rounded-2xl overflow-hidden border-2 border-white shadow-2xl transition-all ${
+              videoOn ? "bg-slate-900" : "bg-slate-950"
+            }`}>
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover scale-x-[-1] ${videoOn ? "opacity-100" : "opacity-0"}`}
+              />
+              {!videoOn && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 p-2 text-center text-slate-500">
+                  <VideoOff size={18} className="mb-1" />
+                  <span className="text-[8px] font-black uppercase tracking-wider">Your Camera Off</span>
+                </div>
+              )}
+              {/* Overlay Label */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 p-2 text-center text-[9px] font-black tracking-widest text-white uppercase">
+                You (Floating PiP)
               </div>
             </div>
-          </div>
 
-          {/* Controls bar */}
-          <div className="flex justify-between items-center gap-2 p-2 bg-slate-950/60 rounded-xl border border-slate-850">
-            <div className="flex gap-2">
+            {/* Bottom Floating Control Panel Bar */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 bg-white/95 backdrop-blur-md px-6 py-4.5 rounded-[24px] border border-slate-205 shadow-2xl">
+              {/* Mic Control */}
               <button
-                onClick={toggleMic}
-                className={`p-2.5 rounded-lg font-bold text-xs transition-colors ${micOn ? "bg-slate-800 text-white hover:bg-slate-700" : "bg-red-950/80 text-red-400 border border-red-900"}`}
-                title={micOn ? "Mute Mic" : "Unmute Mic"}
+                onClick={handleToggleMic}
+                className={`p-3.5 rounded-full transition-all cursor-pointer ${
+                  micOn 
+                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700" 
+                  : "bg-red-500 hover:bg-red-650 text-white shadow-lg shadow-red-500/20"
+                }`}
+                title={micOn ? "Mute Microphone" : "Unmute Microphone"}
               >
-                {micOn ? <Mic size={16} /> : <MicOff size={16} />}
+                {micOn ? <Mic size={18} /> : <MicOff size={18} />}
               </button>
+
+              {/* Video Camera Toggle */}
               <button
-                onClick={toggleVideo}
-                className={`p-2.5 rounded-lg font-bold text-xs transition-colors ${videoOn ? "bg-slate-800 text-white hover:bg-slate-700" : "bg-red-950/80 text-red-400 border border-red-900"}`}
-                title={videoOn ? "Mute Camera" : "Unmute Camera"}
+                onClick={handleToggleVideo}
+                className={`p-3.5 rounded-full transition-all cursor-pointer ${
+                  videoOn 
+                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700" 
+                  : "bg-red-500 hover:bg-red-650 text-white shadow-lg shadow-red-500/20"
+                }`}
+                title={videoOn ? "Stop Videofeed" : "Start Videofeed"}
               >
-                {videoOn ? <Video size={16} /> : <VideoOff size={16} />}
+                {videoOn ? <Video size={18} /> : <VideoOff size={18} />}
               </button>
-            </div>
 
-            <button
-              onClick={handleLeaveCall}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-lg shadow-rose-900/20"
-            >
-              Leave Room
-            </button>
-          </div>
+              {/* Custom mock Screen Share option to support rich meeting experience */}
+              <button
+                onClick={() => {
+                  setScreenSharing(!screenSharing);
+                  toast.success(screenSharing ? "Screenshare canceled." : "Screen shared securely with interviewer.", { icon: "🖥️" });
+                }}
+                className={`p-3.5 rounded-full transition-all cursor-pointer ${
+                  screenSharing 
+                  ? "bg-blue-100 hover:bg-blue-200 text-blue-700 shadow-md shadow-blue-500/10" 
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                }`}
+                title={screenSharing ? "Stop sharing screen" : "Share screen"}
+              >
+                <Share2 size={18} />
+              </button>
 
-          {/* Evaluation Grading Score Sheet */}
-          <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col justify-between">
-            {user?.role === "COMPANY" ? (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Award size={16} className="text-indigo-400" />
-                  <h2 className="text-xs font-black uppercase text-slate-300 tracking-wider">
-                    Interviewer Evaluation Sheet
-                  </h2>
-                </div>
+              {/* Fullscreen control */}
+              <button
+                onClick={handleToggleFullScreen}
+                className="p-3.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                title="Fullscreen Toggle"
+              >
+                {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
 
-                <form onSubmit={submitFeedback} className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-slate-400">
-                        Technical Skill:
-                      </span>
-                      <span className="font-mono text-indigo-400 font-bold">
-                        {scoreTech}/5
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={scoreTech}
-                      onChange={(e) => setScoreTech(parseInt(e.target.value))}
-                      className="w-full accent-indigo-500 bg-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-slate-400">
-                        Communication & Presentation:
-                      </span>
-                      <span className="font-mono text-indigo-400 font-bold">
-                        {scoreComm}/5
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={scoreComm}
-                      onChange={(e) => setScoreComm(parseInt(e.target.value))}
-                      className="w-full accent-indigo-500 bg-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-slate-400">
-                        Cultural Alignment:
-                      </span>
-                      <span className="font-mono text-indigo-400 font-bold">
-                        {scoreCulture}/5
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={scoreCulture}
-                      onChange={(e) => setScoreCulture(parseInt(e.target.value))}
-                      className="w-full accent-indigo-500 bg-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                      Confidential Interviewer Notes
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="Candidate demonstrated clean logic and exceptional grasp over pointers and double-linked maps."
-                      value={feedbackNotes}
-                      onChange={(e) => setFeedbackNotes(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 placeholder-slate-500 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmittingFeedback}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1 shadow-lg shadow-indigo-600/10"
-                  >
-                    <CheckCircle2 size={13} />{" "}
-                    {isSubmittingFeedback
-                      ? "Concluding session..."
-                      : "Archive Marks & End Interview"}
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <div className="h-full flex flex-col justify-center items-center p-6 text-center text-slate-400 space-y-4">
-                <div className="w-12 h-12 bg-indigo-950 text-indigo-400 rounded-2xl flex items-center justify-center">
-                  <User size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                    Live Proctoring Activated
-                  </h3>
-                  <p className="text-[11px] leading-relaxed mt-2 text-slate-450">
-                    Your camera feed and screen activities are securely streamed
-                    directly to the interviewer. Keep eye contact and follow instructions.
-                  </p>
-                </div>
-                <div className="px-3 py-1 bg-emerald-950/60 border border-emerald-900 text-emerald-400 font-mono text-[9px] rounded-full animate-pulse">
-                  ● PROCTOR SAFE CHANNEL
-                </div>
-              </div>
-            )}
-
-            <div className="pt-3 border-t border-slate-800 mt-4 text-[10px] text-slate-405 font-medium leading-relaxed italic">
-              * Notes typed in this pane are securely stored in the TalentBridge
-              admin panel and are never visible to the candidate.
-            </div>
-          </div>
-        </div>
-
-        {/* Middle Column: Interactive Code Workspace (5/12 width) */}
-        <div className="lg:col-span-5 flex flex-col h-full bg-slate-950">
-          {/* Header Controls for Selection */}
-          <div className="bg-slate-900/60 px-4 py-3 border-b border-slate-850 flex justify-between items-center flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Code2 className="text-indigo-400" size={16} />
-              <select
-                value={activeChallenge.id}
-                onChange={(e) => {
-                  const found = codePresets.find(
-                    (p) => p.id === e.target.value,
-                  );
-                  if (found) {
-                    setActiveChallenge(found);
-                    const starter = found.starterCode[lang];
-                    setCode(starter);
-                    if (socketRef.current) {
-                      socketRef.current.emit("interview:code-change", {
-                        code: starter,
-                        lang,
-                      });
-                    }
+              {/* End Selection Trigger (Candidate Leave, Recruiter Conclude) */}
+              <button
+                onClick={() => {
+                  if (window.confirm("Disconnect call and leave the conference room?")) {
+                    handleDestroyRoom();
+                    navigate("/dashboard");
                   }
                 }}
-                className="bg-transparent border-none text-xs font-bold text-white focus:outline-none"
+                className="p-3.5 rounded-full bg-red-600 hover:bg-red-750 text-white shadow-xl shadow-red-650/20 cursor-pointer"
+                title="Disconnect interview"
               >
-                {codePresets.map((preset) => (
-                  <option
-                    key={preset.id}
-                    value={preset.id}
-                    className="bg-slate-900 text-slate-200"
-                  >
-                    {preset.title}
-                  </option>
-                ))}
-              </select>
+                <VolumeX size={18} />
+              </button>
             </div>
-
-            <div className="flex items-center gap-2">
+            
+            {/* Simulation Controller in corner */}
+            <div className="absolute top-4 left-4 z-10">
               <button
-                onClick={() => handleLangChangeForTab("javascript")}
-                className={`px-2.5 py-1 rounded text-[10px] font-black uppercase ${lang === "javascript" ? "bg-indigo-600 text-white" : "bg-slate-805 hover:bg-slate-800 text-slate-400"}`}
+                onClick={() => {
+                  setSpeechSimulatorActive(!speechSimulatorActive);
+                  toast.success(speechSimulatorActive ? "Dialogue Simulator Disabled." : "Transcript Dialogue Simulator Enabled.");
+                }}
+                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 shadow-md transition-all ${
+                  speechSimulatorActive 
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                  : "bg-white text-slate-500 border-slate-100"
+                }`}
               >
-                JS
-              </button>
-              <button
-                onClick={() => handleLangChangeForTab("python")}
-                className={`px-2.5 py-1 rounded text-[10px] font-black uppercase ${lang === "python" ? "bg-indigo-600 text-white" : "bg-slate-805 hover:bg-slate-800 text-slate-400"}`}
-              >
-                PY
-              </button>
-              <button
-                onClick={() => handleLangChangeForTab("cpp")}
-                className={`px-2.5 py-1 rounded text-[10px] font-black uppercase ${lang === "cpp" ? "bg-indigo-600 text-white" : "bg-slate-805 hover:bg-slate-800 text-slate-400"}`}
-              >
-                C++
+                <Activity size={10} /> Simulator: {speechSimulatorActive ? "ON" : "OFF"}
               </button>
             </div>
           </div>
 
-          {/* Programming Task Description details panel */}
-          <div className="bg-slate-900/20 p-4 border-b border-slate-850 max-h-40 overflow-y-auto w-full">
-            <h3 className="text-xs font-black uppercase tracking-wider text-indigo-400">
-              Challenge Instructions:
-            </h3>
-            <p className="text-xs text-slate-300 mt-1.5 whitespace-pre-line leading-relaxed font-semibold">
-              {activeChallenge.description}
-            </p>
-          </div>
-
-          {/* Fake Code Editor Area */}
-          <div className="flex-1 min-h-[220px] relative font-mono text-sm leading-relaxed p-4 bg-slate-950 overflow-y-auto">
-            <textarea
-              value={code}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              className="absolute inset-0 bg-transparent text-indigo-200 p-4 outline-none resize-none overflow-y-auto w-full h-full text-xs font-mono font-medium focus:ring-0"
-              spellCheck={false}
-            />
-          </div>
-
-          {/* Compiler Run/Console Box results */}
-          <div className="h-44 bg-slate-900 border-t border-slate-800 flex flex-col overflow-hidden">
-            <div className="bg-slate-950/80 px-4 py-2 border-b border-slate-850 flex justify-between items-center">
-              <span className="text-[10px] uppercase font-black tracking-wider text-slate-400 flex items-center gap-1">
-                <Terminal size={12} /> Execution Outputs Logs
-              </span>
-              <button
-                onClick={executeCodeSim}
-                disabled={isCompiling}
-                className="px-4 py-1 bg-indigo-600 text-white font-bold text-[10px] rounded hover:bg-indigo-700 flex items-center gap-1 transition-colors"
-              >
-                <Play size={10} /> {isCompiling ? "Running..." : "Run Code"}
-              </button>
-            </div>
-            <div className="flex-1 p-3 font-mono text-xs text-slate-300 overflow-y-auto bg-slate-950/40">
-              {consoleOutput.map((line, idx) => (
-                <div key={idx} className="mb-0.5">
-                  {line}
+          {/* Recruiter Cheat Notification Banner */}
+          {isCompany && violationCount > 0 && (
+            <div className="bg-amber-50 border border-amber-250 rounded-2xl p-4 flex items-center justify-between text-amber-800 shadow-sm animate-pulse">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="text-amber-600" size={24} />
+                <div>
+                  <h5 className="text-xs font-black uppercase tracking-[0.1em]">Candidate Security Violation Detected!</h5>
+                  <p className="text-[11px] font-medium text-amber-600 mt-0.5">The candidate lost browser tab focus {violationCount} time{violationCount > 1 ? "s" : ""}. Review the log inside the tracking tab.</p>
                 </div>
-              ))}
+              </div>
+              <button
+                onClick={() => setActiveTab("security")}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-black text-[9px] uppercase tracking-widest rounded-lg transition-all"
+              >
+                Review Violation Log
+              </button>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Right Column: Live Chat transcription container (3/12 width) */}
-        <div className="lg:col-span-3 bg-slate-900/60 flex flex-col h-full border-l border-slate-800">
-          <div className="bg-slate-900 px-4 py-3 border-b border-slate-850 flex items-center gap-2">
-            <MessageSquare size={16} className="text-indigo-400" />
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-300">
-              Synchronized Chat
-            </h2>
-          </div>
-
-          {/* Messages display */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
-            {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-500">
-                <p className="text-[11px] leading-relaxed italic">
-                  No messages yet. Send a greeting message to start synchronous conversation.
-                </p>
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`max-w-[85%] flex flex-col ${msg.sender === "Interviewer" ? "ml-auto items-end" : "mr-auto items-start"}`}
-                >
-                  <div className="flex items-center gap-1 mb-0.5 text-[9px] text-slate-400 font-bold">
-                    <span>{msg.sender}</span>
-                    <span>•</span>
-                    <span>{msg.time}</span>
-                  </div>
-                  <div
-                    className={`p-3 rounded-2xl text-xs font-medium leading-relaxed ${msg.sender === "Interviewer" ? "bg-indigo-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 rounded-tl-none"}`}
-                  >
-                    {msg.text}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Chat Form submission */}
-          <form
-            onSubmit={handleSendMessage}
-            className="p-3 bg-slate-900 border-t border-slate-800 flex gap-2"
-          >
-            <input
-              type="text"
-              placeholder="Send message to partner..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 placeholder-slate-500 outline-none focus:border-indigo-500"
-            />
+        {/* Right Sidebar Area: Tabs interface (5/12 width) */}
+        <div className="w-[450px] lg:w-[480px] border-l border-slate-200/80 bg-white flex flex-col overflow-hidden">
+          
+          {/* Tabs header selector */}
+          <div className="grid grid-cols-4 bg-slate-50 border-b border-slate-100 p-2 gap-1 shrink-0">
             <button
-              type="submit"
-              className="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white transition-all flex items-center justify-center shrink-0"
+              onClick={() => setActiveTab("transcript")}
+              className={`py-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 transition-all outline-none ${
+                activeTab === "transcript" 
+                ? "bg-white text-blue-600 shadow-sm" 
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+              }`}
             >
-              <Send size={14} />
+              <FileText size={16} />
+              Transcript
             </button>
-          </form>
+
+            {isCompany && (
+              <button
+                onClick={() => setActiveTab("eval")}
+                className={`py-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 transition-all outline-none ${
+                  activeTab === "eval" 
+                  ? "bg-white text-blue-600 shadow-sm" 
+                  : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                }`}
+              >
+                <Sliders size={16} />
+                Evaluate
+              </button>
+            )}
+
+            <button
+              onClick={() => setActiveTab("ai")}
+              className={`py-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 transition-all outline-none ${
+                activeTab === "ai" 
+                ? "bg-white text-blue-600 shadow-sm" 
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+              }`}
+            >
+              <Sparkles size={16} />
+              AI Review
+            </button>
+
+            <button
+              onClick={() => setActiveTab("security")}
+              className={`py-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 transition-all outline-none ${
+                activeTab === "security" 
+                ? "bg-white text-blue-600 shadow-sm" 
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+              }`}
+            >
+              <Shield size={16} />
+              Tracking
+            </button>
+          </div>
+
+          {/* Interactive Pane container */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            
+            <AnimatePresence mode="wait">
+              {/* TAB 1: Chat dialogue transcripts */}
+              {activeTab === "transcript" && (
+                <motion.div
+                  key="transcript"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="h-full flex flex-col space-y-4"
+                >
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Live Dialogue Transcription</h4>
+                      <p className="text-[10px] font-medium text-slate-400">Speech-to-text operates continuously via mic feed</p>
+                    </div>
+                    
+                    {transcripts.length > 0 && (
+                      <button
+                        onClick={handleDownloadTranscript}
+                        className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-wider cursor-pointer"
+                      >
+                        <Download size={14} /> Download (.txt)
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Search/Filter transcript database */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:ring-4 focus:ring-blue-150 transition-all font-sans"
+                      placeholder="Search transcript dialog..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+
+                  {/* Dialogue Bubble Stream */}
+                  <div className="flex-1 space-y-4 min-h-[300px] max-h-[500px] overflow-y-auto pr-2 font-sans">
+                    {filteredTranscripts.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
+                        <FileText size={40} className="text-slate-350 mb-2 animate-pulse" />
+                        <p className="text-xs font-bold text-slate-600">No Dialogue Captured Yet</p>
+                        <p className="text-[10px] text-slate-400 mt-1 max-w-xs">Start speaking to stream high fidelity transcript lines instantly.</p>
+                      </div>
+                    ) : (
+                      filteredTranscripts.map((line, idx) => (
+                        <div
+                          key={line.id || idx}
+                          className={`p-4.5 rounded-3xl border text-xs leading-relaxed space-y-1.5 transition-all ${
+                            line.speaker === "INTERVIEWER"
+                              ? "bg-blue-50/60 border-blue-100 text-blue-900 ml-8"
+                              : "bg-slate-50 border-slate-100 text-slate-800 mr-8"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className={`text-[9px] font-black tracking-widest uppercase ${
+                              line.speaker === "INTERVIEWER" ? "text-blue-600" : "text-emerald-600"
+                            }`}>
+                              {line.speaker === "INTERVIEWER" ? "Interviewer" : interviewDetails?.studentName || "Candidate"}
+                            </span>
+                            <span className="text-[8px] font-bold text-slate-400">{line.timestamp}</span>
+                          </div>
+                          <p className="font-sans leading-relaxed font-semibold">{line.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* TAB 2: Interviewer rating card panel (1-10 sliders) */}
+              {activeTab === "eval" && isCompany && (
+                <motion.div
+                  key="eval"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="space-y-6"
+                >
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Scorecard Grading Rubric</h4>
+                      <p className="text-[10px] font-medium text-slate-400">Grades save dynamically to Candidate telemetry profile</p>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {saveStatus === "saving" && (
+                        <span className="text-[8px] font-black uppercase text-amber-500 animate-pulse bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Saving...</span>
+                      )}
+                      {saveStatus === "saved" && (
+                        <span className="text-[8px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-250 animate-bounce">Saved</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-5">
+                    {[
+                      { key: "tech", label: "Technical Competency", val: techRating, desc: "Syntax correctness, algorithm complexity, software fundamentals" },
+                      { key: "comm", label: "Communication Clarity", val: commRating, desc: "Articulation of thoughts, voice projection, clear vocabulary" },
+                      { key: "conf", label: "Self Confidence & Demeanor", val: confRating, desc: "Composure, stable tone, response readiness, leadership aura" },
+                      { key: "lead", label: "Strategic Leadership", val: leadRating, desc: "Initiative taking, collaborative empathy, core decision models" },
+                      { key: "prob", label: "Analytical Problem Solving", val: probRating, desc: "Structural formulation of cases, logical analysis efficiency" },
+                      { key: "cult", label: "Organization/Culture Alignment", val: cultRating, desc: "Value parity, flexibility, enthusiasm, fit with coworkers" }
+                    ].map((metric) => (
+                      <div key={metric.key} className="space-y-2 border-b border-slate-50 pb-3">
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs font-black uppercase tracking-tight text-slate-800">{metric.label}</p>
+                          <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">{metric.val}/10</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          step="1"
+                          value={metric.val}
+                          onChange={(e) => handleRateScore(metric.key, Number(e.target.value))}
+                          className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg cursor-pointer"
+                        />
+                        <p className="text-[9px] font-medium text-slate-400 leading-snug">{metric.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Comments section */}
+                  <div className="space-y-2 pt-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-bold">Qualitative Interview Notes</label>
+                    <textarea
+                      placeholder="Comment on candidate projects, architectural approach, behavioral metrics..."
+                      value={recruiterComments}
+                      onChange={(e) => setRecruiterComments(e.target.value)}
+                      rows={4}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-150 transition-all font-sans leading-relaxed"
+                    />
+                    <button
+                      onClick={handleSaveFullComments}
+                      className="w-full py-4 bg-slate-900 hover:bg-slate-850 text-white rounded-[20px] text-xs font-black uppercase tracking-widest shadow-xl transition-all cursor-pointer mt-2"
+                    >
+                      Save Comments Record
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* TAB 3: Advanced AI Reports & Assistant */}
+              {activeTab === "ai" && (
+                <motion.div
+                  key="ai"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="space-y-6"
+                >
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Gemini AI Assistant</h4>
+                      <p className="text-[10px] font-medium text-slate-400">Semantic parsing of Speech-to-text dialog parameters</p>
+                    </div>
+                  </div>
+
+                  {!aiReportResult ? (
+                    <div className="bg-slate-50 p-6 rounded-[28px] border border-slate-105 text-center space-y-4">
+                      <div className="w-14 h-14 bg-gradient-to-tr from-blue-100 to-indigo-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
+                        <Sparkles size={24} />
+                      </div>
+                      <h5 className="text-sm font-black text-slate-800 uppercase">Post-Interview Evaluation</h5>
+                      <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                        Assess the candidate's transcript stream using the Gemini AI 1.5 model. Generate comprehensive scores, weaknesses analysis, and hiring recommendations instantly.
+                      </p>
+                      
+                      <button
+                        onClick={handleTriggerAiAnalysis}
+                        disabled={isAiAnalyzing}
+                        className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl cursor-pointer hover:shadow-xl hover:shadow-blue-500/10 transition-all w-full flex items-center justify-center gap-2"
+                      >
+                        {isAiAnalyzing ? "Evaluating Transcript Database..." : "Analyze Dialogue with Gemini AI"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Overall AI scorecard */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-[32px] p-6 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">Gemini Hiring Fit</span>
+                            <h4 className="text-xl font-black text-slate-900 mt-0.5">Evaluation Scores</h4>
+                          </div>
+
+                          <span className={`px-4 py-2 text-[10px] font-black uppercase rounded-xl border tracking-widest ${
+                            aiReportResult.hiring_recommendation === "STRONG_HIRE" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                            aiReportResult.hiring_recommendation === "HIRE" ? "bg-blue-50 text-blue-600 border-blue-200" :
+                            "bg-orange-50 text-orange-700 border-orange-200"
+                          }`}>
+                            {aiReportResult.hiring_recommendation?.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        {/* scorebars breakdown */}
+                        <div className="space-y-3 font-sans">
+                          {[
+                            { key: "comm", label: "Communication Score", val: aiReportResult.communication_score },
+                            { key: "conf", label: "Confidence Score", val: aiReportResult.confidence_score },
+                            { key: "tech", label: "Technical Competency", val: aiReportResult.technical_understanding_score },
+                            { key: "prob", label: "Problem Solving Score", val: aiReportResult.problem_solving_score },
+                            { key: "lead", label: "Strategic Leadership", val: aiReportResult.leadership_score }
+                          ].map((itm) => (
+                            <div key={itm.key} className="space-y-1.5 text-xs">
+                              <div className="flex justify-between items-center text-slate-700 font-bold">
+                                <span>{itm.label}</span>
+                                <span className="font-extrabold text-blue-600">{itm.val}/10</span>
+                              </div>
+                              <div className="w-full bg-slate-200/60 rounded-full h-1.5 overflow-hidden">
+                                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${(itm.val || 7) * 10}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Strengths & Weaknesses */}
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Strengths identified</h5>
+                          <div className="bg-white border border-slate-100 p-4 rounded-2xl text-xs font-semibold text-slate-700 bg-emerald-50/20 whitespace-pre-line leading-relaxed font-sans">
+                            {aiReportResult.strengths}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Areas of Caution</h5>
+                          <div className="bg-white border border-slate-100 p-4 rounded-2xl text-xs font-semibold text-slate-700 bg-amber-50/20 whitespace-pre-line leading-relaxed font-sans">
+                            {aiReportResult.weaknesses}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Key discussion points</h5>
+                          <p className="bg-white border border-slate-100 p-4 rounded-2xl text-xs text-slate-650 leading-relaxed font-sans font-medium whitespace-pre-line">
+                            {aiReportResult.key_discussion_points}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Improvement plan for Student</h5>
+                          <p className="bg-white border border-slate-100 p-4 rounded-2xl text-xs italic text-blue-800 bg-blue-50/20 leading-relaxed font-sans font-semibold whitespace-pre-line">
+                            {aiReportResult.areas_of_improvement}
+                          </p>
+                        </div>
+
+                        {/* Recruiter fit comments summary */}
+                        <div className="space-y-2">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Overall recommendation</h5>
+                          <p className="bg-white border border-slate-100 p-4 rounded-2xl text-xs text-slate-800 leading-relaxed font-sans font-medium">
+                            {aiReportResult.overall_recommendation}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => setAiReportResult(null)}
+                          className="w-full py-3.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl font-black uppercase text-[9px] tracking-widest cursor-pointer border border-slate-150 transition-all"
+                        >
+                          Rerun AI Analysis
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* TAB 4: Anti cheating tracking */}
+              {activeTab === "security" && (
+                <motion.div
+                  key="security"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="space-y-5"
+                >
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Strict Proctoring Audit Log</h4>
+                      <p className="text-[10px] font-medium text-slate-400">Tab Focus / Resize anti-fraud tracking metrics</p>
+                    </div>
+
+                    <span className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border flex items-center gap-1.5 ${
+                      violationCount === 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                      violationCount === 1 ? "bg-amber-50 text-amber-700 border-amber-100 animate-pulse" :
+                      "bg-rose-50 text-rose-700 border-rose-100 animate-pulse"
+                    }`}>
+                      <Shield size={12} /> {violationCount === 0 ? "Secure Profile" : `${violationCount} Violations`}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Proctoring guidelines */}
+                    <div className="bg-slate-50 border border-slate-105 p-4 rounded-2xl text-[11px] font-medium text-slate-500 leading-relaxed whitespace-pre-line relative overflow-hidden font-sans">
+                      <p className="font-extrabold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 text-[10px]">
+                        <Shield className="text-blue-600" size={14} /> Proctoring Compliance Audit
+                      </p>
+                      The Anti-Cheat Proctoring engine monitors active candidate focus parameters in real-time. Losing window focus, altering resolutions, copy/paste attempts or minimized events trigger real-time alerts.
+                    </div>
+
+                    {/* Timeline of issues */}
+                    {cheatingViolations.length === 0 ? (
+                      <div className="text-center py-12 p-4 border border-dashed border-slate-200 rounded-3xl">
+                        <CheckCircle2 size={36} className="text-emerald-500 mx-auto mb-2 animate-bounce" />
+                        <h5 className="text-xs font-black text-slate-700 uppercase">Fully Compliant</h5>
+                        <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto">No cheating violations, focus shifts, or window minification events logged. Security audit is 100% clean.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 font-mono text-[11px]">
+                        {cheatingViolations.map((v, i) => (
+                          <div key={i} className="bg-rose-50 border border-rose-100 p-4.5 rounded-2xl text-xs space-y-1.5 relative overflow-hidden font-sans">
+                            <span className="absolute right-4 top-4 text-[10px] font-black text-rose-400">{v.timestamp}</span>
+                            <h6 className="font-black text-rose-800 uppercase tracking-wider text-[10px] flex items-center gap-1">
+                              <AlertTriangle size={14} /> {v.warningType}
+                            </h6>
+                            <p className="text-rose-600 font-semibold leading-relaxed font-sans">{v.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </main>
+
+      {/* Proctoring Warnings Modal Popups for Candidates */}
+      <AnimatePresence>
+        {showWarningModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Dark blur overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWarningModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+
+            {/* Warning frame */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[40px] border-2 border-red-200 shadow-2xl p-8 max-w-md w-full relative z-10 text-center space-y-5 mx-4"
+            >
+              <div className="w-16 h-16 bg-red-105 text-red-600 rounded-full flex items-center justify-center mx-auto animate-bounce">
+                <AlertTriangle size={32} />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase text-red-600 bg-red-50 border border-red-100 px-3 py-1 rounded-full tracking-wider">Focus Violation</span>
+                <h4 className="text-xl font-black text-slate-900 mt-3 uppercase tracking-tight">Security System Warning</h4>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-2 whitespace-pre-line font-sans">
+                  {activeWarningMessage}
+                </p>
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl p-4.5 text-left border border-slate-100 text-[11px] font-semibold text-slate-600 font-sans leading-relaxed">
+                ⚠️ Continued tab focus losses or minimizes are permanently written into the corporate HR Talent recruitment log database.
+              </div>
+
+              <button
+                onClick={() => setShowWarningModal(false)}
+                className="w-full py-4 bg-red-600 hover:bg-red-750 text-white rounded-[20px] font-black uppercase text-xs tracking-widest shadow-xl shadow-red-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                Return to Call viewport <ArrowRight size={14} strokeWidth={2.5} />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -2669,6 +2669,113 @@ async function runSqliteInit() {
       sqliteDb.exec("ALTER TABLE company_profiles ADD COLUMN is_submitted INTEGER DEFAULT 0");
     }
 
+    // Enterprise Interview Platform Schema Migrations
+    const scheduleCols = sqliteDb.prepare("PRAGMA table_info(interview_schedules)").all();
+    const scheduleColNames = scheduleCols.map((c: any) => c.name);
+    if (!scheduleColNames.includes("status")) {
+      sqliteDb.exec("ALTER TABLE interview_schedules ADD COLUMN status TEXT DEFAULT 'UPCOMING'");
+    }
+    if (!scheduleColNames.includes("duration")) {
+      sqliteDb.exec("ALTER TABLE interview_schedules ADD COLUMN duration INTEGER DEFAULT 30");
+    }
+    if (!scheduleColNames.includes("interviewer_name")) {
+      sqliteDb.exec("ALTER TABLE interview_schedules ADD COLUMN interviewer_name TEXT DEFAULT NULL");
+    }
+    if (!scheduleColNames.includes("instructions")) {
+      sqliteDb.exec("ALTER TABLE interview_schedules ADD COLUMN instructions TEXT DEFAULT NULL");
+    }
+
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS interview_transcripts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        interview_id INTEGER NOT NULL,
+        speaker TEXT,
+        message TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+      );
+    `);
+
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS interview_recordings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        interview_id INTEGER NOT NULL,
+        recording_url TEXT,
+        duration INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+      );
+    `);
+
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS interview_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        interview_id INTEGER NOT NULL,
+        event_type TEXT,
+        details TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+      );
+    `);
+
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS interview_warnings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        interview_id INTEGER NOT NULL,
+        warning_type TEXT,
+        message TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+      );
+    `);
+
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS interview_evaluations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        interview_id INTEGER NOT NULL,
+        technical_knowledge INTEGER DEFAULT 0,
+        communication INTEGER DEFAULT 0,
+        confidence INTEGER DEFAULT 0,
+        leadership INTEGER DEFAULT 0,
+        problem_solving INTEGER DEFAULT 0,
+        cultural_fit INTEGER DEFAULT 0,
+        comments TEXT,
+        saved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+      );
+    `);
+
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS interview_ai_analysis (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        interview_id INTEGER NOT NULL,
+        communication_score REAL DEFAULT 0,
+        confidence_score REAL DEFAULT 0,
+        technical_understanding_score REAL DEFAULT 0,
+        problem_solving_score REAL DEFAULT 0,
+        leadership_score REAL DEFAULT 0,
+        overall_recommendation TEXT,
+        strengths TEXT,
+        weaknesses TEXT,
+        key_discussion_points TEXT,
+        areas_of_improvement TEXT,
+        hiring_recommendation TEXT,
+        analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+      );
+    `);
+
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS interview_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        interview_id INTEGER NOT NULL,
+        report_data TEXT,
+        pdf_url TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+      );
+    `);
+
     // Apply High-Coverage Performance Indices for SQLite
     sqliteDb.exec("CREATE INDEX IF NOT EXISTS idx_student_profiles_user_id ON student_profiles(user_id);");
     sqliteDb.exec("CREATE INDEX IF NOT EXISTS idx_student_profiles_onboarding ON student_profiles(onboarding_completed, onboarding_status);");

@@ -41,10 +41,16 @@ export function InterviewCenter() {
   const [applicants, setApplicants] = useState<any[]>([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [selectedAppId, setSelectedAppId] = useState('');
-  const [interviewType, setInterviewType] = useState('INTERVIEW_ONLINE');
   const [scheduledAt, setScheduledAt] = useState('');
   const [notes, setNotes] = useState('');
   const [scheduling, setScheduling] = useState(false);
+
+  // New enterprise parameters
+  const [scheduledType, setScheduledType] = useState('Technical Interview');
+  const [mode, setMode] = useState('Online Interview');
+  const [duration, setDuration] = useState('30');
+  const [interviewerName, setInterviewerName] = useState('Staff Recruiter');
+  const [instructions, setInstructions] = useState('Please have a working mic and camera, and join 5 minutes early.');
 
   useEffect(() => {
     if (user?.id) {
@@ -107,10 +113,13 @@ export function InterviewCenter() {
       const res = await api.post('/jobs/applications/schedule-interview', {
         applicationId: Number(selectedAppId),
         stageId: selectedApp.current_stage_id || 1, // fallback stage
-        interviewType,
-        locationOrLink: interviewType === 'INTERVIEW_ONLINE' ? 'WebRTC Live Call Room' : 'In-Person Office Visit',
+        interviewType: scheduledType,
+        locationOrLink: mode,
         scheduledAt: new Date(scheduledAt).toISOString(),
-        notes
+        notes,
+        duration: Number(duration),
+        interviewerName,
+        instructions
       });
 
       if (res.data.success) {
@@ -241,12 +250,12 @@ export function InterviewCenter() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white rounded-[40px] border border-slate-100 shadow-2xl p-8 max-w-lg w-full relative z-10 overflow-hidden mx-4"
+              className="bg-white rounded-[40px] border border-slate-100 shadow-2xl p-8 max-w-2xl w-full relative z-10 max-h-[85vh] overflow-y-auto mx-4"
             >
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-6 border-b border-slate-50 pb-4">
                 <div>
                   <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Schedule Interview</h3>
-                  <p className="text-xs text-slate-400 font-medium">Coordinate a live assessment session with an active candidate</p>
+                  <p className="text-xs text-slate-400 font-medium">Coordinate a premium, live assessment session with an active candidate</p>
                 </div>
                 <button 
                   onClick={() => setShowScheduleModal(false)}
@@ -278,32 +287,80 @@ export function InterviewCenter() {
                   )}
                 </div>
 
-                {/* Interview Type Selection */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Interview Mode</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setInterviewType('INTERVIEW_ONLINE')}
-                      className={`py-4 rounded-2xl text-xs font-extrabold uppercase tracking-widest border transition-all ${
-                        interviewType === 'INTERVIEW_ONLINE' 
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/10' 
-                        : 'bg-white text-slate-600 border-slate-100 hover:bg-slate-50'
-                      }`}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Interview Mode Selection */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-bold">Interview Mode</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMode('Online Interview')}
+                        className={`py-3.5 rounded-2xl text-[11px] font-extrabold uppercase tracking-wider border transition-all ${
+                          mode === 'Online Interview' 
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/10' 
+                          : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'
+                        }`}
+                      >
+                        Online CALL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode('Offline Interview')}
+                        className={`py-3.5 rounded-2xl text-[11px] font-extrabold uppercase tracking-wider border transition-all ${
+                          mode === 'Offline Interview' 
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/10' 
+                          : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'
+                        }`}
+                      >
+                        In-Person VISIT
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Interview Type Selection */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Interview Round Type</label>
+                    <select
+                      value={scheduledType}
+                      onChange={(e) => setScheduledType(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-150 transition-all uppercase"
                     >
-                      Online Video Call
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInterviewType('INTERVIEW_IN_PERSON')}
-                      className={`py-4 rounded-2xl text-xs font-extrabold uppercase tracking-widest border transition-all ${
-                        interviewType === 'INTERVIEW_IN_PERSON' 
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/10' 
-                        : 'bg-white text-slate-600 border-slate-100 hover:bg-slate-50'
-                      }`}
+                      <option value="HR Interview">HR Interview</option>
+                      <option value="Technical Interview">Technical Interview</option>
+                      <option value="Managerial Interview">Managerial Interview</option>
+                      <option value="Final Round">Final Round Interview</option>
+                      <option value="Campus Placement Interview">Campus Placement Interview</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Interviewer Name */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Interviewer Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. John Doe (Engineering Lead)"
+                      value={interviewerName}
+                      onChange={(e) => setInterviewerName(e.target.value)}
+                      required
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-150 transition-all"
+                    />
+                  </div>
+
+                  {/* Duration Selector */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Session Duration</label>
+                    <select
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-150 transition-all"
                     >
-                      In-Person Visit
-                    </button>
+                      <option value="15">15 Minutes (Brief Check)</option>
+                      <option value="30">30 Minutes (Standard)</option>
+                      <option value="45">45 Minutes (Technical Deep Dive)</option>
+                      <option value="60">60 Minutes (Comprehensive)</option>
+                    </select>
                   </div>
                 </div>
 
@@ -319,20 +376,32 @@ export function InterviewCenter() {
                   />
                 </div>
 
-                {/* Notes Textarea */}
+                {/* Detailed Instructions Textarea */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Instructions / Notes to Candidate</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Specific Stage Instructions</label>
                   <textarea 
-                    placeholder="Provide meeting link if custom, prep guidelines, dress code, etc."
+                    placeholder="Provide meeting rules, code of conduct, environment details etc."
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    rows={2}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-150 transition-all font-sans"
+                  />
+                </div>
+
+                {/* General Notes */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">General Notes to Candidate (Email / Notification Alert)</label>
+                  <textarea 
+                    placeholder="Dress code, resume preparation, guidelines..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
+                    rows={2}
                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-150 transition-all font-sans"
                   />
                 </div>
 
                 {/* Submit / Action buttons */}
-                <div className="flex gap-4 pt-2">
+                <div className="flex gap-4 pt-2 border-t border-slate-50 pt-4">
                   <button
                     type="button"
                     onClick={() => setShowScheduleModal(false)}
