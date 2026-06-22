@@ -93,6 +93,7 @@ const QuizHistoryPage = lazy(() => import("./pages/ai/QuizHistoryPage.tsx").then
 const CodingConnectPage = lazy(() => import("./pages/coding/CodingConnectPage.tsx").then(module => ({ default: module.CodingConnectPage })));
 const CodingAnalyticsDashboard = lazy(() => import("./pages/coding/CodingAnalyticsDashboard.tsx").then(module => ({ default: module.CodingAnalyticsDashboard })));
 const Community = lazy(() => import("./pages/Community.tsx").then(module => ({ default: module.Community })));
+const LiveInterviewRoom = lazy(() => import("./pages/interview/LiveInterviewRoom.tsx").then(module => ({ default: module.LiveInterviewRoom })));
 
 import { StudentLayout } from "./components/student/StudentLayout.tsx";
 
@@ -249,6 +250,12 @@ export default function App() {
               <Route path="analytics" element={<AnalyticsDashboard />} />
               <Route path="interviews" element={<InterviewCenter />} />
             </Route>
+
+            <Route path="/interview/live/:id" element={
+              <PrivateRoute>
+                <LiveInterviewRoom />
+              </PrivateRoute>
+            } />
 
             <Route path="/tpo" element={<TPOLayout />}>
                 <Route index element={<TPODashboard />} />
