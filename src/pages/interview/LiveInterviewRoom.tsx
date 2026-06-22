@@ -115,6 +115,7 @@ export function LiveInterviewRoom() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
   const iceCandidatesQueueRef = useRef<any[]>([]);
 
@@ -196,6 +197,14 @@ export function LiveInterviewRoom() {
       peerRef.current = null;
     }
     iceCandidatesQueueRef.current = [];
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (e) {}
+      });
+      screenStreamRef.current = null;
+    }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
         try {
@@ -793,6 +802,96 @@ export function LiveInterviewRoom() {
     }
   };
 
+  const handleToggleScreenShare = async () => {
+    if (!localStreamRef.current) {
+      toast.error("Local camera feed not initiated yet.");
+      return;
+    }
+
+    if (!screenSharing) {
+      try {
+        // Start screen capture
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: false
+        });
+
+        screenStreamRef.current = screenStream;
+        const screenTrack = screenStream.getVideoTracks()[0];
+
+        // Replace the video track in WebRTC Peer Connection senders
+        if (peerRef.current) {
+          const senders = peerRef.current.getSenders();
+          const videoSender = senders.find((s) => s.track && s.track.kind === "video");
+          if (videoSender) {
+            await videoSender.replaceTrack(screenTrack);
+          }
+        }
+
+        // Handle native "Stop Sharing" browser bar toggle
+        screenTrack.onended = () => {
+          stopScreenShare(localStreamRef.current!);
+        };
+
+        // Notify peer of renewed active state
+        if (socketRef.current) {
+          socketRef.current.emit("interview:peer-video-toggle", { videoOn: true });
+        }
+
+        setScreenSharing(true);
+        toast.success("Screen shared securely with interviewer.", { icon: "🖥️" });
+
+        // Post optional event log
+        await api.post(`/interviews/${interviewId}/log-event`, {
+          eventType: "SCREEN_SHARE_STARTED",
+          details: "Participant initiated real-time screen presentation."
+        }).catch(() => {});
+
+      } catch (err: any) {
+        console.error("Failed to start screen share:", err);
+        if (err.name !== "NotAllowedError") {
+          toast.error("Failed to share screen: " + (err.message || "Unknown error"));
+        }
+      }
+    } else {
+      stopScreenShare(localStreamRef.current);
+      toast.success("Screenshare stopped.", { icon: "🖥️" });
+    }
+  };
+
+  const stopScreenShare = async (originalStream: MediaStream) => {
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => {
+        try { track.stop(); } catch (e) {}
+      });
+      screenStreamRef.current = null;
+    }
+
+    // Revert WebRTC track to original video track from camera
+    if (peerRef.current) {
+      const senders = peerRef.current.getSenders();
+      const videoSender = senders.find((s) => s.track && s.track.kind === "video");
+      const originalVideoTrack = originalStream.getVideoTracks()[0];
+      if (videoSender && originalVideoTrack) {
+        originalVideoTrack.enabled = videoOn;
+        await videoSender.replaceTrack(originalVideoTrack);
+      }
+    }
+
+    setScreenSharing(false);
+
+    // Notify peer on active status revert
+    if (socketRef.current) {
+      socketRef.current.emit("interview:peer-video-toggle", { videoOn });
+    }
+
+    // Post optional event log
+    await api.post(`/interviews/${interviewId}/log-event`, {
+      eventType: "SCREEN_SHARE_STOPPED",
+      details: "Participant terminated screen presentation."
+    }).catch(() => {});
+  };
+
   const handleToggleFullScreen = () => {
     if (!isFullScreen) {
       document.documentElement.requestFullscreen().catch(() => {});
@@ -1018,12 +1117,9 @@ export function LiveInterviewRoom() {
                 {videoOn ? <Video size={18} /> : <VideoOff size={18} />}
               </button>
 
-              {/* Custom mock Screen Share option to support rich meeting experience */}
+              {/* Full real-time audio/video Screen Share feature */}
               <button
-                onClick={() => {
-                  setScreenSharing(!screenSharing);
-                  toast.success(screenSharing ? "Screenshare canceled." : "Screen shared securely with interviewer.", { icon: "🖥️" });
-                }}
+                onClick={handleToggleScreenShare}
                 className={`p-3.5 rounded-full transition-all cursor-pointer ${
                   screenSharing 
                   ? "bg-blue-100 hover:bg-blue-200 text-blue-700 shadow-md shadow-blue-500/10" 
