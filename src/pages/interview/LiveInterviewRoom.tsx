@@ -342,14 +342,15 @@ export function LiveInterviewRoom() {
         
         let iceServers = [];
         try {
-          const stunUrls = import.meta.env.VITE_WEBRTC_STUN_URLS?.split(",") || ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"];
+          const env = (import.meta as any).env;
+          const stunUrls = env.VITE_WEBRTC_STUN_URLS?.split(",") || ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"];
           iceServers.push({ urls: stunUrls });
           
-          if (import.meta.env.VITE_WEBRTC_TURN_URLS) {
+          if (env.VITE_WEBRTC_TURN_URLS) {
             iceServers.push({
-              urls: import.meta.env.VITE_WEBRTC_TURN_URLS.split(","),
-              username: import.meta.env.VITE_WEBRTC_TURN_USERNAME || "",
-              credential: import.meta.env.VITE_WEBRTC_TURN_CREDENTIAL || ""
+              urls: env.VITE_WEBRTC_TURN_URLS.split(","),
+              username: env.VITE_WEBRTC_TURN_USERNAME || "",
+              credential: env.VITE_WEBRTC_TURN_CREDENTIAL || ""
             });
           } else {
              console.warn("No TURN server configured. Peer connection might fail in symmetric NATs.");

@@ -251,7 +251,7 @@ export default function App() {
               <Route path="interviews" element={<InterviewCenter />} />
             </Route>
 
-            <Route path="/interview/live/:id" element={
+            <Route path="/interview/live/:interviewId" element={
               <PrivateRoute>
                 <LiveInterviewRoom />
               </PrivateRoute>
