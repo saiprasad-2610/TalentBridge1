@@ -1134,6 +1134,102 @@ export async function initDb() {
         console.error("Error migrating interview_schedules columns:", e);
       }
 
+      // --- ENTERPRISE INTERVIEW PLATFORM TABLES (MySQL Versions) ---
+      try {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS interview_transcripts (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            interview_id INT NOT NULL,
+            speaker VARCHAR(50),
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+          );
+        `);
+
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS interview_recordings (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            interview_id INT NOT NULL,
+            recording_url LONGTEXT,
+            duration INT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+          );
+        `);
+
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS interview_events (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            interview_id INT NOT NULL,
+            event_type VARCHAR(100),
+            details TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+          );
+        `);
+
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS interview_warnings (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            interview_id INT NOT NULL,
+            warning_type VARCHAR(100),
+            message TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+          );
+        `);
+
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS interview_evaluations (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            interview_id INT NOT NULL,
+            technical_knowledge INT DEFAULT 0,
+            communication INT DEFAULT 0,
+            confidence INT DEFAULT 0,
+            leadership INT DEFAULT 0,
+            problem_solving INT DEFAULT 0,
+            cultural_fit INT DEFAULT 0,
+            comments TEXT,
+            saved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+          );
+        `);
+
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS interview_ai_analysis (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            interview_id INT NOT NULL,
+            communication_score DOUBLE DEFAULT 0,
+            confidence_score DOUBLE DEFAULT 0,
+            technical_understanding_score DOUBLE DEFAULT 0,
+            problem_solving_score DOUBLE DEFAULT 0,
+            leadership_score DOUBLE DEFAULT 0,
+            overall_recommendation TEXT,
+            strengths TEXT,
+            weaknesses TEXT,
+            key_discussion_points TEXT,
+            areas_of_improvement TEXT,
+            hiring_recommendation TEXT,
+            analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+          );
+        `);
+
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS interview_reports (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            interview_id INT NOT NULL,
+            report_data TEXT,
+            pdf_url LONGTEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (interview_id) REFERENCES interview_schedules(id) ON DELETE CASCADE
+          );
+        `);
+      } catch (err) {
+        console.error("Error creating custom interview tracking tables in MySQL:", err);
+      }
+
       // --- PSYCHOMETRIC ASSESSMENT TABLES ---
       await connection.query(`
         CREATE TABLE IF NOT EXISTS psychometric_questions (
