@@ -460,7 +460,11 @@ export function AppliedJobsPage() {
                             const interview = studentInterviews.find(i => Number(i.application_id) === Number(selectedApp.id));
                             if (!interview || interview.status === 'COMPLETED') return null;
 
-                            const isOnline = interview.type === 'INTERVIEW_ONLINE';
+                            const isOnline = interview.type === 'INTERVIEW_ONLINE' || 
+                               interview.location_or_link === 'WebRTC Live Call Room' ||
+                               interview.location_or_link === 'Online Interview' ||
+                               (interview.location_or_link && interview.location_or_link.toLowerCase().includes('online')) ||
+                               (interview.location_or_link && interview.location_or_link.toLowerCase().includes('webrtc'));
 
                             return (
                                <motion.div 

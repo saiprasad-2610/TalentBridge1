@@ -37,6 +37,9 @@ import interviewRoutes from "./server/routes/interview.ts";
 async function startServer() {
   const app = express();
   
+  // Enable trusting proxy headers (necessary for express-rate-limit and reverse-proxies)
+  app.set("trust proxy", 1);
+  
   // Security Headers
   if (process.env.NODE_ENV === "production") {
     app.use(helmet(secureHeadersConfig()));
