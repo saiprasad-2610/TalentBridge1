@@ -162,6 +162,7 @@ router.get("/employer/:companyUserId", async (req, res) => {
         a.status,
         a.id as application_id,
         a.current_stage_id,
+        a.job_id as job_id,
         a.applied_at,
         j.title as job_title,
         sps.avg_interview_score,

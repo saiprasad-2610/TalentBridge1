@@ -23,17 +23,17 @@ const PIPELINE_STAGES = [
 ];
 
 const formatInterviewScore = (score: any) => {
-  if (score === null || score === undefined || isNaN(Number(score))) return '—';
+  if (score === null || score === undefined) return '—';
   const num = Number(score);
-  if (num <= 0) return '—';
-  return Math.round(num) + '%';
+  if (!Number.isFinite(num) || num <= 0) return '—';
+  return `${num.toFixed(1)}/10`;
 };
 
 const formatAssessmentScore = (score: any) => {
-  if (score === null || score === undefined || isNaN(Number(score))) return '—';
+  if (score === null || score === undefined) return '—';
   const num = Number(score);
-  if (num < 0) return '—';
-  return Math.round(num) + '%';
+  if (!Number.isFinite(num) || num < 0) return '—';
+  return `${Math.round(num)}%`;
 };
 
 export function PipelineBoard() {
@@ -153,17 +153,17 @@ export function PipelineBoard() {
       if (newStage === 'REJECTED') {
         action = 'REJECTED';
         if (cand) {
-          numericStageId = parseInt(cand.status, 10);
+          numericStageId = Number(cand.current_stage_id) || parseInt(cand.status, 10);
         }
       }
 
-      if (isNaN(numericStageId)) {
-        toast.error(`Invalid stage ID: ${newStage}`);
+      if (isNaN(numericStageId) || !Number.isFinite(numericStageId)) {
+        toast.error('Select a specific job to advance candidates through its custom pipeline.');
         return;
       }
 
       // Optimistic Update
-      setAllApplicants(prev => prev.map(a => a.application_id === appId ? { ...a, status: newStage } : a));
+      setAllApplicants(prev => prev.map(a => a.application_id === appId ? { ...a, status: numericStageId.toString(), current_stage_id: numericStageId } : a));
 
       await api.post(`/jobs/update-stage`, { 
         applicationId: appId, 
@@ -173,9 +173,10 @@ export function PipelineBoard() {
       });
       toast.success(action === 'REJECTED' ? 'Application rejected' : 'Stage updated successfully');
       markAsContacted(appId); // Mark contacted/notified on success!
+      fetchData(); // Refresh pipeline immediately to keep data synced
     } catch (e) {
       toast.error('Failed to update stage');
-      loadPipeline(); // revert
+      fetchData(); // revert
     }
   };
 
@@ -246,9 +247,15 @@ export function PipelineBoard() {
   // Derived applicant list Based on job UI, search, match score
   const currentApplicants = useMemo(() => {
     let list = allApplicants;
+
     if (selectedJobId !== 'ALL') {
-       list = list.filter(a => a.job_id?.toString() === selectedJobId);
+      const hasJobIds = list.some(a => a.job_id !== undefined && a.job_id !== null);
+      if (hasJobIds) {
+        list = list.filter(a => a.job_id?.toString() === selectedJobId);
+      }
+      // If no job_id exists, trust /api/jobs/applicants/:jobId scoped response
     }
+
     if (searchQuery) {
        list = list.filter(a => a.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || a.job_title?.toLowerCase().includes(searchQuery.toLowerCase()));
     }
@@ -383,20 +390,59 @@ export function PipelineBoard() {
     }
   };
 
-  const getNextStageInfo = (status: string) => {
+  const getStageActionInfo = (candidate: any) => {
     if (selectedJobId === 'ALL') {
-      return { label: 'Select Job to Advance', nextId: null, disabled: true };
-    }
-    const currentIndex = activeStages.findIndex(s => s.id === status);
-    if (currentIndex !== -1 && currentIndex < activeStages.length - 1) {
-      const nextStage = activeStages[currentIndex + 1];
-      return { 
-        label: `Move to ${nextStage.label}`, 
-        nextId: nextStage.id, 
-        disabled: false 
+      return {
+        disabled: true,
+        label: 'Select Job',
+        nextId: null,
+        reason: 'Select a specific job to advance candidates through its custom pipeline.'
       };
     }
-    return { label: 'Final Stage', nextId: null, disabled: true };
+
+    const stages = [...customStages].sort((a, b) => (a.stage_order || 0) - (b.stage_order || 0));
+    const currentIndex = stages.findIndex(s => 
+      Number(s.id) === Number(candidate.current_stage_id) || 
+      s.id.toString() === candidate.status
+    );
+
+    if (currentIndex === -1) {
+      return {
+        disabled: true,
+        label: 'No Next Stage',
+        nextId: null,
+        reason: 'Candidate current stage is not mapped to this job pipeline.'
+      };
+    }
+
+    const nextStage = stages[currentIndex + 1];
+
+    if (!nextStage) {
+      return {
+        disabled: true,
+        label: 'Final Stage',
+        nextId: null,
+        reason: 'Candidate is already in the final stage.'
+      };
+    }
+
+    return {
+      disabled: false,
+      label: 'Advance',
+      nextLabel: `Move to ${nextStage.stage_name}`,
+      nextId: Number(nextStage.id),
+      reason: ''
+    };
+  };
+
+  const getNextStageInfo = (status: string) => {
+    const cand = allApplicants.find(a => a.status === status) || { status };
+    const actionInfo = getStageActionInfo(cand);
+    return {
+      label: actionInfo.label,
+      nextId: actionInfo.nextId?.toString() || null,
+      disabled: actionInfo.disabled
+    };
   };
 
   const handleSeeMoreStage = (stageId: string) => {
@@ -1211,7 +1257,7 @@ export function PipelineBoard() {
                                   {cand.email}
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-100 select-none">
+                                <span className="inline-flex rounded-md bg-orange-50 px-2 py-1 text-xs font-semibold text-orange-600">
                                   No email provided
                                 </span>
                               )}
@@ -1220,6 +1266,22 @@ export function PipelineBoard() {
                               {isContactedLocal ? (
                                 <div className="flex items-center gap-1.5 text-emerald-650 bg-emerald-50 border border-emerald-100 p-1 px-2 rounded-lg text-[10px] font-black w-max select-none shadow-sm animate-fade">
                                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Notified
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setContactedCandidates(prev => {
+                                        const next = { ...prev };
+                                        delete next[cand.application_id];
+                                        return next;
+                                      });
+                                      toast.success('Notification status reset.');
+                                    }}
+                                    className="ml-1 text-[11px] font-bold text-emerald-500 hover:text-emerald-800 bg-transparent border-none p-0 cursor-pointer outline-none shrink-0 pointer-events-auto"
+                                    title="Reset notified status"
+                                  >
+                                    ✕
+                                  </button>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 border border-slate-200 p-1 px-2 rounded-lg text-[10px] font-bold w-max select-none shadow-sm">
@@ -1256,7 +1318,7 @@ export function PipelineBoard() {
                                       : 'bg-blue-600 text-white hover:bg-blue-750 cursor-pointer active:scale-95'
                                   }`}
                                 >
-                                  {stageInfo.disabled ? 'Final Stage' : 'Advance'}
+                                  {stageInfo.disabled ? stageInfo.label : 'Advance'}
                                 </button>
                               </div>
                             </td>

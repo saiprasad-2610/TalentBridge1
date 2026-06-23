@@ -851,6 +851,7 @@ router.get("/applicants/:jobId", async (req, res) => {
         JA.status,
         JA.applied_at,
         JA.current_stage_id,
+        JA.job_id as job_id,
         SP.id as student_id,
         U.id as user_id,
         SP.full_name,
