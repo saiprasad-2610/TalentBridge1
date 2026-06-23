@@ -1,5 +1,6 @@
 import express from "express";
 import db from "../db.ts";
+import { sendEmail } from "../services/emailService.ts";
 
 const router = express.Router();
 
@@ -702,18 +703,20 @@ router.post("/update-stage", async (req, res) => {
 
     // Notify student
     const [jobInfo]: any = await db.query(`
-      SELECT J.title, JS.stage_name, SP.user_id
+      SELECT J.title, JS.stage_name, SP.user_id, SP.full_name, U.email
       FROM job_applications JA
       JOIN jobs J ON JA.job_id = J.id
-      JOIN job_stages JS ON JA.current_stage_id = JS.id
+      LEFT JOIN job_stages JS ON JA.current_stage_id = JS.id
       JOIN student_profiles SP ON JA.student_id = SP.id
+      JOIN users U ON SP.user_id = U.id
       WHERE JA.id = ?
     `, [applicationId]);
 
     if (jobInfo.length > 0) {
       const info = jobInfo[0];
+      const stageName = info.stage_name || "Assessment/Next Phase";
       let title = "Application Update";
-      let message = `Your application for ${info.title} has been moved to ${info.stage_name}.`;
+      let message = `Your application for ${info.title} has been moved to ${stageName}.`;
       
       if (action === 'REJECTED') {
         title = "Application Status: Rejected";
@@ -726,6 +729,64 @@ router.post("/update-stage", async (req, res) => {
       await db.query("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)", [
         info.user_id, title, message, action === 'REJECTED' ? 'REJECT' : status === 'SELECTED' ? 'SUCCESS' : 'INFO'
       ]);
+
+      // Send email to student asynchronously
+      if (info.email) {
+        let emailSubject = `Application Update: Moved to ${stageName}`;
+        let emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h2 style="color: #2b6cb0; margin-bottom: 20px;">TalentBridge Application Update</h2>
+            <p>Hello ${info.full_name || 'Student'},</p>
+            <p>Your application for the position of <strong>${info.title}</strong> has been updated.</p>
+            <p>Current Stage: <strong>${stageName}</strong></p>
+            <p>Please log in to the TalentBridge student portal to check your updated status and see if there are any pending assessments or interview schedules.</p>
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${process.env.APP_URL || 'http://localhost:5173'}/login" style="background-color: #3182ce; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Go to Student Portal</a>
+            </div>
+            <p style="color: #718096; font-size: 12px; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+              This is an automated message from TalentBridge. Please do not reply to this email.
+            </p>
+          </div>
+        `;
+
+        if (action === 'REJECTED') {
+          emailSubject = `Application Status Update: ${info.title}`;
+          emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+              <h2 style="color: #e53e3e; margin-bottom: 20px;">TalentBridge Application Status Update</h2>
+              <p>Hello ${info.full_name || 'Student'},</p>
+              <p>We regret to inform you that your application for the position of <strong>${info.title}</strong> has been updated to <strong>REJECTED</strong>.</p>
+              <p>Thank you for your interest in TalentBridge and for taking the time to apply and participate in our process. We wish you the best of luck in your job search.</p>
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${process.env.APP_URL || 'http://localhost:5173'}/login" style="background-color: #3182ce; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Go to Student Portal</a>
+              </div>
+              <p style="color: #718096; font-size: 12px; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                This is an automated message from TalentBridge. Please do not reply to this email.
+              </p>
+            </div>
+          `;
+        } else if (status === 'SELECTED') {
+          emailSubject = `Congratulations! Selected for ${info.title}`;
+          emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+              <h2 style="color: #38a169; margin-bottom: 20px;">Congratulations!</h2>
+              <p>Hello ${info.full_name || 'Student'},</p>
+              <p>We are thrilled to inform you that you have been <strong>SELECTED</strong> for the position of <strong>${info.title}</strong>!</p>
+              <p>Our team will reach out to you shortly with details regarding onboarding, documentation, and the final steps. In the meantime, you can review your application history in the portal.</p>
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${process.env.APP_URL || 'http://localhost:5173'}/login" style="background-color: #38a169; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Go to Student Portal</a>
+              </div>
+              <p style="color: #718096; font-size: 12px; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                This is an automated message from TalentBridge. Please do not reply to this email.
+              </p>
+            </div>
+          `;
+        }
+
+        sendEmail(info.email, emailSubject, emailHtml).catch(err => {
+          console.error("Async email sending failed:", err.message);
+        });
+      }
     }
 
     res.json({ success: true, message: "Stage updated" });
@@ -804,12 +865,14 @@ router.get("/applicants/:jobId", async (req, res) => {
         (SELECT score FROM test_submissions WHERE application_id = JA.id ORDER BY submitted_at DESC LIMIT 1) as latest_test_score,
         (SELECT violation_count FROM test_submissions WHERE application_id = JA.id ORDER BY submitted_at DESC LIMIT 1) as latest_test_violations,
         (SELECT is_auto_submitted FROM test_submissions WHERE application_id = JA.id ORDER BY submitted_at DESC LIMIT 1) as latest_test_auto_submitted,
-        (SELECT answers_json FROM test_submissions WHERE application_id = JA.id ORDER BY submitted_at DESC LIMIT 1) as latest_test_answers
+        (SELECT answers_json FROM test_submissions WHERE application_id = JA.id ORDER BY submitted_at DESC LIMIT 1) as latest_test_answers,
+        SPS.avg_interview_score
       FROM job_applications JA
       JOIN student_profiles SP ON JA.student_id = SP.id
       JOIN users U ON SP.user_id = U.id
       LEFT JOIN talent_scores TS ON U.id = TS.user_id
       LEFT JOIN psychometric_results PR ON U.id = PR.user_id
+      LEFT JOIN student_performance_stats SPS ON U.id = SPS.user_id
       WHERE JA.job_id = ?
     `, [req.params.jobId]);
 

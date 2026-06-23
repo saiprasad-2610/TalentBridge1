@@ -54,6 +54,9 @@ export function PipelineBoard() {
   const [filterAssessmentScore, setFilterAssessmentScore] = useState('ALL');
   const [filterInterviewScore, setFilterInterviewScore] = useState('ALL');
 
+  // Custom dynamic stages from backend template
+  const [customStages, setCustomStages] = useState<any[]>([]);
+
   // Contact status indicators (local session store, mapping application_id -> contacted)
   const [contactedCandidates, setContactedCandidates] = useState<Record<number, boolean>>({});
 
@@ -65,32 +68,46 @@ export function PipelineBoard() {
     setContactedCandidates(prev => ({ ...prev, [appId]: true }));
   };
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchData();
-    }
-  }, [user?.id]);
-
-  const fetchData = async () => {
+  const loadPipeline = async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
-      const [analyticsRes, jobsRes] = await Promise.all([
-        api.get(`/analytics/employer/${user?.id}`),
-        api.get(`/jobs`)
-      ]);
-
-      let fetchedApplicants = [];
-      if (analyticsRes.data.success) {
-        fetchedApplicants = (analyticsRes.data.data.applicants || []).map((app: any) => ({
-          ...app,
-          status: app.current_stage_id || app.status || 'APPLIED'
-        }));
-        setAllApplicants(fetchedApplicants);
-      }
       
-      if (jobsRes.data.success) {
-        const companyJobs = jobsRes.data.data.filter((j: any) => j.company_id === profile?.id);
-        setJobs(companyJobs);
+      // Load jobs list if not loaded yet
+      let companyJobs = jobs;
+      if (jobs.length === 0) {
+        const jobsRes = await api.get(`/jobs`);
+        if (jobsRes.data.success) {
+          companyJobs = jobsRes.data.data.filter((j: any) => j.company_id === profile?.id);
+          setJobs(companyJobs);
+        }
+      }
+
+      if (selectedJobId === 'ALL') {
+        setCustomStages([]);
+        const analyticsRes = await api.get(`/analytics/employer/${user?.id}`);
+        if (analyticsRes.data.success) {
+          const fetchedApplicants = (analyticsRes.data.data.applicants || []).map((app: any) => ({
+            ...app,
+            status: app.status || 'APPLIED'
+          }));
+          setAllApplicants(fetchedApplicants);
+        }
+      } else {
+        const res = await api.get(`/jobs/applicants/${selectedJobId}`);
+        if (res.data.success) {
+          const fetchedApplicants = (res.data.data.applicants || []).map((app: any) => {
+            const hasStage = (res.data.data.stages || []).some((cs: any) => cs.id === app.current_stage_id);
+            const statusVal = hasStage ? app.current_stage_id.toString() : (app.status || 'APPLIED');
+            return {
+              ...app,
+              status: statusVal,
+              job_title: companyJobs.find((j: any) => j.id.toString() === selectedJobId)?.title || app.job_title
+            };
+          });
+          setAllApplicants(fetchedApplicants);
+          setCustomStages(res.data.data.stages || []);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -100,26 +117,102 @@ export function PipelineBoard() {
     }
   };
 
+  useEffect(() => {
+    loadPipeline();
+  }, [user?.id, selectedJobId]);
+
+  const fetchData = async () => {
+    await loadPipeline();
+  };
+
   const updateCandidateStage = async (appId: number, newStage: string) => {
+    if (selectedJobId === 'ALL') {
+      toast.error('Select a specific job to advance candidates through its custom pipeline.');
+      return;
+    }
+
     try {
+      const cand = allApplicants.find(a => a.application_id === appId);
+      let numericStageId = parseInt(newStage, 10);
+      let action = 'IN_PROGRESS';
+
+      if (newStage === 'REJECTED') {
+        action = 'REJECTED';
+        if (cand) {
+          numericStageId = parseInt(cand.status, 10);
+        }
+      }
+
+      if (isNaN(numericStageId)) {
+        toast.error(`Invalid stage ID: ${newStage}`);
+        return;
+      }
+
       // Optimistic Update
       setAllApplicants(prev => prev.map(a => a.application_id === appId ? { ...a, status: newStage } : a));
-      
-      let action = newStage;
-      if (newStage === 'SHORTLISTED') action = 'SELECTED';
-      if (newStage === 'REJECTED') action = 'REJECTED';
 
       await api.post(`/jobs/update-stage`, { 
         applicationId: appId, 
-        stageId: newStage, 
+        stageId: numericStageId, 
         action: action, 
-        notes: `Moved to ${newStage} via ATS Pipeline` 
+        notes: action === 'REJECTED' ? 'Application dropped/rejected' : 'Moved to next stage via dynamic ATS Pipeline' 
       });
-      toast.success('Stage updated');
+      toast.success(action === 'REJECTED' ? 'Application rejected' : 'Stage updated successfully');
+      markAsContacted(appId); // Mark contacted/notified on success!
     } catch (e) {
       toast.error('Failed to update stage');
-      fetchData(); // revert
+      loadPipeline(); // revert
     }
+  };
+
+  const activeStages = useMemo(() => {
+    if (selectedJobId === 'ALL' || customStages.length === 0) {
+      return PIPELINE_STAGES;
+    }
+    // Return custom stages sorted by stage_order
+    const sorted = [...customStages].sort((a, b) => (a.stage_order || 0) - (b.stage_order || 0));
+    return sorted.map(cs => ({
+      id: cs.id.toString(), // critical: for comparison, stage id is custom stage id!
+      label: cs.stage_name,
+      color: 'blue', // default color or map from custom stage types
+      stage_type: cs.stage_type,
+      stage_order: cs.stage_order,
+      description: cs.description
+    }));
+  }, [selectedJobId, customStages]);
+
+  const getStageConfig = (stage: { id: string; label: string; stage_type?: string; description?: string }) => {
+    const type = (stage.stage_type || '').toUpperCase();
+    const label = (stage.label || '').toUpperCase();
+    
+    let key = 'APPLIED';
+    if (type === 'SCREENING' || label.includes('SCREEN') || label.includes('AI') || label.includes('COPILOT')) {
+      key = 'SCREENING';
+    } else if (type === 'TEST' || type === 'ASSESSMENT' || label.includes('TEST') || label.includes('ASSESS')) {
+      key = 'TESTING';
+    } else if (type === 'INTERVIEW' || label.includes('INTERVIEW')) {
+      if (label.includes('HR')) {
+        key = 'HR';
+      } else {
+        key = 'INTERVIEW';
+      }
+    } else if (type === 'SELECTED' || type === 'OFFER' || label.includes('SELECT') || label.includes('SHORTLIST') || label.includes('HIRE') || label.includes('OFFER') || label.includes('ACC')) {
+      key = 'SHORTLISTED';
+    }
+    
+    const base = STAGE_CONFIGS[key] || STAGE_CONFIGS.APPLIED;
+    return {
+      ...base,
+      label: stage.label,
+      desc: stage.description || base.desc
+    };
+  };
+
+  const formatInterviewScore = (score: any) => {
+    if (score === null || score === undefined || isNaN(Number(score))) return '—';
+    const num = Number(score);
+    if (num <= 0) return '—';
+    return Math.round(num) + '%';
   };
 
   const handleBulkAction = async (action: string) => {
@@ -157,14 +250,26 @@ export function PipelineBoard() {
     }
     
     list = list.map(a => {
-        let stg = PIPELINE_STAGES.find(s => s.id === a.status);
-        if(!stg && (a.status === 'SELECTED' || a.status === 'SHORTLISTED')) a.status = 'SHORTLISTED';
-        else if(!stg && a.status === 'IN_PROGRESS') a.status = 'SCREENING';
-        else if(!stg) a.status = 'APPLIED';
+        if (selectedJobId !== 'ALL' && customStages.length > 0) {
+          const hasStage = customStages.some(cs => cs.id === a.current_stage_id);
+          if (hasStage) {
+            a.status = a.current_stage_id.toString();
+          } else {
+            const firstStage = customStages[0];
+            if (firstStage) {
+              a.status = firstStage.id.toString();
+            }
+          }
+        } else {
+          let stg = PIPELINE_STAGES.find(s => s.id === a.status);
+          if(!stg && (a.status === 'SELECTED' || a.status === 'SHORTLISTED')) a.status = 'SHORTLISTED';
+          else if(!stg && a.status === 'IN_PROGRESS') a.status = 'SCREENING';
+          else if(!stg) a.status = 'APPLIED';
+        }
         return a;
     });
     return list;
-  }, [allApplicants, selectedJobId, searchQuery, minScore]);
+  }, [allApplicants, selectedJobId, searchQuery, minScore, customStages]);
 
   const insights = useMemo(() => {
      const total = currentApplicants.length;
@@ -272,21 +377,19 @@ export function PipelineBoard() {
   };
 
   const getNextStageInfo = (status: string) => {
-    switch (status) {
-      case 'APPLIED':
-        return { label: 'Move to AI Screening', nextId: 'SCREENING', disabled: false };
-      case 'SCREENING':
-        return { label: 'Move to Assessment', nextId: 'TESTING', disabled: false };
-      case 'TESTING':
-        return { label: 'Move to Technical Interview', nextId: 'INTERVIEW', disabled: false };
-      case 'INTERVIEW':
-        return { label: 'Move to HR Interview', nextId: 'HR', disabled: false };
-      case 'HR':
-        return { label: 'Move to Selected', nextId: 'SHORTLISTED', disabled: false };
-      case 'SHORTLISTED':
-      default:
-        return { label: 'Final Stage', nextId: null, disabled: true };
+    if (selectedJobId === 'ALL') {
+      return { label: 'Select Job to Advance', nextId: null, disabled: true };
     }
+    const currentIndex = activeStages.findIndex(s => s.id === status);
+    if (currentIndex !== -1 && currentIndex < activeStages.length - 1) {
+      const nextStage = activeStages[currentIndex + 1];
+      return { 
+        label: `Move to ${nextStage.label}`, 
+        nextId: nextStage.id, 
+        disabled: false 
+      };
+    }
+    return { label: 'Final Stage', nextId: null, disabled: true };
   };
 
   const handleSeeMoreStage = (stageId: string) => {
@@ -471,11 +574,11 @@ export function PipelineBoard() {
       'Match Score',
       'Skills',
       'Applied Date',
-      'Current Stage',
-      'Latest Assessment Score',
-      'Avg Interview Score',
+      'Test Score',
+      'Interview Score',
       'Email',
-      'Resume URL'
+      'Notified Status',
+      'Current Stage'
     ];
     
     const rows = data.map(cand => {
@@ -484,17 +587,21 @@ export function PipelineBoard() {
         skillsList = typeof cand.skills_json === 'string' ? JSON.parse(cand.skills_json) || [] : cand.skills_json || [];
       } catch (e) {}
       
+      const isContactedLocal = !!contactedCandidates[cand.application_id];
+      const stageObj = activeStages.find(s => s.id === cand.status);
+      const stageName = stageObj ? stageObj.label : cand.status;
+
       return [
         cand.full_name || 'Anonymous Applicant',
         cand.job_title || '—',
         `${cand.talent_score || 0}%`,
         skillsList.join(', '),
         cand.applied_at ? formatDate(cand.applied_at) : '—',
-        cand.status || '—',
         cand.latest_test_score !== null && cand.latest_test_score !== undefined ? `${Math.round(cand.latest_test_score)}%` : '—',
-        cand.avg_interview_score !== null && cand.avg_interview_score !== undefined ? `${cand.avg_interview_score}%` : '—',
+        formatInterviewScore(cand.avg_interview_score),
         cand.email || '—',
-        cand.resume_url || '—'
+        isContactedLocal ? 'Notified' : 'Not notified',
+        stageName || '—'
       ];
     });
     
@@ -516,6 +623,10 @@ export function PipelineBoard() {
 
   // Bulk advancing
   const handleBulkAdvance = async () => {
+    if (selectedJobId === 'ALL') {
+      toast.error('Select a specific job to advance candidates through its custom pipeline.');
+      return;
+    }
     toast.success(`Advancing ${selectedCandidates.length} candidate(s)...`);
     for (const id of selectedCandidates) {
       const cand = allApplicants.find(a => a.application_id === id);
@@ -531,11 +642,33 @@ export function PipelineBoard() {
 
   // Bulk rejecting
   const handleBulkReject = async () => {
-    toast.success(`Rejecting ${selectedCandidates.length} candidate(s)...`);
+    if (selectedJobId === 'ALL') {
+      toast.error('Select a specific job to drop / reject candidates.');
+      return;
+    }
+    toast.success(`Dropping ${selectedCandidates.length} candidate(s)...`);
     for (const id of selectedCandidates) {
-      await updateCandidateStage(id, 'REJECTED');
+      const cand = allApplicants.find(a => a.application_id === id);
+      if (cand) {
+        const numericStageId = parseInt(cand.status, 10);
+        if (!isNaN(numericStageId)) {
+          try {
+            await api.post(`/jobs/update-stage`, { 
+              applicationId: id, 
+              stageId: numericStageId, 
+              action: 'REJECTED', 
+              notes: `Application bulk rejected` 
+            });
+            setAllApplicants(prev => prev.map(a => a.application_id === id ? { ...a, status: 'REJECTED' } : a));
+            markAsContacted(id);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
     }
     setSelectedCandidates([]);
+    toast.success('Candidates processed successfully');
   };
 
   return (
@@ -578,9 +711,9 @@ export function PipelineBoard() {
 
             {/* Stage Summary Cards Grid (6 Stages) */}
             <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest pl-1.5 mb-4">Pipeline Stages Overview</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 px-1 pb-10">
-              {PIPELINE_STAGES.map(stage => {
-                const stageConf = STAGE_CONFIGS[stage.id || 'APPLIED'];
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 px-1 pb-10">
+              {activeStages.map(stage => {
+                const stageConf = getStageConfig(stage);
                 const IconComp = stageConf?.icon || HelpCircle;
                 const stageApps = currentApplicants.filter(a => a.status === stage.id);
                 
@@ -677,14 +810,14 @@ export function PipelineBoard() {
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-                    {STAGE_CONFIGS[selectedStageView]?.label || selectedStageView}
+                    {getStageConfig(activeStages.find(s => s.id === selectedStageView) || { id: selectedStageView || 'APPLIED', label: selectedStageView || 'Applied' }).label}
                   </h1>
                   <span className="px-2.5 py-1 bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-black rounded-full shadow-sm select-none">
                     {sortedApplicants.length} Candidates
                   </span>
                 </div>
                 <p className="text-xs font-semibold text-slate-500 mt-1">
-                  {STAGE_CONFIGS[selectedStageView]?.desc}
+                  {getStageConfig(activeStages.find(s => s.id === selectedStageView) || { id: selectedStageView || 'APPLIED', label: selectedStageView || 'Applied' }).desc}
                 </p>
               </div>
             </div>
@@ -813,7 +946,7 @@ export function PipelineBoard() {
                           onChange={e => handleSeeMoreStage(e.target.value)}
                           className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer shadow-sm"
                         >
-                          {PIPELINE_STAGES.map(s => (
+                          {activeStages.map(s => (
                             <option key={s.id} value={s.id}>{s.label}</option>
                           ))}
                         </select>
@@ -932,7 +1065,7 @@ export function PipelineBoard() {
               
               {/* Left Side: Candidates Management Table */}
               <div className="flex-1 overflow-x-auto bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col justify-between">
-                <div className="inline-block min-w-full align-middle overflow-y-auto max-h-[600px]">
+                <div className="inline-block min-w-full align-middle overflow-y-auto h-[calc(100vh-220px)] flex-1">
                   <table className="min-w-full divide-y divide-slate-100">
                     <thead className="bg-slate-50 sticky top-0 z-10 select-none">
                       <tr>
@@ -959,7 +1092,8 @@ export function PipelineBoard() {
                         <th scope="col" className="px-3 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Applied Date</th>
                         <th scope="col" className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Test</th>
                         <th scope="col" className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Interview</th>
-                        <th scope="col" className="px-3 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Status</th>
+                        <th scope="col" className="px-3 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
+                        <th scope="col" className="px-3 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Notified</th>
                         <th scope="col" className="px-5 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                       </tr>
                     </thead>
@@ -1054,68 +1188,66 @@ export function PipelineBoard() {
                               ) : '—'}
                             </td>
                             <td className="px-3 py-3 text-center text-xs font-black text-orange-600">
-                              {cand.avg_interview_score !== null && cand.avg_interview_score !== undefined ? (
+                              {cand.avg_interview_score !== null && cand.avg_interview_score !== undefined && Number(cand.avg_interview_score) > 0 ? (
                                 <span className="bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded shadow-sm text-[11px]">
-                                  {cand.avg_interview_score}%
-                                </span>
-                              ) : '—'}
-                            </td>
-                            <td className="px-3 py-3 text-left">
-                              {isContactedLocal ? (
-                                <div className="flex items-center gap-1.5 text-emerald-650 bg-emerald-50 border border-emerald-100/50 p-1 px-2 rounded-lg text-[10px] font-black w-max select-none shadow-sm">
-                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Notified
-                                </div>
-                              ) : cand.email ? (
-                                <span className="text-[10px] font-semibold text-slate-600 truncate block hover:text-blue-600 transition-colors" title={cand.email}>
-                                  ● {cand.email}
+                                  {formatInterviewScore(cand.avg_interview_score)}
                                 </span>
                               ) : (
-                                <span className="text-[100px] font-bold text-orange-500 bg-orange-50/50 p-1 px-1.5 rounded text-[9px] block w-max border border-orange-100 select-none">
+                                <span className="text-slate-400 font-normal">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-left">
+                              {cand.email ? (
+                                <span className="text-xs font-semibold text-slate-600 truncate block max-w-[165px]" title={cand.email}>
+                                  {cand.email}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-100 select-none">
                                   No email provided
                                 </span>
                               )}
                             </td>
+                            <td className="px-3 py-3 text-left">
+                              {isContactedLocal ? (
+                                <div className="flex items-center gap-1.5 text-emerald-650 bg-emerald-50 border border-emerald-100 p-1 px-2 rounded-lg text-[10px] font-black w-max select-none shadow-sm animate-fade">
+                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Notified
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 border border-slate-200 p-1 px-2 rounded-lg text-[10px] font-bold w-max select-none shadow-sm">
+                                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" /> Not notified
+                                </div>
+                              )}
+                            </td>
                             <td className="px-5 py-3 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-2">
-                                {/* Resume viewer button */}
-                                {cand.resume_url ? (
-                                  <button
-                                    onClick={() => window.open(cand.resume_url, '_blank')}
-                                    className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-blue-600 hover:text-blue-700 rounded-lg transition-all shadow-sm cursor-pointer"
-                                    title="View Candidate Resume"
-                                  >
-                                    <Eye size={12} />
-                                  </button>
-                                ) : (
-                                  <button
-                                    disabled
-                                    className="p-1.5 bg-slate-50 border border-slate-200 text-slate-350 rounded-lg opacity-40 select-none"
-                                    title="Resume unavailable"
-                                  >
-                                    <Eye size={12} />
-                                  </button>
-                                )}
+                              <div className="flex items-center justify-center gap-3">
+                                {/* View Profile Action */}
+                                <button
+                                  onClick={() => setPreviewCandidate(cand)}
+                                  className="text-xs font-black text-blue-600 hover:text-blue-805 cursor-pointer hover:underline transition-all"
+                                  title="View Candidate Profile"
+                                >
+                                  View Profile
+                                </button>
 
                                 {/* Next Stage Action code */}
                                 <button
-                                  onClick={() => stageInfo.nextId && updateCandidateStage(cand.application_id, stageInfo.nextId)}
+                                  onClick={() => {
+                                    if (selectedJobId === 'ALL') {
+                                      toast.error('Select a specific job to advance candidates through its custom pipeline.');
+                                      return;
+                                    }
+                                    if (stageInfo.nextId) {
+                                      updateCandidateStage(cand.application_id, stageInfo.nextId);
+                                    }
+                                  }}
                                   disabled={stageInfo.disabled}
-                                  className={`px-3 py-1.5 font-bold rounded-lg text-[10px] uppercase tracking-wider transition-all shadow-sm ${
+                                  className={`px-3 py-1.5 font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm ${
                                     stageInfo.disabled 
                                       ? 'bg-slate-100 text-slate-350 border border-slate-200/50 cursor-not-allowed select-none' 
-                                      : 'bg-white border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white cursor-pointer active:scale-95'
+                                      : 'bg-blue-600 text-white hover:bg-blue-750 cursor-pointer active:scale-95'
                                   }`}
                                 >
                                   {stageInfo.disabled ? 'Final Stage' : 'Advance'}
-                                </button>
-
-                                {/* More details preview button */}
-                                <button
-                                  onClick={() => setPreviewCandidate(cand)}
-                                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
-                                  title="Candidate Side panel review"
-                                >
-                                  <MoreVertical size={13} />
                                 </button>
                               </div>
                             </td>
@@ -1219,6 +1351,7 @@ export function PipelineBoard() {
                     onAction={(action: string) => updateCandidateStage(previewCandidate.application_id, action)}
                     contactedCandidates={contactedCandidates}
                     markAsContacted={markAsContacted}
+                    activeStages={activeStages}
                   />
                 </div>
               )}
@@ -1238,6 +1371,7 @@ export function PipelineBoard() {
               onAction={(action: string) => updateCandidateStage(previewCandidate.application_id, action)}
               contactedCandidates={contactedCandidates}
               markAsContacted={markAsContacted}
+              activeStages={activeStages}
             />
           </div>
         )}
@@ -1572,12 +1706,12 @@ function CandidateCard({ candidate, onDragStart, selected, onToggleSelect, onCli
            <button className="text-[9px] font-black text-blue-600 flex items-center gap-0.5 hover:text-blue-800 bg-blue-50/50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors border border-blue-100/50 hover:border-blue-200">
               Review <ChevronRight size={10} />
            </button>
-       </div>
-    </div>
-  );
+        </div>
+     </div>
+   );
 }
 
-function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false, contactedCandidates = {}, markAsContacted }: any) {
+function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false, contactedCandidates = {}, markAsContacted, activeStages = [] }: any) {
   let skills = [];
   try { skills = typeof candidate.skills_json === 'string' ? JSON.parse(candidate.skills_json) || [] : candidate.skills_json || [] } catch(e){}
 
@@ -1676,7 +1810,9 @@ function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false,
              <div className="grid grid-cols-2 gap-px bg-slate-150">
                 <div className="bg-white p-3">
                    <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Pipeline Stage</span>
-                   <span className="text-[10px] font-black text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 inline-block uppercase tracking-wider">{candidate.status}</span>
+                   <span className="text-[10px] font-black text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 inline-block uppercase tracking-wider">
+                     {activeStages.find((s: any) => s.id === candidate.status)?.label || candidate.status}
+                   </span>
                 </div>
                 <div className="bg-white p-3">
                    <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Applied Date</span>
@@ -1716,14 +1852,14 @@ function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false,
            </button>
            <button 
              onClick={() => { 
-               const currentIdx = PIPELINE_STAGES.findIndex(s => s.id === candidate.status);
-               if(currentIdx > -1 && currentIdx < PIPELINE_STAGES.length - 1) {
-                  onAction(PIPELINE_STAGES[currentIdx + 1].id);
-               } else {
-                  toast.success('Candidate is already at the final stage');
-               }
-               onClose(); 
-             }}
+                const currentIdx = activeStages.findIndex((s: any) => s.id === candidate.status);
+                if(currentIdx > -1 && currentIdx < activeStages.length - 1) {
+                   onAction(activeStages[currentIdx + 1].id);
+                } else {
+                   toast.success('Candidate is already at the final stage');
+                }
+                onClose(); 
+              }}
              className="col-span-2 py-3 bg-slate-900 text-white hover:bg-slate-850 rounded-xl text-[10px] flex items-center justify-center gap-2 font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all cursor-pointer"
            >
               Advance Candidate <ChevronRight size={14} />
