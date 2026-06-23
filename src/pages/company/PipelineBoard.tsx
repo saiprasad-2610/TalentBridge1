@@ -22,6 +22,20 @@ const PIPELINE_STAGES = [
   { id: 'SHORTLISTED', label: 'Selected', color: 'emerald' },
 ];
 
+const formatInterviewScore = (score: any) => {
+  if (score === null || score === undefined || isNaN(Number(score))) return '—';
+  const num = Number(score);
+  if (num <= 0) return '—';
+  return Math.round(num) + '%';
+};
+
+const formatAssessmentScore = (score: any) => {
+  if (score === null || score === undefined || isNaN(Number(score))) return '—';
+  const num = Number(score);
+  if (num < 0) return '—';
+  return Math.round(num) + '%';
+};
+
 export function PipelineBoard() {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -206,13 +220,6 @@ export function PipelineBoard() {
       label: stage.label,
       desc: stage.description || base.desc
     };
-  };
-
-  const formatInterviewScore = (score: any) => {
-    if (score === null || score === undefined || isNaN(Number(score))) return '—';
-    const num = Number(score);
-    if (num <= 0) return '—';
-    return Math.round(num) + '%';
   };
 
   const handleBulkAction = async (action: string) => {
@@ -597,7 +604,7 @@ export function PipelineBoard() {
         `${cand.talent_score || 0}%`,
         skillsList.join(', '),
         cand.applied_at ? formatDate(cand.applied_at) : '—',
-        cand.latest_test_score !== null && cand.latest_test_score !== undefined ? `${Math.round(cand.latest_test_score)}%` : '—',
+        formatAssessmentScore(cand.latest_test_score),
         formatInterviewScore(cand.avg_interview_score),
         cand.email || '—',
         isContactedLocal ? 'Notified' : 'Not notified',
@@ -1181,11 +1188,13 @@ export function PipelineBoard() {
                               {formatDate(cand.applied_at)}
                             </td>
                             <td className="px-3 py-3 text-center text-xs font-black text-purple-600">
-                              {cand.latest_test_score !== null && cand.latest_test_score !== undefined ? (
+                              {cand.latest_test_score !== null && cand.latest_test_score !== undefined && Number(cand.latest_test_score) >= 0 ? (
                                 <span className="bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded shadow-sm text-[11px]">
-                                  {Math.round(cand.latest_test_score)}%
+                                  {formatAssessmentScore(cand.latest_test_score)}
                                 </span>
-                              ) : '—'}
+                              ) : (
+                                <span className="text-slate-400 font-normal">—</span>
+                              )}
                             </td>
                             <td className="px-3 py-3 text-center text-xs font-black text-orange-600">
                               {cand.avg_interview_score !== null && cand.avg_interview_score !== undefined && Number(cand.avg_interview_score) > 0 ? (
@@ -1352,6 +1361,7 @@ export function PipelineBoard() {
                     contactedCandidates={contactedCandidates}
                     markAsContacted={markAsContacted}
                     activeStages={activeStages}
+                    selectedJobId={selectedJobId}
                   />
                 </div>
               )}
@@ -1372,6 +1382,7 @@ export function PipelineBoard() {
               contactedCandidates={contactedCandidates}
               markAsContacted={markAsContacted}
               activeStages={activeStages}
+              selectedJobId={selectedJobId}
             />
           </div>
         )}
@@ -1711,7 +1722,7 @@ function CandidateCard({ candidate, onDragStart, selected, onToggleSelect, onCli
    );
 }
 
-function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false, contactedCandidates = {}, markAsContacted, activeStages = [] }: any) {
+function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false, contactedCandidates = {}, markAsContacted, activeStages = [], selectedJobId }: any) {
   let skills = [];
   try { skills = typeof candidate.skills_json === 'string' ? JSON.parse(candidate.skills_json) || [] : candidate.skills_json || [] } catch(e){}
 
@@ -1778,7 +1789,10 @@ function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false,
           <div className="grid grid-cols-4 gap-2">
              <QuickActionButton icon={Mail} label="Email" onClick={handleSendEmailLocal} />
              <QuickActionButton icon={CalendarPlus} label="Interview" onClick={handleScheduleInterviewLocal} />
-             <QuickActionButton icon={BarChart2} label="Assessments" onClick={() => toast.success(`Latest screening score: ${candidate.latest_test_score ? Math.round(candidate.latest_test_score) + '%' : 'Not evaluated'}`)} />
+             <QuickActionButton icon={BarChart2} label="Assessments" onClick={() => {
+                const scoreValue = formatAssessmentScore(candidate.latest_test_score);
+                toast.success(scoreValue !== '—' ? `Latest screening score: ${scoreValue}` : 'Latest screening score: Not evaluated');
+             }} />
              <QuickActionButton icon={Download} label="Resume" onClick={handleDownloadResumeLocal} />
           </div>
 
@@ -1844,7 +1858,7 @@ function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false,
        {/* Footer Actions */}
        <div className="p-4 border-t border-slate-100 bg-white shrink-0 grid grid-cols-3 gap-3">
            <button 
-             onClick={() => { onAction('REJECTED'); onClose(); }}
+             onClick={() => { if (selectedJobId === 'ALL') { toast.error('Select a specific job to drop / reject candidates.'); return; } onAction('REJECTED'); onClose(); }}
              className="py-3 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 rounded-xl text-xs flex justify-center items-center font-black uppercase tracking-widest transition-colors w-full shadow-sm cursor-pointer"
              title="Reject Candidate"
            >
@@ -1852,6 +1866,10 @@ function CandidateQuickPreview({ candidate, onClose, onAction, isInline = false,
            </button>
            <button 
              onClick={() => { 
+                if (selectedJobId === 'ALL') {
+                  toast.error('Select a specific job to advance candidates through its custom pipeline.');
+                  return;
+                }
                 const currentIdx = activeStages.findIndex((s: any) => s.id === candidate.status);
                 if(currentIdx > -1 && currentIdx < activeStages.length - 1) {
                    onAction(activeStages[currentIdx + 1].id);
