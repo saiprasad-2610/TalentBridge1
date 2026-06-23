@@ -168,15 +168,17 @@ export function CompanyDashboard() {
 
     fetchDashboardData();
 
-    const handlePipelineUpdate = () => {
+    const handleRefresh = () => {
       fetchDashboardData();
     };
 
-    window.addEventListener('talentbridge:pipeline-updated', handlePipelineUpdate);
+    window.addEventListener('talentbridge:pipeline-updated', handleRefresh);
+    window.addEventListener('talentbridge:job-created', handleRefresh);
 
     return () => {
       active = false;
-      window.removeEventListener('talentbridge:pipeline-updated', handlePipelineUpdate);
+      window.removeEventListener('talentbridge:pipeline-updated', handleRefresh);
+      window.removeEventListener('talentbridge:job-created', handleRefresh);
     };
   }, [user?.id, profile?.id]);
 

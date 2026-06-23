@@ -1,6 +1,7 @@
 import express from "express";
 import db from "../db.ts";
 import { sendEmail } from "../services/emailService.ts";
+import { authenticate } from "../middleware/auth.ts";
 
 const router = express.Router();
 
@@ -68,19 +69,59 @@ router.get("/", async (req, res) => {
 });
 
 // Create job with stages
-router.post("/", async (req, res) => {
+router.post("/", authenticate, async (req: any, res) => {
   const { 
-    companyId, title, description, skills, location, jobType, 
+    title, description, skills, location, jobType, 
     experienceLevel, educationRequirement, responsibilities, 
     qualifications, additionalNotes, startDate, deadline, stages,
     salaryRange
   } = req.body;
 
   try {
-    // Verification check
-    const [profiles]: any = await db.query("SELECT status FROM company_profiles WHERE id = ?", [companyId]);
-    if (!profiles[0] || profiles[0].status !== 'APPROVED') {
-      return res.status(403).json({ success: false, message: "Only verified companies can post jobs." });
+    // Auth safety: Resolve company ID directly from authenticated user
+    const userId = req.user.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User is not authenticated." });
+    }
+
+    const [profiles]: any = await db.query("SELECT * FROM company_profiles WHERE user_id = ?", [userId]);
+    if (!profiles[0]) {
+      return res.status(404).json({ success: false, message: "Company profile not found for authenticated user." });
+    }
+
+    const companyId = profiles[0].id;
+    const companyStatus = profiles[0].status;
+
+    if (companyStatus !== 'APPROVED') {
+      return res.status(403).json({ success: false, message: "Only approved companies can post job opportunities." });
+    }
+
+    // Input Validation
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return res.status(400).json({ success: false, message: "Job title is required." });
+    }
+    if (!description || typeof description !== "string" || !description.trim()) {
+      return res.status(400).json({ success: false, message: "Job description is required." });
+    }
+    if (!location || typeof location !== "string" || !location.trim()) {
+      return res.status(400).json({ success: false, message: "Job location is required." });
+    }
+    if (!deadline) {
+      return res.status(400).json({ success: false, message: "Application end deadline is required." });
+    }
+
+    // Date validations
+    const start = new Date(startDate || new Date().toISOString().split('T')[0]);
+    const end = new Date(deadline);
+
+    if (isNaN(start.getTime())) {
+      return res.status(400).json({ success: false, message: "Invalid application start date format." });
+    }
+    if (isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: "Invalid application end deadline format." });
+    }
+    if (end < start) {
+      return res.status(400).json({ success: false, message: "Application end deadline cannot be before start date." });
     }
 
     const [result]: any = await db.query(`
@@ -91,46 +132,52 @@ router.post("/", async (req, res) => {
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      companyId, title, description, JSON.stringify(skills), location, jobType,
-      experienceLevel, salaryRange || "", educationRequirement, responsibilities,
-      qualifications, additionalNotes, startDate, deadline
+      companyId, title, description, JSON.stringify(skills || []), location, jobType || "Full-time",
+      experienceLevel || "Entry Level", salaryRange || "", educationRequirement || "", responsibilities || "",
+      qualifications || "", additionalNotes || "", startDate || new Date().toISOString().split('T')[0], deadline
     ]);
 
     const jobId = result.insertId;
 
-    // Insert stages
-    if (stages && Array.isArray(stages)) {
-      for (let i = 0; i < stages.length; i++) {
-        const [stageResult]: any = await db.query(`
-          INSERT INTO job_stages (job_id, stage_name, stage_type, stage_order, description, config_json)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [
-          jobId, 
-          stages[i].name, 
-          stages[i].type || 'APPLICATION',
-          i + 1, 
-          stages[i].description || "",
-          JSON.stringify(stages[i].config || {})
-        ]);
+    // Transaction safety & Manual cleanup of partial jobs if any stage insert fails
+    try {
+      if (stages && Array.isArray(stages)) {
+        for (let i = 0; i < stages.length; i++) {
+          const [stageResult]: any = await db.query(`
+            INSERT INTO job_stages (job_id, stage_name, stage_type, stage_order, description, config_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [
+            jobId, 
+            stages[i].name, 
+            stages[i].type || 'APPLICATION',
+            i + 1, 
+            stages[i].description || "",
+            JSON.stringify(stages[i].config || {})
+          ]);
 
-        const stageId = stageResult.insertId;
+          const stageId = stageResult.insertId;
 
-        // If stage is a test and has questions, insert them
-        if (stages[i].type === 'TEST' && stages[i].questions) {
-           for (const q of stages[i].questions) {
-              await db.query(`
-                INSERT INTO test_questions (stage_id, question_text, options_json, correct_answer)
-                VALUES (?, ?, ?, ?)
-              `, [stageId, q.text, JSON.stringify(q.options), q.correctAnswer]);
-           }
+          // If stage is a test and has questions, insert them
+          if (stages[i].type === 'TEST' && stages[i].questions) {
+             for (const q of stages[i].questions) {
+                await db.query(`
+                  INSERT INTO test_questions (stage_id, question_text, options_json, correct_answer)
+                  VALUES (?, ?, ?, ?)
+                `, [stageId, q.text, JSON.stringify(q.options), q.correctAnswer]);
+             }
+          }
         }
       }
+    } catch (stageError) {
+      console.error("[JOB REQUISITION TRANSACTION FAILED] Reverting job id:", jobId, stageError);
+      await db.query("DELETE FROM jobs WHERE id = ?", [jobId]);
+      throw stageError;
     }
 
-    res.json({ success: true, message: "Job posted successfully", jobId });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Error posting job" });
+    res.json({ success: true, message: "Job opportunity published successfully", jobId });
+  } catch (error: any) {
+    console.error("Error posting job:", error);
+    res.status(500).json({ success: false, message: error.message || "Internal server error occurred while posting job." });
   }
 });
 

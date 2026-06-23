@@ -5,7 +5,7 @@ async function check() {
     await initDb();
     const [users]: any = await db.query(`SELECT id, email, role FROM users`);
     console.log("Users:", users);
-    const [companies]: any = await db.query(`SELECT id, user_id, company_name FROM company_profiles`);
+    const [companies]: any = await db.query(`SELECT * FROM company_profiles`);
     console.log("Companies:", companies);
   } catch (e) {
     console.error(e);

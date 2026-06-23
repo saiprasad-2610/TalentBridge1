@@ -131,23 +131,65 @@ export function JobPostingPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.deadline || stages.length < 2) {
-      toast.error("Please complete all mandatory fields and stages.");
+    if (!formData.title.trim()) {
+      toast.error("Job Title is required.");
       return;
     }
+    if (!formData.location.trim()) {
+      toast.error("Location & Workplace is required.");
+      return;
+    }
+    if (!formData.description.trim()) {
+      toast.error("Job Description is required.");
+      return;
+    }
+    if (!formData.deadline) {
+      toast.error("Application End Deadline is required.");
+      return;
+    }
+
+    const startD = new Date(formData.startDate);
+    const deadD = new Date(formData.deadline);
+    if (isNaN(startD.getTime())) {
+      toast.error("Invalid Application Start Date.");
+      return;
+    }
+    if (isNaN(deadD.getTime())) {
+      toast.error("Invalid Application End Deadline.");
+      return;
+    }
+    if (deadD < startD) {
+      toast.error("Application End Deadline cannot be before Start Date.");
+      return;
+    }
+
+    if (stages.length < 2) {
+      toast.error("Please define at least 2 stages for your recruitment pipeline.");
+      return;
+    }
+
     setLoading(true);
     try {
       await api.post("/jobs", {
         ...formData,
-        companyId: profile?.id,
         stages: stages.map(s => ({ 
-          name: s.name, description: s.description, type: s.type, config: s.config, questions: s.questions
+          name: s.name, 
+          description: s.description, 
+          type: s.type, 
+          config: s.config, 
+          questions: s.questions
         }))
       });
       toast.success("Job Opportunity published successfully!");
+      // Dispatch refresh events to dynamically update mounted dashboards, pipelines, etc.
+      window.dispatchEvent(new CustomEvent('talentbridge:job-created'));
+      window.dispatchEvent(new CustomEvent('talentbridge:pipeline-updated'));
+      
       navigate("/company/jobs");
-    } catch (err) {
-      toast.error("Failed to post job.");
+    } catch (err: any) {
+      console.error("Job creation error details:", err);
+      const serverMessage = err.response?.data?.message || err.message || "Failed to post job.";
+      toast.error(`Failed to post job: ${serverMessage}`);
     } finally {
       setLoading(false);
     }

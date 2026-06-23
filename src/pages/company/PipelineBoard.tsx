@@ -184,6 +184,16 @@ export function PipelineBoard() {
     loadPipeline();
   }, [user?.id, selectedJobId]);
 
+  useEffect(() => {
+    const handleJobCreated = () => {
+      setJobs([]); // Clear jobs cache so loadPipeline refetches
+    };
+    window.addEventListener('talentbridge:job-created', handleJobCreated);
+    return () => {
+      window.removeEventListener('talentbridge:job-created', handleJobCreated);
+    };
+  }, []);
+
   const fetchData = async () => {
     await loadPipeline();
   };
