@@ -166,6 +166,9 @@ router.get("/employer/:companyUserId", async (req, res) => {
         a.applied_at,
         j.title as job_title,
         sps.avg_interview_score,
+        js.stage_name AS current_stage_name,
+        js.stage_type AS current_stage_type,
+        js.stage_order AS current_stage_order,
         (SELECT score FROM test_submissions WHERE application_id = a.id ORDER BY submitted_at DESC LIMIT 1) as latest_test_score
       FROM job_applications a
       JOIN student_profiles sp ON a.student_id = sp.id
@@ -173,6 +176,7 @@ router.get("/employer/:companyUserId", async (req, res) => {
       JOIN jobs j ON a.job_id = j.id
       LEFT JOIN talent_scores ts ON sp.user_id = ts.user_id
       LEFT JOIN student_performance_stats sps ON sp.user_id = sps.user_id
+      LEFT JOIN job_stages js ON a.current_stage_id = js.id
       WHERE j.company_id = ?
       ORDER BY a.applied_at DESC
     `, [companyId]);

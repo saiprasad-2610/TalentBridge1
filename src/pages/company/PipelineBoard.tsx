@@ -205,15 +205,29 @@ export function PipelineBoard() {
         action = "REJECTED";
         if (cand) {
           numericStageId =
-            Number(cand.current_stage_id) || parseInt(cand.status, 10);
+            Number(cand.current_stage_id) || (customStages.length > 0 ? Number(customStages[0].id) : 0);
+        }
+      } else {
+        // If the new stage corresponds to a custom stage of type 'SELECTED' or 'HIRED'
+        const targetStage = customStages.find((s: any) => Number(s.id) === numericStageId);
+        if (targetStage) {
+          const typeUpper = String(targetStage.stage_type || '').toUpperCase();
+          const nameUpper = String(targetStage.stage_name || '').toUpperCase();
+          if (typeUpper === 'SELECTED' || typeUpper === 'HIRED' || nameUpper === 'SELECTED' || nameUpper === 'HIRED' || nameUpper === 'OFFER') {
+            action = "SELECTED";
+          }
         }
       }
 
       if (isNaN(numericStageId) || !Number.isFinite(numericStageId)) {
-        toast.error(
-          "Select a specific job to advance candidates through its custom pipeline.",
-        );
-        return;
+        if (action === "REJECTED") {
+          numericStageId = customStages.length > 0 ? Number(customStages[0].id) : 999;
+        } else {
+          toast.error(
+            "Select a specific job to advance candidates through its custom pipeline.",
+          );
+          return;
+        }
       }
 
       // Optimistic Update
@@ -245,6 +259,7 @@ export function PipelineBoard() {
       );
       markAsContacted(appId); // Mark contacted/notified on success!
       fetchData(); // Refresh pipeline immediately to keep data synced
+      window.dispatchEvent(new CustomEvent('talentbridge:pipeline-updated'));
     } catch (e) {
       toast.error("Failed to update stage");
       fetchData(); // revert
@@ -994,6 +1009,7 @@ export function PipelineBoard() {
     }
     setSelectedCandidates([]);
     toast.success("Candidates processed successfully");
+    window.dispatchEvent(new CustomEvent('talentbridge:pipeline-updated'));
   };
 
   return (

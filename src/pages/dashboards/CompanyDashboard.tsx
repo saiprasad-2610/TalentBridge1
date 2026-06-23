@@ -32,6 +32,55 @@ export function CompanyDashboard() {
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Normalize candidate stages dynamically
+  const normalizeStageBucket = (app: any) => {
+    const status = String(app.status || '').toUpperCase();
+    const stageType = String(app.current_stage_type || app.stage_type || '').toUpperCase();
+    const stageName = String(app.current_stage_name || app.stage_name || '').toUpperCase();
+
+    if (status === 'REJECTED') return 'REJECTED';
+
+    if (
+      status === 'SELECTED' ||
+      stageType.includes('SELECTED') ||
+      stageType.includes('HIRED') ||
+      stageName.includes('SELECTED') ||
+      stageName.includes('HIRED') ||
+      stageName.includes('OFFER')
+    ) {
+      return 'HIRED';
+    }
+
+    if (
+      stageType.includes('INTERVIEW') ||
+      stageType.includes('HR') ||
+      stageName.includes('INTERVIEW') ||
+      stageName.includes('HR')
+    ) {
+      return 'INTERVIEW';
+    }
+
+    if (
+      stageType.includes('TEST') ||
+      stageType.includes('ASSESSMENT') ||
+      stageName.includes('TEST') ||
+      stageName.includes('ASSESSMENT') ||
+      stageName.includes('APTITUDE')
+    ) {
+      return 'ASSESSMENT';
+    }
+
+    if (
+      stageType.includes('SCREEN') ||
+      stageName.includes('SCREEN') ||
+      status === 'IN_PROGRESS'
+    ) {
+      return 'SCREENING';
+    }
+
+    return 'APPLIED';
+  };
+
   // Stats driven dynamically by actual database fetches
   const [activeJobsCount, setActiveJobsCount] = useState(0);
   const [totalApplicantsCount, setTotalApplicantsCount] = useState(0);
@@ -75,9 +124,10 @@ export function CompanyDashboard() {
           setRealApplicants(apps);
           setTotalApplicantsCount(apps.length);
           
-          const inPipeline = apps.filter((a: any) => 
-            a.status && !['REJECTED', 'SELECTED', 'HIRED'].includes(a.status.toUpperCase())
-          ).length;
+          const inPipeline = apps.filter((a: any) => {
+            const bucket = normalizeStageBucket(a);
+            return bucket !== 'REJECTED' && bucket !== 'HIRED';
+          }).length;
           setInPipelineCount(inPipeline);
           
           if (trend.length > 0) {
@@ -86,7 +136,7 @@ export function CompanyDashboard() {
           
           const now = new Date();
           const hiredCount = apps.filter((a: any) => {
-            if (a.status !== 'SELECTED') return false;
+            if (normalizeStageBucket(a) !== 'HIRED') return false;
             if (!a.applied_at) return true;
             const resDate = new Date(a.applied_at);
             return resDate.getMonth() === now.getMonth() && resDate.getFullYear() === now.getFullYear();
@@ -118,8 +168,15 @@ export function CompanyDashboard() {
 
     fetchDashboardData();
 
+    const handlePipelineUpdate = () => {
+      fetchDashboardData();
+    };
+
+    window.addEventListener('talentbridge:pipeline-updated', handlePipelineUpdate);
+
     return () => {
       active = false;
+      window.removeEventListener('talentbridge:pipeline-updated', handlePipelineUpdate);
     };
   }, [user?.id, profile?.id]);
 
@@ -172,10 +229,13 @@ export function CompanyDashboard() {
 
   // Derived datasets
   const activeJobsListToRender = realJobs.map((j: any) => {
-    const matchingApps = realApplicants.filter((a: any) => a.job_title === j.title);
-    const interviewsCount = matchingApps.filter((a: any) => a.status === 'INTERVIEW').length;
-    const hiredCount = matchingApps.filter((a: any) => a.status === 'SELECTED').length;
-    const pipelineCount = matchingApps.filter((a: any) => ['TESTING', 'INTERVIEW', 'SHORTLISTED'].includes(a.status)).length;
+    const matchingApps = realApplicants.filter((a: any) => a.job_title === j.title || a.job_id === j.id);
+    const interviewsCount = matchingApps.filter((a: any) => normalizeStageBucket(a) === 'INTERVIEW').length;
+    const hiredCount = matchingApps.filter((a: any) => normalizeStageBucket(a) === 'HIRED').length;
+    const pipelineCount = matchingApps.filter((a: any) => {
+      const b = normalizeStageBucket(a);
+      return b !== 'REJECTED' && b !== 'HIRED';
+    }).length;
     return {
       id: j.id,
       title: j.title,
@@ -199,11 +259,11 @@ export function CompanyDashboard() {
 
   // Pipeline Step Chevrons mapped from live stats
   const appliedStepCount = realApplicants.length;
-  const screeningStepCount = realApplicants.filter(a => a.status !== 'REJECTED').length;
-  const assessmentStepCount = realApplicants.filter(a => ['TESTING', 'INTERVIEW', 'SHORTLISTED', 'SELECTED'].includes(a.status)).length;
-  const interviewStepCount = realApplicants.filter(a => ['INTERVIEW', 'SHORTLISTED', 'SELECTED'].includes(a.status)).length;
-  const offerStepCount = realApplicants.filter(a => ['SHORTLISTED', 'SELECTED'].includes(a.status)).length;
-  const hiredStepCount = realApplicants.filter(a => a.status === 'SELECTED').length;
+  const screeningStepCount = realApplicants.filter(a => normalizeStageBucket(a) !== 'REJECTED').length;
+  const assessmentStepCount = realApplicants.filter(a => ['ASSESSMENT', 'INTERVIEW', 'HIRED'].includes(normalizeStageBucket(a))).length;
+  const interviewStepCount = realApplicants.filter(a => ['INTERVIEW', 'HIRED'].includes(normalizeStageBucket(a))).length;
+  const offerStepCount = realApplicants.filter(a => ['HIRED'].includes(normalizeStageBucket(a))).length;
+  const hiredStepCount = realApplicants.filter(a => normalizeStageBucket(a) === 'HIRED').length;
 
   const pipelineSteps = [
     { label: "Applied", value: appliedStepCount, pct: "100%", trend: null, color: "bg-blue-600" },
@@ -214,12 +274,24 @@ export function CompanyDashboard() {
     { label: "Hired", value: hiredStepCount, pct: (appliedStepCount > 0 ? Math.round((hiredStepCount / appliedStepCount) * 100) : 0) + "%", trend: null, color: "bg-emerald-500" }
   ];
 
-  const trendDays = historicalTrend.length > 0 
-    ? historicalTrend.map((t: any) => ({
-        day: t.name,
-        count: t.apps
-      }))
-    : getPast7Days();
+  const trendDays = (() => {
+    const days = getPast7Days();
+    realApplicants.forEach((app: any) => {
+      if (!app.applied_at) return;
+      const appDate = new Date(app.applied_at);
+      const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const appDayName = daysOfWeek[appDate.getDay()];
+      const diffTime = Math.abs(new Date().getTime() - appDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays <= 7) {
+        const matchingDay = days.find(d => d.day === appDayName);
+        if (matchingDay) {
+          matchingDay.count += 1;
+        }
+      }
+    });
+    return days;
+  })();
 
   // Candidate quality distribution data dynamically calculated
   const totalWithScores = realApplicants.filter(a => a.talent_score !== null && a.talent_score !== undefined).length;
