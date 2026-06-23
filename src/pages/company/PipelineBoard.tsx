@@ -390,7 +390,19 @@ export function PipelineBoard() {
     }
   };
 
+  const isRejectedCandidate = (candidate: any) =>
+    String(candidate?.status || '').toUpperCase() === 'REJECTED';
+
   const getStageActionInfo = (candidate: any) => {
+    if (isRejectedCandidate(candidate)) {
+      return {
+        disabled: true,
+        label: 'Rejected',
+        nextId: null,
+        reason: 'Candidate has been rejected.'
+      };
+    }
+
     if (selectedJobId === 'ALL') {
       return {
         disabled: true,
@@ -435,8 +447,10 @@ export function PipelineBoard() {
     };
   };
 
-  const getNextStageInfo = (status: string) => {
-    const cand = allApplicants.find(a => a.status === status) || { status };
+  const getNextStageInfo = (candidate: any) => {
+    const cand = typeof candidate === 'string'
+      ? (allApplicants.find(a => a.status === candidate) || { status: candidate })
+      : candidate;
     const actionInfo = getStageActionInfo(cand);
     return {
       label: actionInfo.label,
@@ -684,7 +698,7 @@ export function PipelineBoard() {
     for (const id of selectedCandidates) {
       const cand = allApplicants.find(a => a.application_id === id);
       if (cand) {
-        const stageInfo = getNextStageInfo(cand.status);
+        const stageInfo = getNextStageInfo(cand);
         if (stageInfo.nextId) {
           await updateCandidateStage(id, stageInfo.nextId);
         }
@@ -1156,7 +1170,7 @@ export function PipelineBoard() {
                         const isSelected = selectedCandidates.includes(cand.application_id);
                         const isPrevActive = previewCandidate?.application_id === cand.application_id;
                         
-                        const stageInfo = getNextStageInfo(cand.status);
+                        const stageInfo = getNextStageInfo(cand);
                         const isContactedLocal = !!contactedCandidates[cand.application_id];
 
                         return (
@@ -1301,25 +1315,31 @@ export function PipelineBoard() {
                                 </button>
 
                                 {/* Next Stage Action code */}
-                                <button
-                                  onClick={() => {
-                                    if (selectedJobId === 'ALL') {
-                                      toast.error('Select a specific job to advance candidates through its custom pipeline.');
-                                      return;
-                                    }
-                                    if (stageInfo.nextId) {
-                                      updateCandidateStage(cand.application_id, stageInfo.nextId);
-                                    }
-                                  }}
-                                  disabled={stageInfo.disabled}
-                                  className={`px-3 py-1.5 font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm ${
-                                    stageInfo.disabled 
-                                      ? 'bg-slate-100 text-slate-350 border border-slate-200/50 cursor-not-allowed select-none' 
-                                      : 'bg-blue-600 text-white hover:bg-blue-750 cursor-pointer active:scale-95'
-                                  }`}
-                                >
-                                  {stageInfo.disabled ? stageInfo.label : 'Advance'}
-                                </button>
+                                {String(cand.status || '').toUpperCase() === 'REJECTED' ? (
+                                  <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase bg-red-50 text-red-600 border border-red-100 select-none shadow-sm cursor-not-allowed">
+                                    Rejected
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (selectedJobId === 'ALL') {
+                                        toast.error('Select a specific job to advance candidates through its custom pipeline.');
+                                        return;
+                                      }
+                                      if (stageInfo.nextId) {
+                                        updateCandidateStage(cand.application_id, stageInfo.nextId);
+                                      }
+                                    }}
+                                    disabled={stageInfo.disabled}
+                                    className={`px-3 py-1.5 font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm ${
+                                      stageInfo.disabled 
+                                        ? 'bg-slate-100 text-slate-350 border border-slate-200/50 cursor-not-allowed select-none' 
+                                        : 'bg-blue-600 text-white hover:bg-blue-750 cursor-pointer active:scale-95'
+                                    }`}
+                                  >
+                                    {stageInfo.disabled ? stageInfo.label : 'Advance'}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </motion.tr>

@@ -47,6 +47,93 @@ export function CompanyDashboard() {
 
   const [hoveredTrend, setHoveredTrend] = useState<number | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    const fetchDashboardData = async () => {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const [analyticsRes, jobsRes, interviewsRes] = await Promise.all([
+          api.get(`/analytics/employer/${user.id}`),
+          api.get(`/jobs`),
+          api.get(`/analytics/employer/${user.id}/interviews`)
+        ]);
+
+        if (!active) return;
+
+        let filteredJobs: any[] = [];
+        if (jobsRes.data?.success) {
+          filteredJobs = jobsRes.data.data.filter((j: any) => j.company_id === profile?.id);
+          setRealJobs(filteredJobs);
+          setActiveJobsCount(filteredJobs.length);
+        }
+
+        if (analyticsRes.data?.success) {
+          const apps = analyticsRes.data.data.applicants || [];
+          const trend = analyticsRes.data.data.trendData || [];
+          
+          setRealApplicants(apps);
+          setTotalApplicantsCount(apps.length);
+          
+          const inPipeline = apps.filter((a: any) => 
+            a.status && !['REJECTED', 'SELECTED', 'HIRED'].includes(a.status.toUpperCase())
+          ).length;
+          setInPipelineCount(inPipeline);
+          
+          if (trend.length > 0) {
+            setHistoricalTrend(trend);
+          }
+          
+          const now = new Date();
+          const hiredCount = apps.filter((a: any) => {
+            if (a.status !== 'SELECTED') return false;
+            if (!a.applied_at) return true;
+            const resDate = new Date(a.applied_at);
+            return resDate.getMonth() === now.getMonth() && resDate.getFullYear() === now.getFullYear();
+          }).length;
+          setHiredThisMonthCount(hiredCount);
+        }
+
+        if (interviewsRes.data?.success) {
+          const fetchedInterviews = interviewsRes.data.data || [];
+          setRealInterviews(fetchedInterviews);
+          
+          const todayStr = new Date().toDateString();
+          const interviewsToday = fetchedInterviews.filter((i: any) => {
+            if (!i.time) return false;
+            return new Date(i.time).toDateString() === todayStr;
+          }).length;
+          setInterviewsTodayCount(interviewsToday);
+        }
+
+      } catch (err) {
+        console.error("Failed to load dashboard metrics:", err);
+        toast.error("Failed to load dashboard metrics.");
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDashboardData();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, profile?.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f8fafd]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-500 font-bold text-sm">Loading dashboard metrics...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Dynamic calculation helpers
   const getPast7Days = () => {
     const days = [];
